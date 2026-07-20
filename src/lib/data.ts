@@ -9,12 +9,12 @@ import type {
 } from "@/types";
 
 export const SITE = {
-  name: "Pressora",
+  name: "Printoe",
   tagline: "Enterprise print, perfected.",
   description:
     "Premium online printing for brands that demand precision, speed, and craftsmanship.",
-  url: "https://pressora.com",
-  email: "hello@pressora.com",
+  url: "https://printoe.com",
+  email: "hello@printoe.com",
   phone: "+1 (888) 555-0199",
   address: "450 Market Street, Suite 1200, San Francisco, CA 94105",
 };
@@ -295,7 +295,7 @@ export const testimonials: Testimonial[] = [
     avatar: "SC",
     rating: 5,
     quote:
-      "Pressora elevated our collateral overnight. Color accuracy is unmatched, and turnaround never slips.",
+      "Printoe elevated our collateral overnight. Color accuracy is unmatched, and turnaround never slips.",
     logo: "Lumen",
   },
   {
@@ -328,7 +328,7 @@ export const testimonials: Testimonial[] = [
     avatar: "JO",
     rating: 5,
     quote:
-      "From packaging prototypes to 10k runs, Pressora scales with us without sacrificing craft.",
+      "From packaging prototypes to 10k runs, Printoe scales with us without sacrificing craft.",
     logo: "Fieldwork",
   },
 ];

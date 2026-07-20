@@ -1,5 +1,6 @@
 import {
   HeroSection,
+  ShopShowcase,
   CategoryGrid,
   FeaturedProducts,
   ProcessSection,
@@ -17,6 +18,7 @@ export default function HomePage() {
   return (
     <>
       <HeroSection />
+      <ShopShowcase />
       <CategoryGrid />
       <FeaturedProducts />
       <ProcessSection />

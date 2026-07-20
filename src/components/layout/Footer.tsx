@@ -9,13 +9,13 @@ import {
   MapPin,
   Phone,
   Share2,
-  Zap,
 } from "lucide-react";
 import { SITE, categories } from "@/lib/data";
 import { Container } from "@/components/ui/Section";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
+import { Logo } from "@/components/shared/Logo";
 
 const columns = [
   {
@@ -38,7 +38,7 @@ const columns = [
   {
     title: "Company",
     links: [
-      { label: "About Pressora", href: "/#why-us" },
+      { label: "About Printoe", href: "/#why-us" },
       { label: "Careers", href: "/blog" },
       { label: "Press", href: "/blog" },
       { label: "Partners", href: "/services" },
@@ -78,12 +78,9 @@ export function Footer() {
       <Container size="wide" className="relative py-16 md:py-20">
         <div className="grid gap-12 lg:grid-cols-[1.2fr_2fr]">
           <div className="space-y-6">
-            <Link href="/" className="inline-flex items-center gap-2.5">
-              <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary shadow-soft">
-                <Zap className="h-5 w-5" fill="currentColor" />
-              </span>
-              <span className="text-xl font-bold">{SITE.name}</span>
-            </Link>
+            <div className="inline-flex rounded-lg bg-white px-2 py-1">
+              <Logo />
+            </div>
             <p className="max-w-sm text-sm font-medium leading-relaxed text-slate-300">
               {SITE.description}
             </p>

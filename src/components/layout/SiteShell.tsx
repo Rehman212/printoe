@@ -11,15 +11,21 @@ export function SiteShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isEditor = pathname?.startsWith("/editor");
   const isDashboard = pathname?.startsWith("/dashboard");
-  const hideFooter = isEditor || isDashboard;
+  const isAuth =
+    pathname === "/login" ||
+    pathname === "/signup" ||
+    pathname?.startsWith("/login/") ||
+    pathname?.startsWith("/signup/");
+  const hideChrome = isEditor || isAuth;
+  const hideFooter = isEditor || isDashboard || isAuth;
 
   return (
     <ToastProvider>
       <div className="flex min-h-full flex-col">
-        {!isEditor ? <Header /> : null}
+        {!hideChrome ? <Header /> : null}
         <main className="flex-1">{children}</main>
         {!hideFooter ? <Footer /> : null}
-        <FloatingQuoteCTA />
+        {!isAuth ? <FloatingQuoteCTA /> : null}
       </div>
     </ToastProvider>
   );

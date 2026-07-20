@@ -24,7 +24,7 @@ export function PortfolioGallery() {
         <SectionHeader
           eyebrow="Portfolio"
           title="Work that speaks for itself"
-          description="Recent production highlights from brands that trust Pressora for premium print."
+          description="Recent production highlights from brands that trust Printoe for premium print."
         />
 
         <div className="columns-1 gap-4 sm:columns-2 lg:columns-3">

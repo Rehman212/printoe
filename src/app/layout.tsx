@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     "business cards",
     "custom packaging",
     "enterprise print",
-    "Pressora",
+    "Printoe",
   ],
   openGraph: {
     title: SITE.name,

@@ -1,63 +1,44 @@
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
 import { categories } from "@/lib/data";
 import { formatCurrency } from "@/lib/utils";
 import { DynamicIcon } from "@/lib/icons";
-import {
-  Container,
-  Section,
-  SectionHeader,
-} from "@/components/ui/Section";
-import { Card } from "@/components/ui/Card";
+import { Container, Section } from "@/components/ui/Section";
 
 export function CategoryGrid() {
   return (
-    <Section className="bg-background">
-      <Container>
-        <SectionHeader
-          eyebrow="Shop by category"
-          title="Everything your brand prints"
-          description="Twelve curated categories with transparent pricing and instant configuration."
-        />
+    <Section className="bg-background py-12 md:py-16">
+      <Container size="wide">
+        <div className="mb-8 flex items-end justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-secondary">Shop by Category</h2>
+            <p className="mt-1 text-sm font-medium text-text-secondary">
+              Find the right print product for your next project
+            </p>
+          </div>
+          <Link
+            href="/products"
+            className="hidden text-sm font-semibold text-primary hover:underline sm:inline"
+          >
+            Browse all
+          </Link>
+        </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           {categories.map((category) => (
             <Link
               key={category.id}
               href={`/products?category=${category.slug}`}
-              className="group focus-ring rounded-2xl"
+              className="group flex flex-col items-center border border-border bg-white p-4 text-center transition hover:border-primary/40 hover:shadow-soft focus-ring"
             >
-              <Card
-                hover
-                className="relative h-full overflow-hidden p-5 transition-all duration-300 group-hover:border-primary/25"
-              >
-                <div className="mb-4 flex items-start justify-between">
-                  <span
-                    className="flex h-12 w-12 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-110"
-                    style={{
-                      backgroundColor: `${category.color}14`,
-                      color: category.color,
-                    }}
-                  >
-                    <DynamicIcon name={category.icon} className="h-5 w-5" />
-                  </span>
-                  <ArrowUpRight className="h-4 w-4 text-text-secondary opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:text-primary" />
-                </div>
-                <h3 className="text-base font-bold text-text-primary transition-colors group-hover:text-primary">
-                  {category.name}
-                </h3>
-                <p className="mt-1 text-sm font-medium text-text-secondary line-clamp-2">
-                  {category.description}
-                </p>
-                <div className="mt-4 flex items-center justify-between border-t border-border pt-4 text-xs font-semibold">
-                  <span className="text-text-secondary">
-                    {category.count} products
-                  </span>
-                  <span className="text-primary">
-                    From {formatCurrency(category.startingPrice)}
-                  </span>
-                </div>
-              </Card>
+              <span className="mb-3 flex h-12 w-12 items-center justify-center text-text-secondary transition group-hover:text-primary">
+                <DynamicIcon name={category.icon} className="h-6 w-6" />
+              </span>
+              <h3 className="text-sm font-semibold text-secondary group-hover:text-primary">
+                {category.name}
+              </h3>
+              <p className="mt-1 text-xs font-medium text-text-secondary">
+                From {formatCurrency(category.startingPrice)}
+              </p>
             </Link>
           ))}
         </div>

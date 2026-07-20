@@ -12,7 +12,7 @@ export function WhyChooseUs() {
     <Section id="why-us">
       <Container>
         <SectionHeader
-          eyebrow="Why Pressora"
+          eyebrow="Why Printoe"
           title="Enterprise reliability, boutique craft"
           description="Everything you need to print at scale—without the headaches of traditional vendors."
         />

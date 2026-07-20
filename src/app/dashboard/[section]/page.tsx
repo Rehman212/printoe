@@ -24,8 +24,8 @@ export async function generateMetadata({
   const { section } = await params;
   const title = TITLES[section] ?? "Dashboard";
   return {
-    title: `${title} | Pressora`,
-    description: `Manage your ${title.toLowerCase()} on Pressora.`,
+    title: `${title} | Printoe`,
+    description: `Manage your ${title.toLowerCase()} on Printoe.`,
   };
 }
 

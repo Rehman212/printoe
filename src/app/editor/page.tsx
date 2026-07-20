@@ -2,7 +2,7 @@ import { DesignEditor } from "@/components/editor/DesignEditor";
 
 export const metadata = {
   title: "Design Studio",
-  description: "Create print-ready designs with the Pressora studio editor.",
+  description: "Create print-ready designs with the Printoe studio editor.",
 };
 
 export default function EditorPage() {

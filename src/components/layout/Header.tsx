@@ -1,330 +1,264 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { FormEvent, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ChevronDown,
-  Globe,
-  Heart,
+  ChevronRight,
   Menu,
+  Phone,
   Search,
   ShoppingCart,
   User,
   X,
-  Zap,
 } from "lucide-react";
-import { SITE, categories, navCategories } from "@/lib/data";
+import { SITE, categories } from "@/lib/data";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Section";
-import { Modal } from "@/components/ui/Modal";
-import { Input } from "@/components/ui/Input";
+import { Logo } from "@/components/shared/Logo";
 
-const langs = [
-  { value: "en", label: "EN" },
-  { value: "es", label: "ES" },
-  { value: "fr", label: "FR" },
-];
-
-const currencies = [
-  { value: "usd", label: "USD $" },
-  { value: "eur", label: "EUR €" },
-  { value: "gbp", label: "GBP £" },
+const navLinks = [
+  { label: "Marketing Materials", href: "/products?category=marketing-materials" },
+  { label: "Stickers & Labels", href: "/products?category=stickers" },
+  { label: "Boxes & Packaging", href: "/products?category=packaging" },
+  { label: "Signs & Banners", href: "/products?category=banners" },
+  { label: "Apparel & Promo", href: "/products?category=apparel" },
+  { label: "Featured Collections", href: "/products" },
 ];
 
 export function Header() {
+  const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
-  const [megaOpen, setMegaOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [lang, setLang] = useState("en");
-  const [currency, setCurrency] = useState("usd");
+  const [productsOpen, setProductsOpen] = useState(false);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 12);
+    const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  const onSearch = (e: FormEvent) => {
+    e.preventDefault();
+    const q = query.trim();
+    router.push(q ? `/products?q=${encodeURIComponent(q)}` : "/products");
+    setMobileOpen(false);
+  };
+
   return (
-    <>
-      <header
+    <header className="sticky top-0 z-50 bg-card">
+      {/* Announcement bar */}
+      <div className="bg-secondary text-center text-[13px] font-medium tracking-wide text-white">
+        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-2">
+          <span>High Quality</span>
+          <span className="hidden text-white/40 sm:inline">|</span>
+          <span>On Time Delivery</span>
+          <span className="hidden text-white/40 sm:inline">|</span>
+          <span>Everyday Fair Prices</span>
+        </div>
+      </div>
+
+      {/* Main header: logo · search · account */}
+      <div
         className={cn(
-          "sticky top-0 z-50 transition-all duration-300",
-          scrolled
-            ? "glass border-b border-border/80 shadow-soft"
-            : "bg-transparent",
+          "border-b border-border bg-card transition-shadow",
+          scrolled && "shadow-soft",
         )}
       >
-        <Container size="wide" className="relative">
-          <div className="flex h-16 items-center justify-between gap-4 md:h-20">
-            <div className="flex items-center gap-6 lg:gap-10">
-              <Link href="/" className="group flex items-center gap-2.5 focus-ring rounded-xl">
-                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-white shadow-soft transition-transform group-hover:scale-105">
-                  <Zap className="h-5 w-5" fill="currentColor" />
-                </span>
-                <span className="text-xl font-bold tracking-tight text-text-primary">
-                  {SITE.name}
-                </span>
-              </Link>
+        <Container size="wide">
+          <div className="flex items-center gap-3 py-3 md:gap-5 md:py-4">
+            <Logo priority />
 
-              <nav className="hidden items-center gap-1 lg:flex" aria-label="Primary">
-                <div
-                  className="relative"
-                  onMouseEnter={() => setMegaOpen(true)}
-                  onMouseLeave={() => setMegaOpen(false)}
-                >
+            <div className="hidden min-w-0 flex-1 items-center gap-3 md:flex">
+              <a
+                href={`tel:${SITE.phone.replace(/[^\d+]/g, "")}`}
+                className="hidden shrink-0 items-start gap-2 lg:flex"
+              >
+                <Phone className="mt-0.5 h-4 w-4 text-primary" />
+                <span className="leading-tight">
+                  <span className="block text-sm font-bold text-secondary">
+                    {SITE.phone}
+                  </span>
+                  <span className="text-xs font-medium text-text-secondary">
+                    Quality Customer Service
+                  </span>
+                </span>
+              </a>
+
+              <form onSubmit={onSearch} className="mx-auto w-full max-w-xl">
+                <div className="flex overflow-hidden rounded-md border-2 border-primary bg-white shadow-sm">
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search (e.g. labels, boxes, etc)."
+                    className="h-11 w-full flex-1 bg-transparent px-4 text-sm font-medium text-text-primary outline-none placeholder:text-text-secondary"
+                    aria-label="Search products"
+                  />
                   <button
-                    type="button"
-                    className="inline-flex items-center gap-1 rounded-xl px-3 py-2 text-sm font-semibold text-text-primary hover:bg-secondary/5 focus-ring"
-                    aria-expanded={megaOpen}
+                    type="submit"
+                    className="flex h-11 w-12 items-center justify-center bg-primary text-white transition hover:bg-primary-hover"
+                    aria-label="Search"
                   >
-                    Products
-                    <ChevronDown
-                      className={cn(
-                        "h-4 w-4 transition-transform",
-                        megaOpen && "rotate-180",
-                      )}
-                    />
+                    <Search className="h-5 w-5" />
                   </button>
-                  <AnimatePresence>
-                    {megaOpen ? (
-                      <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 8 }}
-                        className="absolute left-0 top-full pt-3"
-                      >
-                        <div className="w-[640px] rounded-2xl border border-border bg-card p-5 shadow-card">
-                          <div className="mb-4 flex items-center justify-between">
-                            <p className="text-sm font-bold text-text-primary">
-                              Product categories
-                            </p>
-                            <Link
-                              href="/products"
-                              className="text-sm font-semibold text-primary hover:underline"
-                            >
-                              View all
-                            </Link>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            {navCategories.map((cat) => (
-                              <Link
-                                key={cat.id}
-                                href={`/products?category=${cat.slug}`}
-                                className="rounded-xl px-3 py-2.5 transition-colors hover:bg-primary/5 focus-ring"
-                                onClick={() => setMegaOpen(false)}
-                              >
-                                <p className="text-sm font-semibold text-text-primary">
-                                  {cat.name}
-                                </p>
-                                <p className="text-xs text-text-secondary">
-                                  From ${cat.startingPrice.toFixed(2)} · {cat.count} options
-                                </p>
-                              </Link>
-                            ))}
-                          </div>
-                        </div>
-                      </motion.div>
-                    ) : null}
-                  </AnimatePresence>
                 </div>
-                <Link
-                  href="/services"
-                  className="rounded-xl px-3 py-2 text-sm font-semibold text-text-primary hover:bg-secondary/5 focus-ring"
-                >
-                  Services
-                </Link>
-                <Link
-                  href="/editor"
-                  className="rounded-xl px-3 py-2 text-sm font-semibold text-text-primary hover:bg-secondary/5 focus-ring"
-                >
-                  Design Studio
-                </Link>
-                <Link
-                  href="/blog"
-                  className="rounded-xl px-3 py-2 text-sm font-semibold text-text-primary hover:bg-secondary/5 focus-ring"
-                >
-                  Resources
-                </Link>
-              </nav>
+              </form>
             </div>
 
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="hidden sm:inline-flex"
-                aria-label="Search"
-                onClick={() => setSearchOpen(true)}
-              >
-                <Search className="h-5 w-5" />
-              </Button>
-
-              <div className="hidden items-center gap-1 xl:flex">
-                <label className="sr-only" htmlFor="lang">
-                  Language
-                </label>
-                <select
-                  id="lang"
-                  value={lang}
-                  onChange={(e) => setLang(e.target.value)}
-                  className="h-9 rounded-xl border border-transparent bg-transparent px-2 text-xs font-semibold text-text-secondary hover:bg-secondary/5 focus-ring"
-                >
-                  {langs.map((l) => (
-                    <option key={l.value} value={l.value}>
-                      {l.label}
-                    </option>
-                  ))}
-                </select>
-                <label className="sr-only" htmlFor="currency">
-                  Currency
-                </label>
-                <select
-                  id="currency"
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  className="h-9 rounded-xl border border-transparent bg-transparent px-2 text-xs font-semibold text-text-secondary hover:bg-secondary/5 focus-ring"
-                >
-                  {currencies.map((c) => (
-                    <option key={c.value} value={c.value}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
+            <div className="ml-auto flex items-center gap-1 sm:gap-3">
               <Link
-                href="/dashboard/wishlist"
-                className="hidden h-11 w-11 items-center justify-center rounded-2xl text-text-secondary hover:bg-secondary/5 hover:text-text-primary focus-ring md:inline-flex"
-                aria-label="Wishlist"
+                href="/login"
+                className="hidden items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-background sm:flex focus-ring"
               >
-                <Heart className="h-5 w-5" />
-              </Link>
-
-              <Link
-                href="/dashboard"
-                className="hidden h-11 w-11 items-center justify-center rounded-2xl text-text-secondary hover:bg-secondary/5 hover:text-text-primary focus-ring md:inline-flex"
-                aria-label="Account"
-              >
-                <User className="h-5 w-5" />
+                <User className="h-5 w-5 text-secondary" />
+                <span className="leading-tight">
+                  <span className="block text-xs font-medium text-text-secondary">
+                    Hi, Log In!
+                  </span>
+                  <span className="text-sm font-bold text-secondary">
+                    Your Account
+                  </span>
+                </span>
               </Link>
 
               <Link
                 href="/cart"
-                className="relative inline-flex h-11 w-11 items-center justify-center rounded-2xl text-text-secondary hover:bg-secondary/5 hover:text-text-primary focus-ring"
+                className="relative flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-background focus-ring"
                 aria-label="Cart with 2 items"
               >
-                <ShoppingCart className="h-5 w-5" />
-                <span className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white">
-                  2
+                <span className="relative">
+                  <ShoppingCart className="h-6 w-6 text-secondary" />
+                  <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[11px] font-bold text-white">
+                    2
+                  </span>
+                </span>
+                <span className="hidden text-sm font-bold text-secondary md:inline">
+                  Cart
                 </span>
               </Link>
 
-              <Link href="/quote" className="hidden sm:block">
-                <Button size="sm" className="gap-1.5">
-                  <Zap className="h-3.5 w-3.5" />
-                  Instant Quote
-                </Button>
-              </Link>
-
-              <Button
-                variant="ghost"
-                size="icon"
-                className="lg:hidden"
+              <button
+                type="button"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-lg hover:bg-background lg:hidden focus-ring"
                 aria-label={mobileOpen ? "Close menu" : "Open menu"}
                 onClick={() => setMobileOpen((v) => !v)}
               >
                 {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </Button>
+              </button>
             </div>
           </div>
+
+          {/* Mobile search */}
+          <form onSubmit={onSearch} className="pb-3 md:hidden">
+            <div className="flex overflow-hidden rounded-md border-2 border-primary">
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search products…"
+                className="h-10 w-full px-3 text-sm outline-none"
+                aria-label="Search products"
+              />
+              <button
+                type="submit"
+                className="bg-primary px-3 text-white"
+                aria-label="Search"
+              >
+                <Search className="h-4 w-4" />
+              </button>
+            </div>
+          </form>
         </Container>
+      </div>
 
-        <AnimatePresence>
-          {mobileOpen ? (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="border-t border-border bg-card lg:hidden"
+      {/* Category navigation */}
+      <div className="hidden border-b border-border bg-card lg:block">
+        <Container size="wide">
+          <nav
+            className="flex items-center gap-1 overflow-x-auto py-0"
+            aria-label="Product categories"
+          >
+            <div
+              className="relative"
+              onMouseEnter={() => setProductsOpen(true)}
+              onMouseLeave={() => setProductsOpen(false)}
             >
-              <Container className="space-y-4 py-5">
-                <Input
-                  placeholder="Search products…"
-                  leftIcon={<Search className="h-4 w-4" />}
-                  onFocus={() => {
-                    setMobileOpen(false);
-                    setSearchOpen(true);
-                  }}
-                />
-                <div className="grid gap-1">
-                  {categories.slice(0, 6).map((cat) => (
-                    <Link
-                      key={cat.id}
-                      href={`/products?category=${cat.slug}`}
-                      className="rounded-xl px-3 py-2.5 text-sm font-semibold hover:bg-primary/5"
-                      onClick={() => setMobileOpen(false)}
-                    >
-                      {cat.name}
-                    </Link>
-                  ))}
-                </div>
-                <div className="flex gap-2 border-t border-border pt-4">
-                  <Link href="/quote" className="flex-1" onClick={() => setMobileOpen(false)}>
-                    <Button className="w-full">Instant Quote</Button>
-                  </Link>
-                  <Link href="/dashboard" className="flex-1" onClick={() => setMobileOpen(false)}>
-                    <Button variant="outline" className="w-full">
-                      Account
-                    </Button>
-                  </Link>
-                </div>
-                <div className="flex items-center gap-3 text-xs font-semibold text-text-secondary">
-                  <Globe className="h-3.5 w-3.5" />
-                  <span>{langs.find((l) => l.value === lang)?.label}</span>
-                  <span>·</span>
-                  <span>{currencies.find((c) => c.value === currency)?.label}</span>
-                </div>
-              </Container>
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
-      </header>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 whitespace-nowrap px-3 py-3.5 text-sm font-semibold text-secondary hover:text-primary"
+              >
+                All Products
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+              <AnimatePresence>
+                {productsOpen ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 6 }}
+                    className="absolute left-0 top-full z-50 w-72 border border-border bg-card py-2 shadow-card"
+                  >
+                    {categories.map((cat) => (
+                      <Link
+                        key={cat.id}
+                        href={`/products?category=${cat.slug}`}
+                        className="flex items-center justify-between px-4 py-2.5 text-sm font-medium text-secondary hover:bg-background hover:text-primary"
+                        onClick={() => setProductsOpen(false)}
+                      >
+                        {cat.name}
+                        <ChevronRight className="h-3.5 w-3.5 text-text-secondary" />
+                      </Link>
+                    ))}
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
+            </div>
+            {navLinks.map((link) => (
+              <Link
+                key={link.label}
+                href={link.href}
+                className="whitespace-nowrap px-3 py-3.5 text-sm font-semibold text-secondary transition hover:text-primary"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+        </Container>
+      </div>
 
-      <Modal
-        open={searchOpen}
-        onClose={() => setSearchOpen(false)}
-        title="Search Pressora"
-        description="Find products, templates, and resources"
-        size="lg"
-      >
-        <Input
-          autoFocus
-          placeholder="Try business cards, vinyl banners…"
-          leftIcon={<Search className="h-4 w-4" />}
-        />
-        <div className="mt-6 space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-            Popular
-          </p>
-          {categories.slice(0, 5).map((cat) => (
-            <Link
-              key={cat.id}
-              href={`/products?category=${cat.slug}`}
-              onClick={() => setSearchOpen(false)}
-              className="flex items-center justify-between rounded-xl px-3 py-2.5 hover:bg-primary/5"
-            >
-              <span className="text-sm font-semibold">{cat.name}</span>
-              <span className="text-xs text-text-secondary">
-                from ${cat.startingPrice.toFixed(2)}
-              </span>
-            </Link>
-          ))}
-        </div>
-      </Modal>
-    </>
+      <AnimatePresence>
+        {mobileOpen ? (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden border-b border-border bg-card lg:hidden"
+          >
+            <Container className="space-y-1 py-3">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.label}
+                  href={link.href}
+                  className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-secondary hover:bg-background"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  {link.label}
+                </Link>
+              ))}
+              <Link
+                href="/login"
+                className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-secondary hover:bg-background"
+                onClick={() => setMobileOpen(false)}
+              >
+                Your Account
+              </Link>
+            </Container>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </header>
   );
 }

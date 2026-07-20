@@ -56,7 +56,7 @@ export function TestimonialsSlider() {
         <SectionHeader
           eyebrow="Testimonials"
           title="Trusted by brand teams worldwide"
-          description="Real feedback from marketing leaders who print at scale with Pressora."
+          description="Real feedback from marketing leaders who print at scale with Printoe."
         />
 
         <div className="relative mx-auto max-w-4xl">
