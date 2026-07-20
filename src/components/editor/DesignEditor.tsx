@@ -63,9 +63,9 @@ const TOOLBAR: { id: ToolPanel; label: string; icon: React.ReactNode }[] = [
 ];
 
 const TEMPLATES = [
-  { id: "t1", name: "Minimal Card", color: "#2563EB" },
-  { id: "t2", name: "Bold Flyer", color: "#06B6D4" },
-  { id: "t3", name: "Elegant Brochure", color: "#0F172A" },
+  { id: "t1", name: "Minimal Card", color: "#E6007A" },
+  { id: "t2", name: "Bold Flyer", color: "#00AEEF" },
+  { id: "t3", name: "Elegant Brochure", color: "#1A1A1A" },
   { id: "t4", name: "Event Poster", color: "#EF4444" },
 ];
 
@@ -335,7 +335,7 @@ export function DesignEditor() {
                   )}
                   {activePanel === "backgrounds" && (
                     <div className="grid grid-cols-2 gap-2">
-                      {["#FFFFFF", "#F8FAFC", "#2563EB", "#0F172A", "#06B6D4", "#FEF3C7"].map(
+                      {["#FFFFFF", "#F7F8FA", "#E6007A", "#1A1A1A", "#00AEEF", "#FFD400"].map(
                         (color) => (
                           <button
                             key={color}
@@ -413,7 +413,7 @@ export function DesignEditor() {
                   Fill
                 </label>
                 <div className="flex gap-2">
-                  {["#2563EB", "#0F172A", "#FFFFFF"].map((c) => (
+                  {["#E6007A", "#00AEEF", "#FFD400", "#1A1A1A", "#FFFFFF"].map((c) => (
                     <button
                       key={c}
                       type="button"

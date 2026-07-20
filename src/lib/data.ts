@@ -28,7 +28,7 @@ export const categories: ProductCategory[] = [
     count: 48,
     startingPrice: 19.99,
     icon: "CreditCard",
-    color: "#2563EB",
+    color: "#E6007A",
   },
   {
     id: "2",
@@ -38,7 +38,7 @@ export const categories: ProductCategory[] = [
     count: 36,
     startingPrice: 24.99,
     icon: "FileText",
-    color: "#06B6D4",
+    color: "#00AEEF",
   },
   {
     id: "3",
@@ -48,7 +48,7 @@ export const categories: ProductCategory[] = [
     count: 28,
     startingPrice: 39.99,
     icon: "BookOpen",
-    color: "#0F172A",
+    color: "#1A1A1A",
   },
   {
     id: "4",
@@ -58,7 +58,7 @@ export const categories: ProductCategory[] = [
     count: 42,
     startingPrice: 14.99,
     icon: "Image",
-    color: "#22C55E",
+    color: "#00A651",
   },
   {
     id: "5",
@@ -68,7 +68,7 @@ export const categories: ProductCategory[] = [
     count: 64,
     startingPrice: 9.99,
     icon: "Sticker",
-    color: "#F59E0B",
+    color: "#FFD400",
   },
   {
     id: "6",
@@ -78,7 +78,7 @@ export const categories: ProductCategory[] = [
     count: 52,
     startingPrice: 12.99,
     icon: "Tag",
-    color: "#EF4444",
+    color: "#E30613",
   },
   {
     id: "7",
@@ -88,7 +88,7 @@ export const categories: ProductCategory[] = [
     count: 31,
     startingPrice: 89.99,
     icon: "Package",
-    color: "#2563EB",
+    color: "#E6007A",
   },
   {
     id: "8",
@@ -98,7 +98,7 @@ export const categories: ProductCategory[] = [
     count: 24,
     startingPrice: 79.99,
     icon: "Box",
-    color: "#06B6D4",
+    color: "#00AEEF",
   },
   {
     id: "9",
@@ -108,7 +108,7 @@ export const categories: ProductCategory[] = [
     count: 38,
     startingPrice: 29.99,
     icon: "Flag",
-    color: "#0F172A",
+    color: "#1A1A1A",
   },
   {
     id: "10",
@@ -118,7 +118,7 @@ export const categories: ProductCategory[] = [
     count: 56,
     startingPrice: 34.99,
     icon: "Megaphone",
-    color: "#22C55E",
+    color: "#00A651",
   },
   {
     id: "11",
@@ -128,7 +128,7 @@ export const categories: ProductCategory[] = [
     count: 44,
     startingPrice: 18.99,
     icon: "Shirt",
-    color: "#F59E0B",
+    color: "#FFD400",
   },
   {
     id: "12",
@@ -138,7 +138,7 @@ export const categories: ProductCategory[] = [
     count: 72,
     startingPrice: 4.99,
     icon: "Gift",
-    color: "#EF4444",
+    color: "#E30613",
   },
 ];
 

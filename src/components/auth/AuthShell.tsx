@@ -29,7 +29,7 @@ export function AuthShell({
           className="pointer-events-none absolute inset-0"
           style={{
             background:
-              "radial-gradient(ellipse at 20% 20%, rgba(37,99,235,0.45), transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(6,182,212,0.25), transparent 45%)",
+              "radial-gradient(ellipse at 20% 20%, rgba(230,0,122,0.45), transparent 50%), radial-gradient(ellipse at 80% 30%, rgba(255,212,0,0.22), transparent 45%), radial-gradient(ellipse at 70% 80%, rgba(0,174,239,0.35), transparent 45%)",
           }}
           aria-hidden
         />

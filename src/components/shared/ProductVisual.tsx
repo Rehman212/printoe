@@ -1,20 +1,20 @@
 import { cn } from "@/lib/utils";
 
 const palettes: Record<string, [string, string, string]> = {
-  "business-cards": ["#2563EB", "#93C5FD", "#DBEAFE"],
-  brochures: ["#0F172A", "#64748B", "#E2E8F0"],
-  banners: ["#06B6D4", "#67E8F9", "#CFFAFE"],
-  stickers: ["#F59E0B", "#FCD34D", "#FEF3C7"],
-  boxes: ["#7C3AED", "#C4B5FD", "#EDE9FE"],
-  posters: ["#EF4444", "#FCA5A5", "#FEE2E2"],
-  labels: ["#22C55E", "#86EFAC", "#DCFCE7"],
-  promo: ["#2563EB", "#06B6D4", "#E0F2FE"],
-  menus: ["#0F172A", "#94A3B8", "#F1F5F9"],
-  "blog-1": ["#2563EB", "#1D4ED8", "#DBEAFE"],
-  "blog-2": ["#0F172A", "#334155", "#F1F5F9"],
-  "blog-3": ["#22C55E", "#06B6D4", "#ECFDF5"],
-  "blog-4": ["#F59E0B", "#2563EB", "#FFFBEB"],
-  default: ["#2563EB", "#06B6D4", "#E0F2FE"],
+  "business-cards": ["#E6007A", "#FF9EC8", "#FFE5F2"],
+  brochures: ["#1A1A1A", "#9CA3AF", "#F3F4F6"],
+  banners: ["#00AEEF", "#7DD3F5", "#E6F7FD"],
+  stickers: ["#FFD400", "#FFE566", "#FFF8CC"],
+  boxes: ["#E6007A", "#C77DFF", "#F3E8FF"],
+  posters: ["#E30613", "#FCA5A5", "#FEE2E2"],
+  labels: ["#00A651", "#86EFAC", "#DCFCE7"],
+  promo: ["#E6007A", "#00AEEF", "#FFF0F7"],
+  menus: ["#1A1A1A", "#00AEEF", "#F1F5F9"],
+  "blog-1": ["#E6007A", "#C40068", "#FFE5F2"],
+  "blog-2": ["#1A1A1A", "#4B5563", "#F3F4F6"],
+  "blog-3": ["#00A651", "#00AEEF", "#ECFDF5"],
+  "blog-4": ["#FFD400", "#E6007A", "#FFFBEB"],
+  default: ["#E6007A", "#00AEEF", "#FFF0F7"],
 };
 
 function CatalogMock({
@@ -32,7 +32,7 @@ function CatalogMock({
         className="h-[72%] w-[78%] rounded-sm shadow-md"
         style={{
           background: `linear-gradient(160deg, white, ${b}44)`,
-          boxShadow: "0 8px 24px -8px rgb(15 23 42 / 0.25)",
+          boxShadow: "0 8px 24px -8px rgb(26 26 26 / 0.25)",
         }}
       >
         <div className="h-full p-3">
@@ -56,7 +56,7 @@ function CatalogMock({
           className="h-24 w-24 rounded-full shadow-md"
           style={{
             background: `conic-gradient(from 200deg, ${a}, ${b}, white, ${a})`,
-            boxShadow: "0 10px 20px -8px rgb(15 23 42 / 0.3)",
+            boxShadow: "0 10px 20px -8px rgb(26 26 26 / 0.3)",
           }}
         />
         <div className="absolute h-16 w-16 rounded-full bg-white shadow-inner" />
@@ -75,17 +75,16 @@ function CatalogMock({
         style={{
           background: `linear-gradient(145deg, ${b}, white 40%, ${a}33)`,
           clipPath: "polygon(12% 0, 100% 0, 88% 100%, 0 100%)",
-          boxShadow: "0 12px 28px -10px rgb(15 23 42 / 0.3)",
+          boxShadow: "0 12px 28px -10px rgb(26 26 26 / 0.3)",
         }}
       />
     );
   }
 
-  // Default: card / brochure style product photo
   return (
     <div
       className="h-[62%] w-[70%] rounded-sm bg-white shadow-md"
-      style={{ boxShadow: "0 10px 28px -10px rgb(15 23 42 / 0.28)" }}
+      style={{ boxShadow: "0 10px 28px -10px rgb(26 26 26 / 0.28)" }}
     >
       <div className="flex h-full flex-col p-3">
         <div

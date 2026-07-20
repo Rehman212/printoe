@@ -53,6 +53,7 @@ export function Header() {
     <header className="sticky top-0 z-50 bg-card">
       {/* Announcement bar */}
       <div className="bg-secondary text-center text-[13px] font-medium tracking-wide text-white">
+        <div className="brand-cmy-bar h-1 w-full" aria-hidden />
         <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-2">
           <span>High Quality</span>
           <span className="hidden text-white/40 sm:inline">|</span>

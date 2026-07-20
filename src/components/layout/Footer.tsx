@@ -72,7 +72,8 @@ export function Footer() {
     <footer className="relative mt-auto overflow-hidden border-t border-border bg-secondary text-white">
       <div className="pointer-events-none absolute inset-0 opacity-40">
         <div className="absolute -left-20 top-0 h-64 w-64 rounded-full bg-primary/30 blur-3xl" />
-        <div className="absolute bottom-0 right-0 h-72 w-72 rounded-full bg-accent/20 blur-3xl" />
+        <div className="absolute right-1/3 top-10 h-40 w-40 rounded-full bg-brand-yellow/25 blur-3xl" />
+        <div className="absolute bottom-0 right-0 h-72 w-72 rounded-full bg-accent/25 blur-3xl" />
       </div>
 
       <Container size="wide" className="relative py-16 md:py-20">
