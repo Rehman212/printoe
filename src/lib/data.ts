@@ -331,6 +331,28 @@ export const testimonials: Testimonial[] = [
       "From packaging prototypes to 10k runs, Printoe scales with us without sacrificing craft.",
     logo: "Fieldwork",
   },
+  {
+    id: "t5",
+    name: "Elena Ruiz",
+    role: "E-commerce Lead",
+    company: "Orbit Goods",
+    avatar: "ER",
+    rating: 5,
+    quote:
+      "Our product boxes and labels finally match our brand online. Customers notice the unboxing—and so do we.",
+    logo: "Orbit",
+  },
+  {
+    id: "t6",
+    name: "David Park",
+    role: "COO",
+    company: "Summit Events",
+    avatar: "DP",
+    rating: 5,
+    quote:
+      "Banners, badges, and programs for 40+ events a year—always on time, always print-perfect.",
+    logo: "Summit",
+  },
 ];
 
 export const blogPosts: BlogPost[] = [
