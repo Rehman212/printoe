@@ -7,7 +7,9 @@ import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { cn } from "@/lib/utils";
+import { useSearchParams } from "next/navigation";
 
 function SocialButton({
   label,
@@ -33,7 +35,9 @@ function SocialButton({
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -57,14 +61,26 @@ export function LoginForm() {
     e.preventDefault();
     if (!validate()) return;
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 900));
-    setLoading(false);
-    toast({
-      title: "Welcome back",
-      description: "You're signed in to Printoe.",
-      tone: "success",
-    });
-    router.push("/dashboard");
+    try {
+      const user = await login(email.trim(), password);
+      toast({
+        title: "Welcome back",
+        description: `Signed in as ${user.email}`,
+        tone: "success",
+      });
+      const next = searchParams.get("next");
+      router.push(
+        next && !next.startsWith("/admin") ? next : "/dashboard",
+      );
+    } catch (err) {
+      toast({
+        title: "Login failed",
+        description: err instanceof Error ? err.message : "Invalid credentials",
+        tone: "danger",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const socialToast = (provider: string) => {
@@ -184,6 +200,13 @@ export function LoginForm() {
           </span>
         </label>
 
+        <div className="rounded-xl border border-border bg-secondary/[0.03] px-3 py-2.5 text-xs text-text-secondary">
+          <p className="font-semibold text-text-primary">New here?</p>
+          <p className="mt-1">
+            Create an account on the signup page — your credentials are stored securely in the database.
+          </p>
+        </div>
+
         <Button type="submit" size="lg" className="w-full" loading={loading}>
           Sign in
         </Button>
@@ -195,6 +218,7 @@ export function LoginForm() {
 export function SignupForm() {
   const router = useRouter();
   const { toast } = useToast();
+  const { signup } = useAuth();
   const [form, setForm] = useState({
     name: "",
     company: "",
@@ -219,6 +243,8 @@ export function SignupForm() {
     }
     if (form.password.length < 8) {
       next.password = "Use at least 8 characters";
+    } else if (!/^(?=.*[A-Za-z])(?=.*\d).+$/.test(form.password)) {
+      next.password = "Include at least one letter and one number";
     }
     if (form.password !== form.confirm) {
       next.confirm = "Passwords do not match";
@@ -232,14 +258,40 @@ export function SignupForm() {
     e.preventDefault();
     if (!validate()) return;
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1100));
-    setLoading(false);
-    toast({
-      title: "Account created",
-      description: "Welcome to Printoe — your dashboard is ready.",
-      tone: "success",
-    });
-    router.push("/dashboard");
+    try {
+      await signup({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        password: form.password,
+        company: form.company.trim() || undefined,
+      });
+      toast({
+        title: "Account created",
+        description: "Welcome to Printoe — your dashboard is ready.",
+        tone: "success",
+      });
+      router.push("/dashboard");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Could not create account";
+      const already =
+        /already exists/i.test(message) || /already registered/i.test(message);
+      if (already) {
+        setErrors((prev) => ({
+          ...prev,
+          email: "This email is already registered. Please log in.",
+        }));
+      }
+      toast({
+        title: already ? "Email already registered" : "Signup failed",
+        description: already
+          ? "Use Log in with this email, or try a different email."
+          : message,
+        tone: "danger",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const strength =

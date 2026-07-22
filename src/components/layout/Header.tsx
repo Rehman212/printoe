@@ -18,6 +18,8 @@ import { SITE, categories } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { Container } from "@/components/ui/Section";
 import { Logo } from "@/components/shared/Logo";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { useCartOptional } from "@/lib/cart-store";
 
 const navLinks = [
   { label: "Marketing Materials", href: "/products?category=marketing-materials" },
@@ -28,19 +30,31 @@ const navLinks = [
   { label: "Featured Collections", href: "/products" },
 ];
 
-export function Header() {
+export function Header({ announcementOnly = false }: { announcementOnly?: boolean }) {
   const router = useRouter();
+  const { user, isAuthenticated } = useAuth();
+  const cart = useCartOptional();
+  const cartCount = cart?.itemCount ?? 0;
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [productsOpen, setProductsOpen] = useState(false);
   const [query, setQuery] = useState("");
 
+  const initials = (user?.name || user?.email || "?")
+    .split(/\s+/)
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+  const firstName = user?.name?.split(/\s+/)[0] ?? "there";
+
   useEffect(() => {
+    if (announcementOnly) return;
     const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [announcementOnly]);
 
   const onSearch = (e: FormEvent) => {
     e.preventDefault();
@@ -50,7 +64,7 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-card">
+    <header className={cn("z-50 bg-card", !announcementOnly && "sticky top-0")}>
       {/* Announcement bar */}
       <div className="bg-secondary text-center text-[13px] font-medium tracking-wide text-white">
         <div className="brand-cmy-bar h-1 w-full" aria-hidden />
@@ -63,6 +77,8 @@ export function Header() {
         </div>
       </div>
 
+      {announcementOnly ? null : (
+        <>
       {/* Main header: logo · search · account */}
       <div
         className={cn(
@@ -111,31 +127,60 @@ export function Header() {
             </div>
 
             <div className="ml-auto flex items-center gap-1 sm:gap-3">
-              <Link
-                href="/login"
-                className="hidden items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-background sm:flex focus-ring"
-              >
-                <User className="h-5 w-5 text-secondary" />
-                <span className="leading-tight">
-                  <span className="block text-xs font-medium text-text-secondary">
-                    Hi, Log In!
+              {isAuthenticated && user ? (
+                <Link
+                  href="/dashboard"
+                  className="flex items-center gap-2 rounded-lg px-1.5 py-1.5 hover:bg-background focus-ring sm:px-2"
+                  aria-label={`Account for ${user.name}`}
+                >
+                  <span
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white shadow-soft"
+                    title={user.email}
+                  >
+                    {initials}
                   </span>
-                  <span className="text-sm font-bold text-secondary">
-                    Your Account
+                  <span className="hidden leading-tight sm:block">
+                    <span className="block text-xs font-medium text-text-secondary">
+                      Hi, {firstName}
+                    </span>
+                    <span className="text-sm font-bold text-secondary">
+                      Your Account
+                    </span>
                   </span>
-                </span>
-              </Link>
+                </Link>
+              ) : (
+                <Link
+                  href="/login"
+                  className="hidden items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-background sm:flex focus-ring"
+                >
+                  <User className="h-5 w-5 text-secondary" />
+                  <span className="leading-tight">
+                    <span className="block text-xs font-medium text-text-secondary">
+                      Hi, Log In!
+                    </span>
+                    <span className="text-sm font-bold text-secondary">
+                      Your Account
+                    </span>
+                  </span>
+                </Link>
+              )}
 
               <Link
                 href="/cart"
                 className="relative flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-background focus-ring"
-                aria-label="Cart with 2 items"
+                aria-label={
+                  cartCount
+                    ? `Cart with ${cartCount} items`
+                    : "Cart is empty"
+                }
               >
                 <span className="relative">
                   <ShoppingCart className="h-6 w-6 text-secondary" />
-                  <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[11px] font-bold text-white">
-                    2
-                  </span>
+                  {cartCount > 0 ? (
+                    <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[11px] font-bold text-white">
+                      {cartCount > 99 ? "99+" : cartCount}
+                    </span>
+                  ) : null}
                 </span>
                 <span className="hidden text-sm font-bold text-secondary md:inline">
                   Cart
@@ -250,16 +295,18 @@ export function Header() {
                 </Link>
               ))}
               <Link
-                href="/login"
+                href={isAuthenticated ? "/dashboard" : "/login"}
                 className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-secondary hover:bg-background"
                 onClick={() => setMobileOpen(false)}
               >
-                Your Account
+                {isAuthenticated ? "Your Account" : "Log In"}
               </Link>
             </Container>
           </motion.div>
         ) : null}
       </AnimatePresence>
+        </>
+      )}
     </header>
   );
 }

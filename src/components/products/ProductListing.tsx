@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -13,9 +13,11 @@ import {
   Truck,
   X,
 } from "lucide-react";
-import { products } from "@/lib/data";
+import { useProductsOptional } from "@/lib/product-store";
+import { fetchProducts } from "@/lib/products-api";
+import { useCart } from "@/lib/cart-store";
 import { cn, formatCurrency } from "@/lib/utils";
-import type { Product } from "@/types";
+import type { CatalogProduct, Product } from "@/types";
 import { ProductVisual } from "@/components/shared/ProductVisual";
 import {
   ProductFilters,
@@ -43,6 +45,30 @@ export type ProductListingProps = {
 
 const PAGE_SIZE = 6;
 
+function catalogToProduct(p: CatalogProduct): Product {
+  return {
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    category: p.category.slug,
+    description: p.description,
+    price: p.basePrice,
+    compareAt: p.compareAt ?? undefined,
+    rating: p.rating,
+    reviews: p.reviews,
+    deliveryDays: p.deliveryDays,
+    badge: p.badge ?? undefined,
+    image: p.category.slug,
+    images: [p.category.slug],
+    imageUrl: p.imageUrl ?? undefined,
+    galleryUrls: p.galleryUrls,
+    materials: [],
+    sizes: [],
+    finishes: [],
+    featured: p.featured,
+  };
+}
+
 function matchesDelivery(product: Product, deliveryTime: string) {
   if (deliveryTime === "all") return true;
   if (deliveryTime === "fast") return product.deliveryDays <= 2;
@@ -59,10 +85,23 @@ function filterProducts(
   const q = searchQuery?.trim().toLowerCase();
   return list.filter((p) => {
     if (filters.category !== "all" && p.category !== filters.category) return false;
-    if (filters.size !== "all" && !p.sizes.includes(filters.size)) return false;
-    if (filters.material !== "all" && !p.materials.includes(filters.material))
+    if (
+      filters.size !== "all" &&
+      p.sizes.length > 0 &&
+      !p.sizes.includes(filters.size)
+    )
       return false;
-    if (filters.finishing !== "all" && !p.finishes.includes(filters.finishing))
+    if (
+      filters.material !== "all" &&
+      p.materials.length > 0 &&
+      !p.materials.includes(filters.material)
+    )
+      return false;
+    if (
+      filters.finishing !== "all" &&
+      p.finishes.length > 0 &&
+      !p.finishes.includes(filters.finishing)
+    )
       return false;
     if (p.price < filters.priceMin || p.price > filters.priceMax) return false;
     if (p.rating < filters.minRating) return false;
@@ -98,12 +137,14 @@ function sortProducts(list: Product[], sort: string) {
 
 function ProductCard({ product }: { product: Product }) {
   const { toast } = useToast();
+  const { addItem } = useCart();
 
   return (
     <Card hover className="group flex h-full flex-col overflow-hidden">
       <Link href={`/products/${product.slug}`} className="relative block">
         <ProductVisual
           variant={product.image}
+          imageUrl={product.imageUrl}
           className="aspect-[4/3] rounded-none"
           label={product.name}
         />
@@ -172,13 +213,35 @@ function ProductCard({ product }: { product: Product }) {
           <Button
             size="sm"
             className="flex-1"
-            onClick={() =>
-              toast({
-                title: "Added to cart",
-                description: product.name,
-                tone: "success",
+            onClick={() => {
+              void addItem({
+                productId: product.id,
+                productSlug: product.slug,
+                name: product.name,
+                image: product.image,
+                imageUrl: product.imageUrl,
+                quantity: 1,
+                unitPrice: product.price,
+                size: product.sizes?.[0],
+                material: product.materials?.[0],
+                finishing: product.finishes?.[0],
               })
-            }
+                .then(() =>
+                  toast({
+                    title: "Added to cart",
+                    description: product.name,
+                    tone: "success",
+                  }),
+                )
+                .catch((err) =>
+                  toast({
+                    title: "Could not add to cart",
+                    description:
+                      err instanceof Error ? err.message : "Try again",
+                    tone: "danger",
+                  }),
+                );
+            }}
           >
             <ShoppingCart className="h-4 w-4" />
             Add
@@ -193,6 +256,8 @@ export function ProductListing({
   initialCategory,
   searchQuery,
 }: ProductListingProps = {}) {
+  const localStore = useProductsOptional();
+  const [apiProducts, setApiProducts] = useState<Product[] | null>(null);
   const [filters, setFilters] = useState<ProductFiltersState>({
     ...defaultProductFilters,
     category: initialCategory || "all",
@@ -200,13 +265,29 @@ export function ProductListing({
   const [page, setPage] = useState(1);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
+  useEffect(() => {
+    let cancelled = false;
+    void fetchProducts()
+      .then((res) => {
+        if (!cancelled) setApiProducts(res.data.map(catalogToProduct));
+      })
+      .catch(() => {
+        if (!cancelled) setApiProducts(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const products = apiProducts ?? localStore.products;
+
   const filtered = useMemo(
     () =>
       sortProducts(
         filterProducts(products, filters, searchQuery),
         filters.sort,
       ),
-    [filters, searchQuery],
+    [filters, searchQuery, products],
   );
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));

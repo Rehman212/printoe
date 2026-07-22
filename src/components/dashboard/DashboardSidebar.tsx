@@ -45,9 +45,11 @@ export function DashboardSidebar() {
     <aside className="flex w-full shrink-0 flex-col border-r border-border bg-card lg:w-64">
       <div className="border-b border-border px-5 py-5">
         <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-          Account
+          Customer
         </p>
-        <p className="mt-1 text-sm font-bold text-text-primary">{SITE.name} Dashboard</p>
+        <p className="mt-1 text-sm font-bold text-text-primary">
+          {SITE.name} Account
+        </p>
       </div>
       <nav className="scrollbar-thin flex-1 overflow-y-auto p-3" aria-label="Dashboard">
         <ul className="space-y-0.5">

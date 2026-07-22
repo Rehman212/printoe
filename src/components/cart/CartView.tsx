@@ -3,9 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Minus, Plus, ShoppingBag, Tag, Trash2, Truck } from "lucide-react";
-import { cartItems as initialCartItems } from "@/lib/data";
 import { cn, formatCurrency } from "@/lib/utils";
-import type { CartItem } from "@/types";
+import { useCart } from "@/lib/cart-store";
 import { ProductVisual } from "@/components/shared/ProductVisual";
 import {
   Badge,
@@ -28,35 +27,45 @@ const COUPONS: Record<string, number> = {
 
 export function CartView() {
   const { toast } = useToast();
-  const [items, setItems] = useState<CartItem[]>(initialCartItems);
+  const { items, subtotal, updateQuantity, removeItem, loading } = useCart();
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
-
-  const subtotal = useMemo(
-    () => items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
-    [items],
-  );
 
   const discountRate = appliedCoupon ? COUPONS[appliedCoupon] ?? 0 : 0;
   const discount = subtotal * discountRate;
   const shipping = subtotal > 150 || items.length === 0 ? 0 : 12.99;
   const total = subtotal - discount + shipping;
 
-  const updateQuantity = (id: string, delta: number) => {
-    setItems((prev) =>
-      prev
-        .map((item) =>
-          item.id === id
-            ? { ...item, quantity: Math.max(50, item.quantity + delta) }
-            : item,
-        )
-        .filter((item) => item.quantity >= 50),
-    );
+  const lineCount = useMemo(() => items.length, [items.length]);
+
+  const onQty = async (id: string, next: number) => {
+    if (next < 1) {
+      await removeItem(id);
+      toast({ title: "Item removed", tone: "info" });
+      return;
+    }
+    try {
+      await updateQuantity(id, next);
+    } catch (err) {
+      toast({
+        title: "Could not update quantity",
+        description: err instanceof Error ? err.message : "Try again",
+        tone: "danger",
+      });
+    }
   };
 
-  const removeItem = (id: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
-    toast({ title: "Item removed", tone: "info" });
+  const onRemove = async (id: string) => {
+    try {
+      await removeItem(id);
+      toast({ title: "Item removed", tone: "info" });
+    } catch (err) {
+      toast({
+        title: "Remove failed",
+        description: err instanceof Error ? err.message : "Try again",
+        tone: "danger",
+      });
+    }
   };
 
   const applyCoupon = () => {
@@ -87,10 +96,14 @@ export function CartView() {
           align="left"
           eyebrow="Your order"
           title="Shopping cart"
-          description={`${items.length} item${items.length === 1 ? "" : "s"} ready for checkout`}
+          description={
+            loading
+              ? "Loading cart…"
+              : `${lineCount} item${lineCount === 1 ? "" : "s"} ready for checkout`
+          }
         />
 
-        {items.length === 0 ? (
+        {!loading && items.length === 0 ? (
           <EmptyState
             icon={<ShoppingBag className="h-6 w-6" />}
             title="Your cart is empty"
@@ -114,18 +127,26 @@ export function CartView() {
                     <div className="min-w-0 flex-1 space-y-2">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <h3 className="font-bold text-text-primary">{item.name}</h3>
+                          <h3 className="font-bold text-text-primary">
+                            {item.name}
+                          </h3>
                           <div className="mt-1 flex flex-wrap gap-2">
-                            <Badge variant="outline">{item.size}</Badge>
-                            <Badge variant="outline">{item.material}</Badge>
-                            <Badge variant="outline">{item.finishing}</Badge>
+                            {item.size && item.size !== "—" ? (
+                              <Badge variant="outline">{item.size}</Badge>
+                            ) : null}
+                            {item.material && item.material !== "—" ? (
+                              <Badge variant="outline">{item.material}</Badge>
+                            ) : null}
+                            {item.finishing && item.finishing !== "—" ? (
+                              <Badge variant="outline">{item.finishing}</Badge>
+                            ) : null}
                           </div>
                         </div>
                         <Button
                           variant="ghost"
                           size="icon"
                           className="shrink-0 text-text-secondary hover:text-danger"
-                          onClick={() => removeItem(item.id)}
+                          onClick={() => void onRemove(item.id)}
                           aria-label={`Remove ${item.name}`}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -138,19 +159,19 @@ export function CartView() {
                             variant="ghost"
                             size="icon"
                             className="h-9 w-9"
-                            onClick={() => updateQuantity(item.id, -50)}
+                            onClick={() => void onQty(item.id, item.quantity - 1)}
                             aria-label="Decrease quantity"
                           >
                             <Minus className="h-4 w-4" />
                           </Button>
-                          <span className="min-w-16 text-center text-sm font-bold text-text-primary">
+                          <span className="min-w-12 text-center text-sm font-bold text-text-primary">
                             {item.quantity.toLocaleString()}
                           </span>
                           <Button
                             variant="ghost"
                             size="icon"
                             className="h-9 w-9"
-                            onClick={() => updateQuantity(item.id, 50)}
+                            onClick={() => void onQty(item.id, item.quantity + 1)}
                             aria-label="Increase quantity"
                           >
                             <Plus className="h-4 w-4" />
@@ -169,12 +190,16 @@ export function CartView() {
             <div className="lg:sticky lg:top-24 lg:self-start">
               <Card>
                 <CardContent className="space-y-5 pt-6">
-                  <h2 className="text-lg font-bold text-text-primary">Order summary</h2>
+                  <h2 className="text-lg font-bold text-text-primary">
+                    Order summary
+                  </h2>
 
                   <div className="space-y-3 text-sm font-semibold">
                     <div className="flex justify-between text-text-secondary">
                       <span>Subtotal</span>
-                      <span className="text-text-primary">{formatCurrency(subtotal)}</span>
+                      <span className="text-text-primary">
+                        {formatCurrency(subtotal)}
+                      </span>
                     </div>
                     {appliedCoupon ? (
                       <div className="flex justify-between text-success">
@@ -215,7 +240,7 @@ export function CartView() {
                   </div>
 
                   <Link href="/checkout">
-                    <Button className="w-full" size="lg">
+                    <Button className="w-full" size="lg" disabled={!items.length}>
                       Proceed to checkout
                     </Button>
                   </Link>

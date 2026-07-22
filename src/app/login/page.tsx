@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { LoginForm } from "@/components/auth/AuthForms";
 
@@ -21,7 +22,9 @@ export default function LoginPage() {
         </>
       }
     >
-      <LoginForm />
+      <Suspense fallback={<div className="h-40 animate-pulse rounded-2xl bg-border/60" />}>
+        <LoginForm />
+      </Suspense>
     </AuthShell>
   );
 }

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Heart, Palette } from "lucide-react";
 import type { Product } from "@/types";
 import { cn, formatCurrency } from "@/lib/utils";
-import { ProductVisual } from "@/components/shared/ProductVisual";
+import { ProductMedia } from "@/components/shared/ProductMedia";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -24,10 +24,11 @@ export function ProductCard({
     <Card hover className={cn("group overflow-hidden", className)}>
       <div className="relative">
         <Link href={`/products/${product.slug}`} className="block">
-          <ProductVisual
-            variant={product.image}
-            className="aspect-[4/3] rounded-none rounded-t-2xl"
+          <ProductMedia
+            imageUrl={product.imageUrl}
+            fallbackVariant={product.image}
             label={product.name}
+            className="aspect-[4/3] rounded-none rounded-t-2xl"
           />
         </Link>
         {product.badge ? (
@@ -45,9 +46,7 @@ export function ProductCard({
           aria-label={favorited ? "Remove from favorites" : "Add to favorites"}
           aria-pressed={favorited}
         >
-          <Heart
-            className={cn("h-4 w-4", favorited && "fill-current")}
-          />
+          <Heart className={cn("h-4 w-4", favorited && "fill-current")} />
         </button>
       </div>
 
@@ -67,7 +66,7 @@ export function ProductCard({
         <div className="flex items-end justify-between gap-3">
           <div>
             <p className="text-lg font-bold text-text-primary">
-              {formatCurrency(product.price)}
+              From {formatCurrency(product.price)}
             </p>
             {product.compareAt ? (
               <p className="text-xs font-medium text-text-secondary line-through">
@@ -78,10 +77,10 @@ export function ProductCard({
               {product.deliveryDays}-day delivery
             </p>
           </div>
-          <Link href={`/products/${product.slug}?customize=true`}>
+          <Link href={`/products/${product.slug}`}>
             <Button variant="outline" size="sm" className="gap-1.5">
               <Palette className="h-3.5 w-3.5" />
-              Customize
+              Configure
             </Button>
           </Link>
         </div>

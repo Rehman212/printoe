@@ -104,7 +104,7 @@ export function DashboardOverview() {
           Welcome back
         </h1>
         <p className="mt-1 text-sm font-medium text-text-secondary">
-          Here&apos;s what&apos;s happening with your print projects.
+          Your customer dashboard — track orders, designs, and billing.
         </p>
       </div>
 

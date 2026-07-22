@@ -1,15 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronRight } from "lucide-react";
-import { categories, products } from "@/lib/data";
+import { categories, products as localProducts } from "@/lib/data";
+import { fetchProducts } from "@/lib/products-api";
 import { DynamicIcon } from "@/lib/icons";
 import { Container } from "@/components/ui/Section";
-import { ProductVisual } from "@/components/shared/ProductVisual";
-import { cn } from "@/lib/utils";
+import { ProductMedia } from "@/components/shared/ProductMedia";
+import { cn, formatCurrency } from "@/lib/utils";
+import type { CatalogProduct } from "@/types";
 
-/** Submenus that open on hover — like UPrinting Popular Products */
+/** Static flyout extras under Popular Products (kept as browse links) */
 const categorySubmenus: Record<string, { label: string; href: string }[]> = {
   builder: [
     { label: "Start from blank", href: "/editor" },
@@ -17,78 +19,51 @@ const categorySubmenus: Record<string, { label: string; href: string }[]> = {
     { label: "Use a template", href: "/editor" },
   ],
   "business-cards": [
-    { label: "Silk Business Cards", href: "/products/silk-business-cards" },
     { label: "Standard Cards", href: "/products?category=business-cards" },
     { label: "Spot UV Cards", href: "/products?category=business-cards" },
-    { label: "Foil Business Cards", href: "/products?category=business-cards" },
-    { label: "Squared Cards", href: "/products?category=business-cards" },
   ],
   flyers: [
     { label: "Standard Flyers", href: "/products?category=flyers" },
     { label: "Rack Cards", href: "/products?category=flyers" },
-    { label: "Door Hangers", href: "/products?category=flyers" },
-    { label: "Sell Sheets", href: "/products?category=flyers" },
   ],
   brochures: [
-    { label: "Tri-Fold Brochures", href: "/products/tri-fold-brochures" },
     { label: "Bi-Fold Brochures", href: "/products?category=brochures" },
-    { label: "Z-Fold Brochures", href: "/products?category=brochures" },
     { label: "Booklets", href: "/products?category=brochures" },
   ],
   posters: [
-    { label: "Event Posters", href: "/products/event-posters" },
     { label: "Photo Posters", href: "/products?category=posters" },
-    { label: "Mounted Posters", href: "/products?category=posters" },
     { label: "Large Format", href: "/products?category=posters" },
   ],
   stickers: [
-    { label: "Die-Cut Stickers", href: "/products/die-cut-stickers" },
     { label: "Kiss-Cut Sheets", href: "/products?category=stickers" },
     { label: "Clear Stickers", href: "/products?category=stickers" },
-    { label: "Holographic", href: "/products?category=stickers" },
   ],
   labels: [
-    { label: "Roll Labels", href: "/products/roll-labels" },
     { label: "Sheet Labels", href: "/products?category=labels" },
     { label: "Bottle Labels", href: "/products?category=labels" },
-    { label: "Shipping Labels", href: "/products?category=labels" },
   ],
   packaging: [
     { label: "Custom Mailers", href: "/products?category=packaging" },
     { label: "Poly Mailers", href: "/products?category=packaging" },
-    { label: "Tissue & Inserts", href: "/products?category=packaging" },
-    { label: "Branded Tape", href: "/products?category=packaging" },
   ],
   boxes: [
-    { label: "Rigid Product Boxes", href: "/products/rigid-product-boxes" },
     { label: "Mailer Boxes", href: "/products?category=boxes" },
-    { label: "Folding Cartons", href: "/products?category=boxes" },
     { label: "Shipping Boxes", href: "/products?category=boxes" },
   ],
   banners: [
-    { label: "Vinyl Banners", href: "/products/vinyl-banners" },
     { label: "Retractable Banners", href: "/products?category=banners" },
     { label: "Mesh Banners", href: "/products?category=banners" },
-    { label: "Fabric Banners", href: "/products?category=banners" },
   ],
   apparel: [
     { label: "T-Shirts", href: "/products?category=apparel" },
-    { label: "Polo Shirts", href: "/products?category=apparel" },
-    { label: "Jackets", href: "/products?category=apparel" },
-    { label: "Sweatshirts", href: "/products?category=apparel" },
     { label: "Hats", href: "/products?category=apparel" },
-    { label: "Workwear", href: "/products?category=apparel" },
   ],
   "promotional-products": [
-    { label: "Tote Bags", href: "/products/branded-tote-bags" },
+    { label: "Tote Bags", href: "/products?category=promotional-products" },
     { label: "Mugs", href: "/products?category=promotional-products" },
-    { label: "Pens", href: "/products?category=promotional-products" },
-    { label: "USB Drives", href: "/products?category=promotional-products" },
   ],
   "marketing-materials": [
-    { label: "Presentation Folders", href: "/products?category=marketing-materials" },
     { label: "Notepads", href: "/products?category=marketing-materials" },
-    { label: "Calendars", href: "/products?category=marketing-materials" },
     { label: "Catalogs", href: "/products?category=marketing-materials" },
   ],
 };
@@ -114,25 +89,60 @@ const footerLinks = [
   { label: "See More Products", href: "/products", chevron: true },
 ];
 
-const topSellers = [
-  { name: "Menus", slug: "tri-fold-brochures", image: "brochures" },
-  { name: "Coasters", slug: "die-cut-stickers", image: "stickers" },
-  { name: "Bottle Labels", slug: "roll-labels", image: "labels" },
-  { name: "Vinyl Banners", slug: "vinyl-banners", image: "banners" },
-  { name: "Business Cards", slug: "silk-business-cards", image: "business-cards" },
-  { name: "Posters", slug: "event-posters", image: "posters" },
-  { name: "Product Boxes", slug: "rigid-product-boxes", image: "boxes" },
-  { name: "Tote Bags", slug: "branded-tote-bags", image: "promo" },
-];
-
 export function ShopShowcase() {
   const [openId, setOpenId] = useState<string | null>(null);
+  const [apiProducts, setApiProducts] = useState<CatalogProduct[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchProducts()
+      .then((res) => {
+        if (!cancelled) setApiProducts(res.data);
+      })
+      .catch(() => {
+        if (!cancelled) setApiProducts([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const submenuByCategory = useMemo(() => {
+    const map: Record<string, { label: string; href: string }[]> = {};
+    for (const p of apiProducts) {
+      const slug = p.category.slug;
+      if (!map[slug]) map[slug] = [];
+      map[slug].push({
+        label: p.name,
+        href: `/products/${p.slug}`,
+      });
+    }
+    return map;
+  }, [apiProducts]);
+
+  const topSellers = useMemo(() => {
+    if (apiProducts.length) {
+      return apiProducts.slice(0, 8).map((p) => ({
+        name: p.name,
+        slug: p.slug,
+        image: p.category.slug,
+        imageUrl: p.imageUrl,
+        price: p.basePrice,
+      }));
+    }
+    return localProducts.slice(0, 8).map((p) => ({
+      name: p.name,
+      slug: p.slug,
+      image: p.image,
+      imageUrl: p.imageUrl,
+      price: p.price,
+    }));
+  }, [apiProducts]);
 
   return (
     <section className="border-b border-border bg-white py-8 md:py-10">
       <Container size="wide">
         <div className="grid gap-8 lg:grid-cols-[260px_1fr] xl:grid-cols-[280px_1fr] lg:items-start">
-          {/* Popular Products sidebar + hover flyout */}
           <aside className="relative z-30">
             <h2 className="mb-3 text-lg font-bold text-secondary">
               Popular Products
@@ -144,7 +154,9 @@ export function ShopShowcase() {
             >
               <ul className="divide-y divide-border">
                 {popularItems.map((item) => {
-                  const submenu = categorySubmenus[item.id] ?? [];
+                  const live = submenuByCategory[item.id] ?? [];
+                  const staticExtras = categorySubmenus[item.id] ?? [];
+                  const submenu = [...live, ...staticExtras].slice(0, 8);
                   const hasSubmenu = submenu.length > 0;
                   const isOpen = openId === item.id;
 
@@ -171,7 +183,10 @@ export function ShopShowcase() {
                             isOpen ? "text-primary" : "text-text-secondary",
                           )}
                         >
-                          <DynamicIcon name={item.icon} className="h-[18px] w-[18px]" />
+                          <DynamicIcon
+                            name={item.icon}
+                            className="h-[18px] w-[18px]"
+                          />
                         </span>
                         <span
                           className={cn(
@@ -185,21 +200,27 @@ export function ShopShowcase() {
                           <ChevronRight
                             className={cn(
                               "h-4 w-4",
-                              isOpen ? "text-primary" : "text-text-secondary/70",
+                              isOpen
+                                ? "text-primary"
+                                : "text-text-secondary/70",
                             )}
                           />
                         )}
                       </Link>
 
-                      {/* Flyout submenu */}
                       {hasSubmenu && isOpen && (
                         <div
                           role="menu"
-                          className="absolute left-full top-0 z-40 ml-0 min-w-[200px] border border-border bg-white py-2 shadow-soft"
+                          className="absolute left-full top-0 z-40 ml-0 min-w-[220px] border border-border bg-white py-2 shadow-soft"
                         >
+                          {live.length > 0 ? (
+                            <p className="px-4 pb-1 pt-1 text-[10px] font-bold uppercase tracking-wide text-text-secondary">
+                              Live products
+                            </p>
+                          ) : null}
                           {submenu.map((sub) => (
                             <Link
-                              key={sub.label}
+                              key={sub.href + sub.label}
                               href={sub.href}
                               role="menuitem"
                               className="block px-4 py-2 text-sm text-secondary transition hover:bg-[#e8f4fc] hover:text-primary"
@@ -207,6 +228,12 @@ export function ShopShowcase() {
                               {sub.label}
                             </Link>
                           ))}
+                          <Link
+                            href={item.href}
+                            className="mt-1 block border-t border-border px-4 py-2 text-xs font-semibold text-primary hover:underline"
+                          >
+                            View all {item.name}
+                          </Link>
                         </div>
                       )}
                     </li>
@@ -231,7 +258,6 @@ export function ShopShowcase() {
             </nav>
           </aside>
 
-          {/* Top Sellers */}
           <div className="min-w-0">
             <div className="mb-4 flex items-center justify-between gap-4">
               <h2 className="text-lg font-bold text-secondary">Top Sellers</h2>
@@ -244,33 +270,28 @@ export function ShopShowcase() {
             </div>
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 sm:gap-4">
-              {topSellers.map((item) => {
-                const product = products.find((p) => p.slug === item.slug);
-                return (
-                  <Link
-                    key={item.slug}
-                    href={`/products/${item.slug}`}
-                    className="group focus-ring"
-                  >
-                    <div className="overflow-hidden border border-border bg-[#f3f4f6] transition group-hover:border-primary/40 group-hover:shadow-soft">
-                      <ProductVisual
-                        variant={item.image}
-                        className="aspect-square rounded-none"
-                        label={item.name}
-                        style="catalog"
-                      />
-                    </div>
-                    <p className="mt-2.5 text-center text-sm font-semibold text-secondary group-hover:text-primary">
-                      {item.name}
-                    </p>
-                    {product ? (
-                      <p className="text-center text-xs font-medium text-text-secondary">
-                        From ${product.price.toFixed(2)}
-                      </p>
-                    ) : null}
-                  </Link>
-                );
-              })}
+              {topSellers.map((item) => (
+                <Link
+                  key={item.slug}
+                  href={`/products/${item.slug}`}
+                  className="group focus-ring"
+                >
+                  <div className="overflow-hidden border border-border bg-[#f3f4f6] transition group-hover:border-primary/40 group-hover:shadow-soft">
+                    <ProductMedia
+                      imageUrl={item.imageUrl ?? undefined}
+                      fallbackVariant={item.image}
+                      className="aspect-square"
+                      label={item.name}
+                    />
+                  </div>
+                  <p className="mt-2.5 text-center text-sm font-semibold text-secondary group-hover:text-primary">
+                    {item.name}
+                  </p>
+                  <p className="text-center text-xs font-medium text-text-secondary">
+                    From {formatCurrency(item.price)}
+                  </p>
+                </Link>
+              ))}
             </div>
           </div>
         </div>

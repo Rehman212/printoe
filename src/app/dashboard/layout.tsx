@@ -1,4 +1,5 @@
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
+import { RequireAuth } from "@/components/auth/RequireAuth";
 
 export default function DashboardLayout({
   children,
@@ -6,11 +7,13 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-[calc(100vh-5rem)] bg-background">
-      <DashboardSidebar />
-      <div className="min-w-0 flex-1 overflow-y-auto p-6 md:p-8 lg:p-10">
-        {children}
+    <RequireAuth>
+      <div className="flex min-h-[calc(100vh-3rem)] bg-background">
+        <DashboardSidebar />
+        <div className="min-w-0 flex-1 overflow-y-auto p-6 md:p-8 lg:p-10">
+          {children}
+        </div>
       </div>
-    </div>
+    </RequireAuth>
   );
 }

@@ -1,5 +1,10 @@
 import { CheckoutFlow } from "@/components/checkout/CheckoutFlow";
+import { RequireAuth } from "@/components/auth/RequireAuth";
 
 export default function CheckoutPage() {
-  return <CheckoutFlow />;
+  return (
+    <RequireAuth>
+      <CheckoutFlow />
+    </RequireAuth>
+  );
 }

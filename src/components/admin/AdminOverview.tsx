@@ -1,0 +1,209 @@
+"use client";
+
+import Link from "next/link";
+import { motion } from "framer-motion";
+import {
+  ArrowUpRight,
+  ClipboardCheck,
+  DollarSign,
+  Package,
+  ShoppingBag,
+  Users,
+} from "lucide-react";
+import {
+  ADMIN_METRICS,
+  adminOrdersSeed,
+  adminProofs,
+  adminQuotes,
+} from "@/lib/admin-data";
+import { useProductsOptional } from "@/lib/product-store";
+import { formatCurrency } from "@/lib/utils";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card, CardContent, CardHeader } from "@/components/ui/Card";
+
+const STATUS_VARIANT: Record<
+  (typeof adminOrdersSeed)[0]["status"],
+  "default" | "primary" | "accent" | "success" | "warning"
+> = {
+  processing: "warning",
+  printing: "primary",
+  shipped: "accent",
+  delivered: "success",
+  cancelled: "default",
+};
+
+const ICONS = {
+  revenue: DollarSign,
+  orders: ShoppingBag,
+  customers: Users,
+  products: Package,
+};
+
+export function AdminOverview() {
+  const { products } = useProductsOptional();
+  const awaitingProofs = adminProofs.filter((p) => p.status === "awaiting").length;
+  const pendingQuotes = adminQuotes.filter((q) => q.status === "pending").length;
+
+  const metrics = ADMIN_METRICS.map((m) =>
+    m.key === "products"
+      ? { ...m, value: String(products.length) }
+      : m,
+  );
+
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-text-primary md:text-3xl">
+            Admin Dashboard
+          </h1>
+          <p className="mt-1 text-sm font-medium text-text-secondary">
+            Manage catalog, orders, customers, and proofs.
+          </p>
+        </div>
+        <Link href="/admin/products">
+          <Button className="gap-1">
+            Upload product
+            <ArrowUpRight className="h-4 w-4" />
+          </Button>
+        </Link>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {metrics.map((m, i) => {
+          const Icon = ICONS[m.key as keyof typeof ICONS] ?? Package;
+          return (
+            <motion.div
+              key={m.label}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+            >
+              <Card>
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                        {m.label}
+                      </p>
+                      <p className="mt-2 text-2xl font-bold text-text-primary">
+                        {m.value}
+                      </p>
+                      <p className="mt-1 text-xs font-bold text-success">
+                        {m.change}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-primary/10 p-2.5 text-primary">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="flex items-center justify-between p-5">
+            <div>
+              <p className="text-sm font-bold text-text-primary">
+                Proofs awaiting review
+              </p>
+              <p className="mt-1 text-2xl font-extrabold text-primary">
+                {awaitingProofs}
+              </p>
+            </div>
+            <Link href="/admin/proofs">
+              <Button size="sm" variant="outline">
+                Review
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center justify-between p-5">
+            <div>
+              <p className="text-sm font-bold text-text-primary">Pending quotes</p>
+              <p className="mt-1 text-2xl font-extrabold text-warning">
+                {pendingQuotes}
+              </p>
+            </div>
+            <Link href="/admin/quotes">
+              <Button size="sm" variant="outline">
+                Open
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center justify-between p-5">
+            <div>
+              <p className="text-sm font-bold text-text-primary">Catalog size</p>
+              <p className="mt-1 text-2xl font-extrabold text-text-primary">
+                {products.length}
+              </p>
+            </div>
+            <ClipboardCheck className="h-8 w-8 text-text-secondary/40" />
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <h2 className="text-lg font-bold text-text-primary">Recent orders</h2>
+          <Link href="/admin/orders">
+            <Button variant="ghost" size="sm" className="gap-1">
+              View all
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </Button>
+          </Link>
+        </CardHeader>
+        <CardContent className="overflow-x-auto pt-0">
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-border text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                <th className="pb-3 pr-4">Order</th>
+                <th className="pb-3 pr-4">Customer</th>
+                <th className="pb-3 pr-4">Product</th>
+                <th className="pb-3 pr-4">Status</th>
+                <th className="pb-3 text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {adminOrdersSeed.map((order) => (
+                <tr
+                  key={order.id}
+                  className="border-b border-border/60 last:border-0"
+                >
+                  <td className="py-3.5 pr-4 font-semibold text-text-primary">
+                    {order.id}
+                  </td>
+                  <td className="py-3.5 pr-4 text-text-secondary">
+                    {order.customer}
+                  </td>
+                  <td className="py-3.5 pr-4 text-text-secondary">
+                    {order.product}
+                  </td>
+                  <td className="py-3.5 pr-4">
+                    <Badge
+                      variant={STATUS_VARIANT[order.status]}
+                      className="capitalize"
+                    >
+                      {order.status}
+                    </Badge>
+                  </td>
+                  <td className="py-3.5 text-right font-semibold">
+                    {formatCurrency(order.total)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

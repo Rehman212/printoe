@@ -110,15 +110,39 @@ export function ProductVisual({
   className,
   label,
   style = "default",
+  imageUrl,
 }: {
   variant?: string;
   className?: string;
   label?: string;
   style?: "default" | "catalog";
+  imageUrl?: string | null;
 }) {
   const key =
     Object.keys(palettes).find((k) => variant.includes(k)) || "default";
   const [a, b, c] = palettes[key];
+
+  if (imageUrl) {
+    return (
+      <div
+        className={cn(
+          "relative overflow-hidden bg-[#f3f4f6]",
+          style === "default" && "rounded-2xl",
+          className,
+        )}
+        role={label ? "img" : undefined}
+        aria-label={label}
+        aria-hidden={!label}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={imageUrl}
+          alt={label ?? ""}
+          className="h-full w-full object-cover"
+        />
+      </div>
+    );
+  }
 
   if (style === "catalog") {
     return (
