@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  FileText,
   HelpCircle,
   LayoutGrid,
   RefreshCw,
@@ -17,6 +18,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   RefreshCw,
   LayoutGrid,
   Square,
+  FileText,
 };
 
 export function ProductConfigurator({

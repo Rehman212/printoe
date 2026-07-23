@@ -9,6 +9,7 @@ const OPTIMIZED_HOSTS = new Set([
   "images.unsplash.com",
   "plus.unsplash.com",
   "img.magnific.com",
+  "staticecp.uprinting.com",
 ]);
 
 function canOptimize(url: string) {

@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Building2,
@@ -14,8 +15,12 @@ import {
   Truck,
   Wallet,
 } from "lucide-react";
-import { cartItems } from "@/lib/data";
+import { useCart } from "@/lib/cart-store";
+import { fetchProductBySlug } from "@/lib/products-api";
+import { placeCheckout } from "@/lib/orders-api";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { cn, formatCurrency } from "@/lib/utils";
+import type { CartItem } from "@/types";
 import {
   Badge,
   Button,
@@ -66,12 +71,19 @@ const paymentMethods = [
 
 export function CheckoutFlow() {
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const { user } = useAuth();
+  const { items: cartItems, loading: cartLoading, clearCart, refresh } =
+    useCart();
   const [step, setStep] = useState(0);
   const [confirmed, setConfirmed] = useState(false);
+  const [orderNumber, setOrderNumber] = useState<string | null>(null);
+  const [placing, setPlacing] = useState(false);
   const [shippingMethod, setShippingMethod] = useState("standard");
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+  const [queryLine, setQueryLine] = useState<CartItem | null>(null);
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -85,15 +97,59 @@ export function CheckoutFlow() {
     cvc: "",
   });
 
+  const productSlug = searchParams.get("product");
+  const artworkFile = searchParams.get("file");
+
+  useEffect(() => {
+    if (user?.email || user?.name) {
+      const parts = (user.name || "").trim().split(/\s+/);
+      setForm((f) => ({
+        ...f,
+        email: f.email || user.email || "",
+        firstName: f.firstName || parts[0] || "",
+        lastName: f.lastName || parts.slice(1).join(" ") || "",
+      }));
+    }
+  }, [user?.email, user?.name]);
+
+  useEffect(() => {
+    if (!productSlug || cartItems.length > 0) return;
+    let cancelled = false;
+    void fetchProductBySlug(productSlug)
+      .then((res) => {
+        if (cancelled) return;
+        const p = res.data.product;
+        setQueryLine({
+          id: `query-${p.slug}`,
+          productId: p.id,
+          name: p.name,
+          image: p.category.slug,
+          quantity: 1,
+          unitPrice: p.basePrice,
+          size: "—",
+          material: "—",
+          finishing: "—",
+        });
+      })
+      .catch(() => {
+        /* ignore — empty cart handled below */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [productSlug, cartItems.length]);
+
+  const lineItems = cartItems.length > 0 ? cartItems : queryLine ? [queryLine] : [];
+
   const subtotal = useMemo(
-    () => cartItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
-    [],
+    () => lineItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
+    [lineItems],
   );
   const discountRate = appliedCoupon ? COUPONS[appliedCoupon] ?? 0 : 0;
   const discount = subtotal * discountRate;
   const shippingCost =
     shippingMethods.find((m) => m.id === shippingMethod)?.price ?? 0;
-  const taxable = subtotal - discount;
+  const taxable = Math.max(0, subtotal - discount);
   const tax = taxable * TAX_RATE;
   const total = taxable + shippingCost + tax;
 
@@ -111,13 +167,64 @@ export function CheckoutFlow() {
     }
   };
 
-  const placeOrder = () => {
-    setConfirmed(true);
-    toast({
-      title: "Order confirmed",
-      description: "Confirmation email sent",
-      tone: "success",
-    });
+  const placeOrder = async () => {
+    if (!lineItems.length) {
+      toast({
+        title: "Cart empty",
+        description: "Add a product before placing an order.",
+        tone: "warning",
+      });
+      return;
+    }
+    setPlacing(true);
+    try {
+      const res = await placeCheckout({
+        items: lineItems.map((i) => ({
+          productId: i.productId,
+          productSlug: productSlug || undefined,
+          name: i.name,
+          image: i.image,
+          quantity: i.quantity,
+          unitPrice: i.unitPrice,
+          size: i.size,
+          material: i.material,
+          finishing: i.finishing,
+        })),
+        subtotal,
+        shipping: shippingCost,
+        tax,
+        discount,
+        total,
+        shippingName: `${form.firstName} ${form.lastName}`.trim() || user?.name,
+        shippingEmail: form.email || user?.email,
+        shippingAddress: form.address,
+        shippingCity: form.city,
+        shippingState: form.state,
+        shippingZip: form.zip,
+        shippingMethod,
+        paymentMethod,
+        artworkFile: artworkFile || undefined,
+        clearCart: cartItems.length > 0,
+      });
+      setOrderNumber(res.data.orderId);
+      setConfirmed(true);
+      await clearCart().catch(() => undefined);
+      await refresh().catch(() => undefined);
+      toast({
+        title: "Order confirmed",
+        description: `Order ${res.data.orderId} saved — visible in admin Orders.`,
+        tone: "success",
+      });
+    } catch (err) {
+      toast({
+        title: "Checkout failed",
+        description:
+          err instanceof Error ? err.message : "Could not place order.",
+        tone: "danger",
+      });
+    } finally {
+      setPlacing(false);
+    }
   };
 
   if (confirmed) {
@@ -138,17 +245,50 @@ export function CheckoutFlow() {
               you&apos;ll receive tracking once shipped.
             </p>
             <p className="mt-2 text-sm font-bold text-text-primary">
-              Order #PR-{Math.floor(10000 + Math.random() * 90000)}
+              Order #{orderNumber}
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <Link href="/products">
                 <Button variant="outline">Continue shopping</Button>
+              </Link>
+              <Link href="/admin/orders">
+                <Button variant="outline">View in admin</Button>
               </Link>
               <Link href="/">
                 <Button>Back to home</Button>
               </Link>
             </div>
           </motion.div>
+        </Container>
+      </Section>
+    );
+  }
+
+  if (cartLoading && !queryLine) {
+    return (
+      <Section className="pb-20 pt-8">
+        <Container size="narrow">
+          <p className="text-sm text-text-secondary">Loading checkout…</p>
+        </Container>
+      </Section>
+    );
+  }
+
+  if (!lineItems.length) {
+    return (
+      <Section className="pb-20 pt-8">
+        <Container size="narrow">
+          <Card>
+            <CardContent className="space-y-4 pt-8 text-center">
+              <h1 className="text-xl font-bold">Your cart is empty</h1>
+              <p className="text-sm text-text-secondary">
+                Add products to cart, then return to checkout.
+              </p>
+              <Link href="/products">
+                <Button>Browse products</Button>
+              </Link>
+            </CardContent>
+          </Card>
         </Container>
       </Section>
     );
@@ -362,7 +502,7 @@ export function CheckoutFlow() {
                   </div>
 
                   <div className="space-y-2">
-                    {cartItems.map((item) => (
+                    {lineItems.map((item) => (
                       <div
                         key={item.id}
                         className="flex items-center justify-between rounded-xl border border-border px-4 py-3 text-sm"
@@ -384,9 +524,11 @@ export function CheckoutFlow() {
                     <Button variant="outline" onClick={() => setStep(1)}>
                       Back
                     </Button>
-                    <Button onClick={placeOrder}>
+                    <Button onClick={() => void placeOrder()} disabled={placing}>
                       <Lock className="h-4 w-4" />
-                      Place order · {formatCurrency(total)}
+                      {placing
+                        ? "Placing order…"
+                        : `Place order · ${formatCurrency(total)}`}
                     </Button>
                   </div>
                 </CardContent>
@@ -400,7 +542,7 @@ export function CheckoutFlow() {
                 <h2 className="text-lg font-bold text-text-primary">Order summary</h2>
 
                 <div className="space-y-2">
-                  {cartItems.map((item) => (
+                  {lineItems.map((item) => (
                     <div
                       key={item.id}
                       className="flex justify-between text-sm font-semibold"

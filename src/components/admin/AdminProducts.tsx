@@ -340,7 +340,9 @@ export function AdminProducts() {
             Products
           </h1>
           <p className="mt-1 text-sm font-medium text-text-secondary">
-            All products are stored in PostgreSQL via the NestJS Product API.
+            {loading
+              ? "Loading from PostgreSQL…"
+              : `${items.length} product${items.length === 1 ? "" : "s"} in database · Edit / Delete below`}
           </p>
         </div>
         <div className="flex gap-2">
@@ -360,18 +362,26 @@ export function AdminProducts() {
         </div>
       </div>
 
-      <AdminProductOptionsPanel refreshKey={optionsRefreshKey} />
-
       <Card>
         <CardHeader className="pb-3">
-          <div className="relative max-w-md">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search database products…"
-              className="h-11 w-full rounded-xl border border-border bg-card pl-10 pr-4 text-sm font-medium focus-ring"
-            />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-secondary">
+                All products (database)
+              </h2>
+              <p className="mt-0.5 text-xs text-text-secondary">
+                Search, edit price/image, or delete. Changes save to PostgreSQL.
+              </p>
+            </div>
+            <div className="relative max-w-md flex-1 sm:min-w-[240px]">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search database products…"
+                className="h-11 w-full rounded-xl border border-border bg-card pl-10 pr-4 text-sm font-medium focus-ring"
+              />
+            </div>
           </div>
         </CardHeader>
         <CardContent className="overflow-x-auto p-0">
@@ -468,24 +478,33 @@ export function AdminProducts() {
                         )}
                       </td>
                       <td className="px-6 py-3">
-                        <div className="flex justify-end gap-1">
+                        <div className="flex flex-wrap justify-end gap-1">
                           <Button
                             size="sm"
-                            variant="ghost"
+                            variant="outline"
                             onClick={() => openEdit(row)}
-                            aria-label={`Edit ${p.name}`}
+                            className="gap-1.5"
                           >
-                            <Pencil className="h-4 w-4" />
+                            <Pencil className="h-3.5 w-3.5" />
+                            Edit
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
                             onClick={() => void onDelete(row)}
-                            aria-label={`Delete ${p.name}`}
-                            className="text-danger hover:text-danger"
+                            className="gap-1.5 text-danger hover:text-danger"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Delete
                           </Button>
+                          <Link
+                            href={`/products/${p.slug}`}
+                            target="_blank"
+                            className="inline-flex h-9 items-center gap-1 rounded-xl px-3 text-xs font-semibold text-primary hover:underline"
+                          >
+                            View
+                            <ExternalLink className="h-3 w-3" />
+                          </Link>
                         </div>
                       </td>
                     </tr>
@@ -502,6 +521,8 @@ export function AdminProducts() {
           ) : null}
         </CardContent>
       </Card>
+
+      <AdminProductOptionsPanel refreshKey={optionsRefreshKey} />
 
       <Modal
         open={open}

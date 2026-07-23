@@ -18,53 +18,61 @@ const categorySubmenus: Record<string, { label: string; href: string }[]> = {
     { label: "Upload artwork", href: "/editor" },
     { label: "Use a template", href: "/editor" },
   ],
-  "business-cards": [
-    { label: "Standard Cards", href: "/products?category=business-cards" },
-    { label: "Spot UV Cards", href: "/products?category=business-cards" },
+  apparel: [
+    { label: "Custom T-Shirts", href: "/products?category=apparel" },
+    { label: "Hoodies", href: "/products?category=apparel" },
   ],
-  flyers: [
-    { label: "Standard Flyers", href: "/products?category=flyers" },
-    { label: "Rack Cards", href: "/products?category=flyers" },
+  banners: [
+    { label: "Vinyl Banners", href: "/products?category=banners" },
+    { label: "Retractable Banners", href: "/products?category=banners" },
+  ],
+  boxes: [
+    { label: "Mailer Boxes", href: "/products?category=boxes" },
+    { label: "Product Boxes", href: "/products?category=boxes" },
   ],
   brochures: [
     { label: "Bi-Fold Brochures", href: "/products?category=brochures" },
     { label: "Booklets", href: "/products?category=brochures" },
   ],
-  posters: [
-    { label: "Photo Posters", href: "/products?category=posters" },
-    { label: "Large Format", href: "/products?category=posters" },
+  "business-cards": [
+    { label: "Standard Business Cards", href: "/products?category=business-cards" },
+    { label: "Silk Business Cards", href: "/products?category=business-cards" },
   ],
-  stickers: [
-    { label: "Kiss-Cut Sheets", href: "/products?category=stickers" },
-    { label: "Clear Stickers", href: "/products?category=stickers" },
+  flyers: [
+    { label: "Business Flyers", href: "/products?category=flyers" },
+    { label: "Die-Cut Flyers", href: "/products?category=flyers" },
   ],
   labels: [
-    { label: "Sheet Labels", href: "/products?category=labels" },
     { label: "Bottle Labels", href: "/products?category=labels" },
+    { label: "Roll Labels", href: "/products?category=labels" },
   ],
   packaging: [
-    { label: "Custom Mailers", href: "/products?category=packaging" },
-    { label: "Poly Mailers", href: "/products?category=packaging" },
+    { label: "Take-out Bags", href: "/products?category=packaging" },
+    { label: "Stand Up Pouches", href: "/products?category=packaging" },
   ],
-  boxes: [
-    { label: "Mailer Boxes", href: "/products?category=boxes" },
-    { label: "Shipping Boxes", href: "/products?category=boxes" },
-  ],
-  banners: [
-    { label: "Retractable Banners", href: "/products?category=banners" },
-    { label: "Mesh Banners", href: "/products?category=banners" },
-  ],
-  apparel: [
-    { label: "T-Shirts", href: "/products?category=apparel" },
-    { label: "Hats", href: "/products?category=apparel" },
+  postcards: [
+    { label: "Standard Postcards", href: "/products?category=postcards" },
+    { label: "EDDM Postcards", href: "/products?category=postcards" },
   ],
   "promotional-products": [
-    { label: "Tote Bags", href: "/products?category=promotional-products" },
-    { label: "Mugs", href: "/products?category=promotional-products" },
+    { label: "Event Tents", href: "/products?category=promotional-products" },
+    { label: "Drinkware", href: "/products?category=promotional-products" },
+  ],
+  signs: [
+    { label: "Yard Signs", href: "/products?category=signs" },
+    { label: "Wall Decals", href: "/products?category=signs" },
+  ],
+  stickers: [
+    { label: "Custom Stickers", href: "/products?category=stickers" },
+    { label: "Die-Cut Stickers", href: "/products?category=stickers" },
   ],
   "marketing-materials": [
+    { label: "Menus", href: "/products?category=marketing-materials" },
     { label: "Notepads", href: "/products?category=marketing-materials" },
-    { label: "Catalogs", href: "/products?category=marketing-materials" },
+  ],
+  posters: [
+    { label: "Large Format Posters", href: "/products?category=posters" },
+    { label: "Bulk Posters", href: "/products?category=posters" },
   ],
 };
 
@@ -85,9 +93,47 @@ const popularItems = [
 
 const footerLinks = [
   { label: "Custom Quote", href: "/quote" },
-  { label: "Design Service", href: "/services" },
+  { label: "Direct Mail", href: "/products?category=postcards" },
   { label: "See More Products", href: "/products", chevron: true },
 ];
+
+const TOP_SELLER_ORDER = [
+  "menus",
+  "coasters",
+  "bottle-labels",
+  "vinyl-banners",
+  "bag-toppers",
+  "notepads",
+  "carbonless-forms",
+  "postcards",
+];
+
+/** Extra homepage grid (UPrinting Featured-style) — fills rows under Top Sellers */
+const FEATURED_GRID_ORDER = [
+  "custom-stickers",
+  "event-tents",
+  "take-out-bags",
+  "yard-signs",
+  "table-tents",
+  "drinkware",
+  "pouches",
+  "wall-decals",
+];
+
+const HOMEPAGE_GRID_COUNT = 16;
+
+function mapCard(p: CatalogProduct | { name: string; slug: string; image: string; imageUrl?: string | null; price: number }) {
+  if ("basePrice" in p) {
+    return {
+      name: p.name,
+      slug: p.slug,
+      image: p.category.slug,
+      imageUrl: p.imageUrl,
+      price: p.basePrice,
+    };
+  }
+  return p;
+}
 
 export function ShopShowcase() {
   const [openId, setOpenId] = useState<string | null>(null);
@@ -122,15 +168,40 @@ export function ShopShowcase() {
 
   const topSellers = useMemo(() => {
     if (apiProducts.length) {
-      return apiProducts.slice(0, 8).map((p) => ({
-        name: p.name,
-        slug: p.slug,
-        image: p.category.slug,
-        imageUrl: p.imageUrl,
-        price: p.basePrice,
-      }));
+      const bySlug = new Map(apiProducts.map((p) => [p.slug, p]));
+      const picked: CatalogProduct[] = [];
+      const used = new Set<string>();
+
+      const push = (slug: string) => {
+        const p = bySlug.get(slug);
+        if (p && !used.has(p.slug)) {
+          used.add(p.slug);
+          picked.push(p);
+        }
+      };
+
+      TOP_SELLER_ORDER.forEach(push);
+      FEATURED_GRID_ORDER.forEach(push);
+
+      // Fill remaining slots: Featured badge, then any active products
+      for (const p of apiProducts) {
+        if (picked.length >= HOMEPAGE_GRID_COUNT) break;
+        if (p.badge === "Featured" && !used.has(p.slug)) {
+          used.add(p.slug);
+          picked.push(p);
+        }
+      }
+      for (const p of apiProducts) {
+        if (picked.length >= HOMEPAGE_GRID_COUNT) break;
+        if (!used.has(p.slug)) {
+          used.add(p.slug);
+          picked.push(p);
+        }
+      }
+
+      return picked.slice(0, HOMEPAGE_GRID_COUNT).map(mapCard);
     }
-    return localProducts.slice(0, 8).map((p) => ({
+    return localProducts.slice(0, HOMEPAGE_GRID_COUNT).map((p) => ({
       name: p.name,
       slug: p.slug,
       image: p.image,
@@ -269,7 +340,7 @@ export function ShopShowcase() {
               </Link>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 sm:gap-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 sm:gap-4">
               {topSellers.map((item) => (
                 <Link
                   key={item.slug}

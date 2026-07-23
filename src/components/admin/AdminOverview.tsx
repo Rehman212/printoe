@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -12,10 +13,14 @@ import {
 } from "lucide-react";
 import {
   ADMIN_METRICS,
-  adminOrdersSeed,
   adminProofs,
   adminQuotes,
 } from "@/lib/admin-data";
+import {
+  fetchAdminOrders,
+  type ApiOrderRow,
+  type OrderStatus,
+} from "@/lib/orders-api";
 import { useProductsOptional } from "@/lib/product-store";
 import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/Badge";
@@ -23,7 +28,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 
 const STATUS_VARIANT: Record<
-  (typeof adminOrdersSeed)[0]["status"],
+  OrderStatus,
   "default" | "primary" | "accent" | "success" | "warning"
 > = {
   processing: "warning",
@@ -42,13 +47,22 @@ const ICONS = {
 
 export function AdminOverview() {
   const { products } = useProductsOptional();
+  const [recentOrders, setRecentOrders] = useState<ApiOrderRow[]>([]);
   const awaitingProofs = adminProofs.filter((p) => p.status === "awaiting").length;
   const pendingQuotes = adminQuotes.filter((q) => q.status === "pending").length;
+
+  useEffect(() => {
+    void fetchAdminOrders()
+      .then((res) => setRecentOrders(res.data.slice(0, 5)))
+      .catch(() => setRecentOrders([]));
+  }, []);
 
   const metrics = ADMIN_METRICS.map((m) =>
     m.key === "products"
       ? { ...m, value: String(products.length) }
-      : m,
+      : m.key === "orders"
+        ? { ...m, value: String(recentOrders.length) }
+        : m,
   );
 
   return (
@@ -173,33 +187,44 @@ export function AdminOverview() {
               </tr>
             </thead>
             <tbody>
-              {adminOrdersSeed.map((order) => (
-                <tr
-                  key={order.id}
-                  className="border-b border-border/60 last:border-0"
-                >
-                  <td className="py-3.5 pr-4 font-semibold text-text-primary">
-                    {order.id}
-                  </td>
-                  <td className="py-3.5 pr-4 text-text-secondary">
-                    {order.customer}
-                  </td>
-                  <td className="py-3.5 pr-4 text-text-secondary">
-                    {order.product}
-                  </td>
-                  <td className="py-3.5 pr-4">
-                    <Badge
-                      variant={STATUS_VARIANT[order.status]}
-                      className="capitalize"
-                    >
-                      {order.status}
-                    </Badge>
-                  </td>
-                  <td className="py-3.5 text-right font-semibold">
-                    {formatCurrency(order.total)}
+              {recentOrders.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="py-8 text-center text-sm text-text-secondary"
+                  >
+                    No orders in database yet. Place a checkout to see them here.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                recentOrders.map((order) => (
+                  <tr
+                    key={order.dbId}
+                    className="border-b border-border/60 last:border-0"
+                  >
+                    <td className="py-3.5 pr-4 font-semibold text-text-primary">
+                      {order.id}
+                    </td>
+                    <td className="py-3.5 pr-4 text-text-secondary">
+                      {order.customer}
+                    </td>
+                    <td className="py-3.5 pr-4 text-text-secondary">
+                      {order.product}
+                    </td>
+                    <td className="py-3.5 pr-4">
+                      <Badge
+                        variant={STATUS_VARIANT[order.status]}
+                        className="capitalize"
+                      >
+                        {order.status}
+                      </Badge>
+                    </td>
+                    <td className="py-3.5 text-right font-semibold">
+                      {formatCurrency(order.total)}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </CardContent>

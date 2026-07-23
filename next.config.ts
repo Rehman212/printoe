@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "plus.unsplash.com" },
       { protocol: "https", hostname: "img.magnific.com" },
       { protocol: "https", hostname: "**.magnific.com" },
+      { protocol: "https", hostname: "staticecp.uprinting.com" },
     ],
   },
 };

@@ -30,6 +30,7 @@ import {
   defaultSelections,
   fetchProductBySlug,
 } from "@/lib/products-api";
+import { ProductReviews } from "@/components/products/ProductReviews";
 
 const faqs = [
   {
@@ -542,6 +543,20 @@ export function ProductDetail({ slug }: { slug: string }) {
               </div>
             </div>
           </div>
+        </Container>
+      </Section>
+
+      <Section className="bg-white py-4">
+        <Container size="wide">
+          <ProductReviews
+            slug={slug}
+            rating={rating}
+            reviewsCount={reviews}
+            onStatsChange={({ rating: r, reviews: c }) => {
+              setRating(r);
+              setReviews(c);
+            }}
+          />
         </Container>
       </Section>
 

@@ -45,8 +45,10 @@ export function FeaturedProducts() {
     void fetchProducts(undefined, true)
       .then((res) => {
         if (cancelled || !res.data.length) return;
+        const featuredOnly = res.data.filter((p) => p.badge === "Featured");
+        const source = featuredOnly.length ? featuredOnly : res.data;
         setItems(
-          res.data.slice(0, 8).map((p: CatalogProduct) => ({
+          source.slice(0, 8).map((p: CatalogProduct) => ({
             id: p.id,
             name: p.name,
             slug: p.slug,
@@ -74,7 +76,7 @@ export function FeaturedProducts() {
           <div>
             <h2 className="text-2xl font-bold text-secondary">Featured Products</h2>
             <p className="mt-1 text-sm font-medium text-text-secondary">
-              Admin “Feature on homepage” products · live from database
+              Homepage featured picks · live from database
             </p>
           </div>
           <Link

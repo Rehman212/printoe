@@ -21,18 +21,20 @@ export const POPULAR_PRODUCT_SECTIONS: Array<{
   name: string;
   icon: string;
 }> = [
+  { slug: "apparel", name: "Apparel", icon: "Shirt" },
+  { slug: "banners", name: "Banners", icon: "Flag" },
+  { slug: "boxes", name: "Boxes", icon: "Box" },
+  { slug: "brochures", name: "Brochures", icon: "BookOpen" },
   { slug: "business-cards", name: "Business Cards", icon: "CreditCard" },
   { slug: "flyers", name: "Flyers", icon: "FileText" },
-  { slug: "brochures", name: "Brochures", icon: "BookOpen" },
-  { slug: "posters", name: "Posters", icon: "Image" },
-  { slug: "stickers", name: "Stickers", icon: "Sticker" },
   { slug: "labels", name: "Labels", icon: "Tag" },
   { slug: "packaging", name: "Packaging", icon: "Package" },
-  { slug: "boxes", name: "Boxes", icon: "Box" },
-  { slug: "banners", name: "Banners", icon: "Flag" },
-  { slug: "marketing-materials", name: "Marketing Materials", icon: "Megaphone" },
-  { slug: "apparel", name: "Apparel", icon: "Shirt" },
+  { slug: "postcards", name: "Postcards", icon: "Image" },
   { slug: "promotional-products", name: "Promotional Products", icon: "Gift" },
+  { slug: "signs", name: "Signs", icon: "Megaphone" },
+  { slug: "stickers", name: "Stickers", icon: "Sticker" },
+  { slug: "marketing-materials", name: "Marketing Materials", icon: "FileText" },
+  { slug: "posters", name: "Posters", icon: "Image" },
 ];
 
 function qtyTurnaround(
@@ -513,6 +515,104 @@ export const CATEGORY_OPTION_TEMPLATES: Record<string, OptionTemplateGroup[]> = 
       ],
     ),
   ],
+
+  signs: [
+    {
+      key: "display_options",
+      label: "Display Options",
+      uiType: "SELECT",
+      values: [
+        { label: "Sign Only", value: "sign-only", priceMod: 1 },
+        { label: "Sign + Ground Stake", value: "with-stake", priceMod: 1.25 },
+      ],
+    },
+    {
+      key: "shape",
+      label: "Shape",
+      uiType: "SELECT",
+      values: [
+        { label: "Rectangle/Square", value: "rectangle", priceMod: 1 },
+        { label: "Oval", value: "oval", priceMod: 1.08 },
+        { label: "Circle", value: "circle", priceMod: 1.08 },
+        { label: "House", value: "house", priceMod: 1.12 },
+        { label: "Arrow", value: "arrow", priceMod: 1.12 },
+        { label: "Custom", value: "custom", priceMod: 1.25 },
+      ],
+    },
+    {
+      key: "size",
+      label: "Size (H × W)",
+      uiType: "SELECT",
+      values: [
+        { label: '12" × 18"', value: "12x18", priceMod: 1 },
+        { label: '12" × 24"', value: "12x24", priceMod: 1.2 },
+        { label: '18" × 24"', value: "18x24", priceMod: 1.45 },
+        { label: '36" × 24"', value: "36x24", priceMod: 2.1 },
+      ],
+    },
+    {
+      key: "printed_side",
+      label: "Printed Side",
+      uiType: "SELECT",
+      values: [
+        { label: "Front Only", value: "front", priceMod: 1 },
+        { label: "Front and Back", value: "both", priceMod: 1.35 },
+      ],
+    },
+    {
+      key: "material",
+      label: "Material",
+      uiType: "SELECT",
+      values: [
+        { label: '3/16" Corrugated Plastic', value: "coroplast", priceMod: 1 },
+      ],
+    },
+    {
+      key: "grommets",
+      label: "Grommets",
+      uiType: "SELECT",
+      values: [
+        { label: "None", value: "none", priceMod: 1 },
+        { label: "Two grommets on top", value: "two-top", priceMod: 1.08 },
+        { label: "Grommet on each corner", value: "corners", priceMod: 1.12 },
+      ],
+    },
+    ...qtyTurnaround(
+      [
+        ["1", "1", 1],
+        ["5", "5", 0.95],
+        ["10", "10", 0.9],
+        ["25", "25", 0.85],
+        ["50", "50", 0.8],
+      ],
+      [
+        ["2 Business Days", "2-day", 1],
+        ["1 Business Day", "1-day", 1.25],
+      ],
+    ),
+  ],
+
+  postcards: printPack(
+    [
+      { label: '4" × 6"', value: "4x6", priceMod: 1 },
+      { label: '5" × 7"', value: "5x7", priceMod: 1.15 },
+      { label: '6" × 9"', value: "6x9", priceMod: 1.35 },
+    ],
+    [
+      { label: "14pt Cardstock", value: "14pt", priceMod: 1 },
+      { label: "16pt Cardstock", value: "16pt", priceMod: 1.12 },
+    ],
+    [
+      { label: "Gloss", value: "gloss", priceMod: 1 },
+      { label: "Matte", value: "matte", priceMod: 1.05 },
+    ],
+    [
+      ["100", "100", 1],
+      ["250", "250", 0.9],
+      ["500", "500", 0.82],
+      ["1,000", "1000", 0.75],
+    ],
+  ),
 };
 
 export const DEFAULT_OPTION_TEMPLATE: OptionTemplateGroup[] = printPack(

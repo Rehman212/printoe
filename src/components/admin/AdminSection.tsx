@@ -1,29 +1,38 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ClipboardCheck,
+  Eye,
+  RefreshCw,
 } from "lucide-react";
 import {
   adminCustomers,
-  adminOrdersSeed,
   adminProofs,
   adminQuotes,
-  type AdminOrder,
   type AdminProof,
   type AdminQuote,
 } from "@/lib/admin-data";
-import { formatCurrency } from "@/lib/utils";
+import {
+  fetchAdminOrder,
+  fetchAdminOrders,
+  updateAdminOrderStatus,
+  type ApiOrderDetail,
+  type ApiOrderRow,
+  type OrderStatus,
+} from "@/lib/orders-api";
+import { cn, formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
+import { Modal } from "@/components/ui/Modal";
 import { EmptyState } from "@/components/ui/Misc";
 import { useToast } from "@/components/ui/Toast";
 import { AdminCategories } from "@/components/admin/AdminCategories";
 
-const ORDER_STATUSES: AdminOrder["status"][] = [
+const ORDER_STATUSES: OrderStatus[] = [
   "processing",
   "printing",
   "shipped",
@@ -33,9 +42,34 @@ const ORDER_STATUSES: AdminOrder["status"][] = [
 
 export function AdminSection({ section }: { section: string }) {
   const { toast } = useToast();
-  const [orders, setOrders] = useState(adminOrdersSeed);
+  const [orders, setOrders] = useState<ApiOrderRow[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [viewOpen, setViewOpen] = useState(false);
+  const [viewLoading, setViewLoading] = useState(false);
+  const [viewDetail, setViewDetail] = useState<ApiOrderDetail | null>(null);
   const [quotes, setQuotes] = useState(adminQuotes);
   const [proofs, setProofs] = useState(adminProofs);
+
+  const loadOrders = useCallback(async () => {
+    setOrdersLoading(true);
+    setOrdersError(null);
+    try {
+      const res = await fetchAdminOrders();
+      setOrders(res.data);
+    } catch (err) {
+      setOrdersError(
+        err instanceof Error ? err.message : "Could not load orders from API.",
+      );
+      setOrders([]);
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (section === "orders") void loadOrders();
+  }, [section, loadOrders]);
 
   const title = useMemo(() => {
     const map: Record<string, { title: string; description: string }> = {
@@ -82,15 +116,53 @@ export function AdminSection({ section }: { section: string }) {
     );
   }
 
-  function setOrderStatus(id: string, status: AdminOrder["status"]) {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, status } : o)),
+  async function setOrderStatus(id: string, status: OrderStatus) {
+    const prev = orders;
+    setOrders((list) =>
+      list.map((o) => (o.id === id ? { ...o, status } : o)),
     );
-    toast({
-      title: "Order updated",
-      description: `${id} → ${status}`,
-      tone: "success",
-    });
+    try {
+      const res = await updateAdminOrderStatus(id, status);
+      setOrders((list) =>
+        list.map((o) => (o.id === id ? res.data : o)),
+      );
+      if (viewDetail?.orderNumber === id) {
+        setViewDetail((d) => (d ? { ...d, status } : d));
+      }
+      toast({
+        title: "Order updated",
+        description: `${id} → ${status}`,
+        tone: "success",
+      });
+    } catch (err) {
+      setOrders(prev);
+      toast({
+        title: "Status update failed",
+        description:
+          err instanceof Error ? err.message : "Could not update order.",
+        tone: "danger",
+      });
+    }
+  }
+
+  async function openViewOrder(id: string) {
+    setViewOpen(true);
+    setViewLoading(true);
+    setViewDetail(null);
+    try {
+      const res = await fetchAdminOrder(id);
+      setViewDetail(res.data);
+    } catch (err) {
+      toast({
+        title: "Could not load order",
+        description:
+          err instanceof Error ? err.message : "Order details unavailable.",
+        tone: "danger",
+      });
+      setViewOpen(false);
+    } finally {
+      setViewLoading(false);
+    }
   }
 
   function setQuoteStatus(id: string, status: AdminQuote["status"]) {
@@ -117,76 +189,297 @@ export function AdminSection({ section }: { section: string }) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-text-primary md:text-3xl">
-          {title.title}
-        </h1>
-        <p className="mt-1 text-sm font-medium text-text-secondary">
-          {title.description}
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-text-primary md:text-3xl">
+            {title.title}
+          </h1>
+          <p className="mt-1 text-sm font-medium text-text-secondary">
+            {title.description}
+          </p>
+        </div>
+        {section === "orders" ? (
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => void loadOrders()}
+            disabled={ordersLoading}
+          >
+            <RefreshCw
+              className={cn("h-4 w-4", ordersLoading && "animate-spin")}
+            />
+            Refresh
+          </Button>
+        ) : null}
       </div>
 
       {section === "orders" && (
         <Card>
+          <CardHeader className="pb-2">
+            <p className="text-sm text-text-secondary">
+              {ordersLoading
+                ? "Loading orders from database…"
+                : `${orders.length} order${orders.length === 1 ? "" : "s"} in PostgreSQL`}
+            </p>
+          </CardHeader>
           <CardContent className="overflow-x-auto p-0">
-            <table className="w-full min-w-[760px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-border bg-secondary/[0.02] text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                  <th className="px-6 py-3">Order</th>
-                  <th className="px-6 py-3">Customer</th>
-                  <th className="px-6 py-3">Product</th>
-                  <th className="px-6 py-3">Qty</th>
-                  <th className="px-6 py-3">Status</th>
-                  <th className="px-6 py-3 text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.map((order) => (
-                  <tr
-                    key={order.id}
-                    className="border-b border-border/60 last:border-0"
-                  >
-                    <td className="px-6 py-4 font-semibold">{order.id}</td>
-                    <td className="px-6 py-4">
-                      <p className="font-medium text-text-primary">
-                        {order.customer}
-                      </p>
-                      <p className="text-xs text-text-secondary">{order.email}</p>
-                    </td>
-                    <td className="px-6 py-4 text-text-secondary">
-                      {order.product}
-                    </td>
-                    <td className="px-6 py-4 text-text-secondary">
-                      {order.quantity}
-                    </td>
-                    <td className="px-6 py-4">
-                      <select
-                        value={order.status}
-                        onChange={(e) =>
-                          setOrderStatus(
-                            order.id,
-                            e.target.value as AdminOrder["status"],
-                          )
-                        }
-                        className="h-9 rounded-lg border border-border bg-card px-2 text-xs font-semibold capitalize focus-ring"
-                      >
-                        {ORDER_STATUSES.map((s) => (
-                          <option key={s} value={s}>
-                            {s}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-6 py-4 text-right font-semibold">
-                      {formatCurrency(order.total)}
-                    </td>
-                  </tr>
+            {ordersError ? (
+              <div className="p-6 text-sm text-text-secondary">
+                <p className="font-semibold text-secondary">API / DB error</p>
+                <p className="mt-1">{ordersError}</p>
+                <p className="mt-2 text-xs">
+                  Sign in as admin and ensure backend is running on :4000.
+                </p>
+              </div>
+            ) : ordersLoading ? (
+              <div className="space-y-3 p-6">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="h-12 animate-pulse rounded-xl bg-border/50"
+                  />
                 ))}
-              </tbody>
-            </table>
+              </div>
+            ) : orders.length === 0 ? (
+              <p className="px-6 py-10 text-center text-sm text-text-secondary">
+                No orders yet. Place a checkout order while logged in — it will
+                appear here with status <strong>processing</strong>.
+              </p>
+            ) : (
+              <table className="w-full min-w-[860px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-secondary/[0.02] text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                    <th className="px-6 py-3">Order</th>
+                    <th className="px-6 py-3">Customer</th>
+                    <th className="px-6 py-3">Product</th>
+                    <th className="px-6 py-3">Qty</th>
+                    <th className="px-6 py-3">Status</th>
+                    <th className="px-6 py-3 text-right">Total</th>
+                    <th className="px-6 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.map((order) => (
+                    <tr
+                      key={order.dbId}
+                      className="border-b border-border/60 last:border-0"
+                    >
+                      <td className="px-6 py-4 font-semibold">{order.id}</td>
+                      <td className="px-6 py-4">
+                        <p className="font-medium text-text-primary">
+                          {order.customer}
+                        </p>
+                        <p className="text-xs text-text-secondary">
+                          {order.email}
+                        </p>
+                      </td>
+                      <td className="px-6 py-4 text-text-secondary">
+                        {order.product}
+                        {order.itemCount > 1
+                          ? ` (+${order.itemCount - 1} more)`
+                          : ""}
+                      </td>
+                      <td className="px-6 py-4 text-text-secondary">
+                        {order.quantity}
+                      </td>
+                      <td className="px-6 py-4">
+                        <select
+                          value={order.status}
+                          onChange={(e) =>
+                            void setOrderStatus(
+                              order.id,
+                              e.target.value as OrderStatus,
+                            )
+                          }
+                          className="h-9 rounded-lg border border-border bg-card px-2 text-xs font-semibold capitalize focus-ring"
+                        >
+                          {ORDER_STATUSES.map((s) => (
+                            <option key={s} value={s}>
+                              {s}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-6 py-4 text-right font-semibold">
+                        {formatCurrency(order.total)}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5"
+                          onClick={() => void openViewOrder(order.id)}
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          View
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </CardContent>
         </Card>
       )}
+
+      <Modal
+        open={viewOpen}
+        onClose={() => {
+          setViewOpen(false);
+          setViewDetail(null);
+        }}
+        title={
+          viewDetail
+            ? `Order ${viewDetail.orderNumber}`
+            : "Order details"
+        }
+        description="Read-only view of the order saved in PostgreSQL."
+        size="lg"
+      >
+        {viewLoading || !viewDetail ? (
+          <div className="space-y-3 py-4">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-12 animate-pulse rounded-xl bg-border/50"
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="max-h-[70vh] space-y-5 overflow-y-auto pr-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="primary" className="capitalize">
+                {viewDetail.status}
+              </Badge>
+              <span className="text-xs text-text-secondary">
+                Placed{" "}
+                {new Date(viewDetail.createdAt).toLocaleString()}
+              </span>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-xl border border-border bg-background p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-text-secondary">
+                  Customer
+                </p>
+                <p className="mt-1 font-semibold text-text-primary">
+                  {viewDetail.shippingName || viewDetail.customer.name}
+                </p>
+                <p className="text-sm text-text-secondary">
+                  {viewDetail.shippingEmail || viewDetail.customer.email}
+                </p>
+              </div>
+              <div className="rounded-xl border border-border bg-background p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-text-secondary">
+                  Shipping
+                </p>
+                <p className="mt-1 text-sm text-text-primary">
+                  {[
+                    viewDetail.shippingAddress,
+                    viewDetail.shippingCity,
+                    viewDetail.shippingState,
+                    viewDetail.shippingZip,
+                  ]
+                    .filter(Boolean)
+                    .join(", ") || "—"}
+                </p>
+                <p className="mt-1 text-xs text-text-secondary capitalize">
+                  Method: {viewDetail.shippingMethod || "—"} · Payment:{" "}
+                  {viewDetail.paymentMethod || "—"}
+                </p>
+              </div>
+            </div>
+
+            {viewDetail.artworkFile ? (
+              <div className="rounded-xl border border-border bg-background px-4 py-3 text-sm">
+                <span className="font-semibold text-text-primary">
+                  Artwork file:{" "}
+                </span>
+                <span className="text-text-secondary">
+                  {viewDetail.artworkFile}
+                </span>
+              </div>
+            ) : null}
+
+            <div>
+              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-text-secondary">
+                Line items
+              </p>
+              <div className="space-y-2">
+                {viewDetail.items.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border px-4 py-3"
+                  >
+                    <div>
+                      <p className="font-semibold text-text-primary">
+                        {item.name}
+                      </p>
+                      <p className="mt-0.5 text-xs text-text-secondary">
+                        Qty {item.quantity}
+                        {item.size ? ` · ${item.size}` : ""}
+                        {item.material ? ` · ${item.material}` : ""}
+                        {item.finishing ? ` · ${item.finishing}` : ""}
+                        {item.productSlug ? ` · /${item.productSlug}` : ""}
+                      </p>
+                    </div>
+                    <p className="font-semibold">
+                      {formatCurrency(item.unitPrice * item.quantity)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border bg-background p-4 text-sm">
+              <div className="flex justify-between text-text-secondary">
+                <span>Subtotal</span>
+                <span>{formatCurrency(viewDetail.subtotal)}</span>
+              </div>
+              <div className="mt-1 flex justify-between text-text-secondary">
+                <span>Shipping</span>
+                <span>{formatCurrency(viewDetail.shipping)}</span>
+              </div>
+              <div className="mt-1 flex justify-between text-text-secondary">
+                <span>Tax</span>
+                <span>{formatCurrency(viewDetail.tax)}</span>
+              </div>
+              {viewDetail.discount > 0 ? (
+                <div className="mt-1 flex justify-between text-success">
+                  <span>Discount</span>
+                  <span>-{formatCurrency(viewDetail.discount)}</span>
+                </div>
+              ) : null}
+              <div className="mt-3 flex justify-between border-t border-border pt-3 text-base font-bold text-text-primary">
+                <span>Total</span>
+                <span>{formatCurrency(viewDetail.total)}</span>
+              </div>
+            </div>
+
+            {viewDetail.notes ? (
+              <div className="rounded-xl border border-border px-4 py-3 text-sm">
+                <p className="text-xs font-bold uppercase text-text-secondary">
+                  Notes
+                </p>
+                <p className="mt-1 text-text-primary">{viewDetail.notes}</p>
+              </div>
+            ) : null}
+
+            <div className="flex justify-end gap-2 pt-1">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setViewOpen(false);
+                  setViewDetail(null);
+                }}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {section === "customers" && (
         <Card>
