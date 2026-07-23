@@ -38,7 +38,7 @@ export type AdminOrder = Order & {
 
 export const ADMIN_CREDENTIALS = {
   email: "rehmanwebs@gmail.com",
-  password: "786786786",
+  password: "786786",
 };
 
 export const adminCustomers: AdminCustomer[] = [
