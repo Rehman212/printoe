@@ -4,6 +4,25 @@ export type AuthUser = {
   name: string;
   company?: string | null;
   role: "CUSTOMER" | "ADMIN" | string;
+  phone?: string | null;
+  jobTitle?: string | null;
+  website?: string | null;
+  industry?: string | null;
+  employees?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
+  country?: string | null;
+  timezone?: string | null;
+  language?: string | null;
+  currency?: string | null;
+  avatarUrl?: string | null;
+  notifyOrderEmail?: boolean;
+  notifySms?: boolean;
+  notifyWeeklyDigest?: boolean;
+  notifyMarketing?: boolean;
+  passwordChangedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -125,4 +144,52 @@ export async function signupRequest(payload: {
 
 export async function fetchMe() {
   return apiFetch<{ success: boolean; data: AuthUser }>("/auth/me");
+}
+
+export type UpdateProfilePayload = {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  jobTitle?: string;
+  company?: string;
+  website?: string;
+  industry?: string;
+  employees?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  country?: string;
+  timezone?: string;
+  language?: string;
+  currency?: string;
+  avatarUrl?: string;
+  notifyOrderEmail?: boolean;
+  notifySms?: boolean;
+  notifyWeeklyDigest?: boolean;
+  notifyMarketing?: boolean;
+};
+
+export async function updateProfileRequest(payload: UpdateProfilePayload) {
+  return apiFetch<{ success: boolean; message?: string; data: AuthUser }>(
+    "/users/me",
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export async function changePasswordRequest(payload: {
+  currentPassword: string;
+  newPassword: string;
+}) {
+  return apiFetch<{ success: boolean; message?: string }>(
+    "/users/me/change-password",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
 }

@@ -1,168 +1,149 @@
-# Printoe Work Report — Is Chat (23 July 2026)
+# Printoe Work Log / Report
 
-**Chat title:** Admin login credentials → UPrinting catalog → Orders / Options / Reviews  
-**Projects:** `D:\printo_backend` (NestJS + Prisma) · `D:\printoe` (Next.js)  
-**Date:** Thursday, July 23, 2026
+**Scope:** Is chat ka hissa — customer dashboard se start → neeche tak (24 July 2026)  
+**Projects:** `D:\printoe` (Next.js) · `D:\printo_backend` (NestJS + Prisma + PostgreSQL)
 
-Yeh report **sirf is chat** mein jo kaam hua, top se last tak. Pehli chats ka purana kaam include nahi.
+Yeh report **usi point se** shuru hoti hai jahan user ne kaha:
+
+> customer Dashboard ko or attractive bana do or top bar b lga do… dashboard ma chzy add kro… react rechart pkg add kr lna
+
+Pehle wala kaam (admin login, UPrinting catalog, orders, reviews, etc.) is file mein include **nahi**.
 
 ---
 
 ## Work Completed / Updated (chronological)
 
-### 1. Admin login DB mein banaya
-**User:** Admin login DB mein banao — `rehmanwebs@gmail.com` / `786786`, path `D:\printoe\`.
+### 1. Customer dashboard redesign + top bar + recharts
+**User ask:** Dashboard attractive banao, top bar lagao, zyada content add karo, `recharts` install karo.
 
 **Kiya:**
-- PostgreSQL database **`u_printing`** create ki (pehle missing thi).
-- Prisma migrations apply ki.
-- Admin user upsert: email / password / role **ADMIN**.
-- Seed password `786786786` → `786786` update.
-- Frontend demo creds sync: `printoe/src/lib/admin-data.ts`.
-
-| Field | Value |
-|--------|--------|
-| Email | `rehmanwebs@gmail.com` |
-| Password | `786786` |
-| Role | `ADMIN` |
-
-**Login:** `/admin/login` ya `POST /api/auth/admin/login`
+- Package install: `recharts` (`printoe/package.json`)
+- **Dashboard top bar** (`DashboardTopBar.tsx`):
+  - Search (orders / quotes / designs)
+  - Help link
+  - Notifications dropdown (badge)
+  - Profile menu (profile, orders, security, logout)
+  - Mobile hamburger → sidebar drawer
+- **Layout** update: sidebar + top bar + content (`dashboard/layout.tsx`)
+- **Overview** enriched (`DashboardOverview.tsx`):
+  - Personalized welcome
+  - Quick actions: New order, Upload design, Get quote, Support
+  - Metric cards (Active Orders, Spend, Saved Designs, Open Quotes)
+  - Spending overview area chart
+  - Order status donut
+  - Recent orders table + activity feed
+  - Saved designs grid + weekly order volume chart
+- Sidebar polish (gradient header, desktop-only; mobile via top bar)
 
 ---
 
-### 2. UPrinting jaisi products + pricing chahiye
-**User:** UPrinting pe jo products / pricing hain, wahi Printoe pe chahiye.
+### 2. Graphs — recharts properly wired
+**User ask:** Graph ke liye package hai to laga lo aur charts bana do.
 
-**Response:** Scope clear kiya — UPrinting pe 150+ products; options A/B/C (homepage only / major categories / full catalog) + exact vs similar pricing.
+**Kiya:**
+- Dedicated charts module: `DashboardCharts.tsx` (sab charts **recharts** se)
+- Components:
+  - Orders / Spend / Designs / Quotes sparklines
+  - Spending overview (AreaChart)
+  - Order status (Pie/Donut)
+  - Weekly orders (BarChart)
+- Client mount gate (SSR width/height issue avoid)
+- Overview ne in charts ko use kiya (inline SVG charts hata diye)
 
 ---
 
-### 3. Full catalog DB mein store karo
-**User:** Overall sab UPrinting products, same pricing + same images, aur sab **DB mein** store ho.
-
-**Plan:** “UPrinting Catalog → Printoe DB” approve hua aur implement kiya.
+### 3. Profile Settings — professional redesign
+**User ask:** Profile settings bohot simple hai — professionally banao.
 
 **Kiya:**
-- Live scrape CloudFront **403** se block — curated catalog use ki.
-- Files:
-  - `prisma/data/uprinting-catalog.json` (~**93** products, **14** categories)
-  - `scripts/build-uprinting-catalog.cjs`
-  - `prisma/seed.ts` — JSON se upsert (featured / Top Seller badges)
-- Seed run → products PostgreSQL mein.
-- Frontend: Popular Products sidebar + homepage Top Sellers / Featured **API / DB** se.
-- Images: UPrinting CDN URLs + Unsplash fallback jahan CDN fail.
+- Naya component: `ProfileSettings.tsx`
+- Left column:
+  - Avatar upload / remove
+  - Name, email, verified badge
+  - Profile completeness %
+  - Tabs: Personal · Company · Preferences · Account
+  - Quick links (addresses, payments, security)
+- Right column forms:
+  - Personal: first/last name, email, phone, job title
+  - Company: company, website, industry, size, full address
+  - Preferences: timezone, language, currency + email/SMS/digest/marketing toggles
+  - Account: export data + delete account controls
+- Cancel / Save + Security shortcut
+- `DashboardSection` se purana 4-field simple form replace
 
 ---
 
-### 4. Admin products list — Edit / Delete missing
-**User:** Products list kidhar hai agar DB mein save ki? Na edit, na delete, na update.
+### 4. Profile card text merge / overlap fix
+**User ask:** Profile mein text merge ho raha hai.
 
 **Kiya:**
-- Admin pe pehle sirf “Flexible product options” + View store dikh raha tha.
-- Fix: **“All products (database)”** table pehle — **Edit / Delete / View**.
-- Options panel neeche shift; sirf un products pe jinke option groups hain.
+- Avatar + name + email side-by-side cramped layout hata diya
+- Avatar **center upar**, neeche name → email (`break-all`) → verified badge
+- Spacing / leading fix — truncate merge issue resolve
 
 ---
 
-### 5. Orders API + admin status
-**User:** Order place kiya, lekin admin mein order status — API bana ke integrate karo.
+### 5. Password change + profile fields DB mein
+**User ask:**
+1. Password change fields add karo — user change kare, DB update ho  
+2. Profile jo fields hain, unke liye DB columns bhi hon
 
-**Kiya:**
-- Schema: `Order`, `OrderItem`, `OrderStatus`.
+**Backend / DB:**
+- `User` model extend (`prisma/schema.prisma`) + migration `add_user_profile_fields`
+- Naye columns:
+  - `phone`, `jobTitle`, `website`, `industry`, `employees`
+  - `address`, `city`, `state`, `zip`, `country`
+  - `timezone`, `language`, `currency`, `avatarUrl`
+  - `notifyOrderEmail`, `notifySms`, `notifyWeeklyDigest`, `notifyMarketing`
+  - `passwordChangedAt`
 - APIs:
-  - `POST /api/checkout` → real order IDs (`PR-#####`)
-  - `GET /api/orders`
-  - `GET /api/admin/orders`
-  - `PATCH /api/admin/orders/:id` (status update)
-- Checkout frontend real order ID save karta hai.
-- Admin Orders page API se load; status dropdown DB mein persist.
+  - `PATCH /api/users/me` — profile update (DB)
+  - `POST /api/users/me/change-password` — current + new password (bcrypt hash DB mein)
+  - `GET /api/users/me` / `GET /api/auth/me` — full safe profile return
+
+**Frontend:**
+- `AccountSecurity.tsx`:
+  - Current password / New password / Confirm
+  - Show/hide + strength meter
+  - Last changed date from DB
+  - 2FA + sessions UI (2FA local placeholder)
+- Profile Settings **Save** → `updateProfileRequest` → DB persist
+- `auth.ts`: `AuthUser` type extended; `updateProfileRequest`, `changePasswordRequest`
+- `AuthProvider`: `setUserProfile` after successful save
 
 ---
 
-### 6. View order popup
-**User:** View order ka option ho — click pe popup, details as view.
+## Technical Summary (is stretch)
 
-**Kiya:**
-- Admin Orders pe **View** button.
-- Click → modal / popup with order details (customer, items, totals, status).
-
----
-
-### 7. Product options (Menus etc. empty the)
-**User:** Product pe configuration options nahi aa rahe (Menus etc.).
-
-**Kiya:**
-- `prisma/data/product-option-templates.cjs` — category templates + overrides (menus, yard-signs, coasters, etc.).
-- Seed se **sab 93 products** pe option groups apply.
-- Frontend templates extend; configurator icons (e.g. FileText).
-- PDP pe UPrinting-style options (Menu Type, Size, Paper, Folding, Printed Side…) + live pricing.
-
----
-
-### 8. Coasters image fix
-**User:** Image set karo (broken / missing).
-
-**Kiya:**
-- Coasters ki broken Unsplash URL (404) replace.
-- Catalog JSON + DB update.
-
----
-
-### 9. Homepage Top Sellers — empty space fill
-**User:** Space ki jagah products add karo — upar jaisa 4×4 grid.
-
-**Kiya:**
-- Top Sellers **16** products (4 columns × 4 rows).
-- Fill order: Top Seller badge → Featured → baqi.
-- Grid `md:grid-cols-4` force.
-
----
-
-### 10. Product reviews
-**User:** Har product ke neeche Add Review — user review kare; rating + total reviews count update ho.
-
-**Kiya:**
-- Model `ProductReview` + migration.
-- APIs:
-  - `GET /api/products/:slug/reviews`
-  - `POST /api/products/:slug/reviews` (JWT required)
-- Submit pe product `rating` + `reviews` count recalculate.
-- Frontend: `ProductReviews` component har PDP pe.
-- Stars + “(count)” header pe live update.
-
----
-
-### 11. Work report file
-**User:** Jo jo kaam hua, isi style mein `.md` report banao.
-
-**Kiya:**
-- Pehle mixed (purani + nayi) report ban gayi thi — galat scope.
-- File path issue: Cursor workspace `printo_backend` hai, is liye `D:\printoe\docs\...` open nahi hua.
-- Report copy: `D:\printo_backend\docs\Printoe-Work-Report.md`
-- **Ab yeh file = sirf is chat ki chronological report.**
-
----
-
-## Is Chat Ka Technical Summary
-
-| Item | Result |
+| Item | Status |
 |------|--------|
-| Admin user | Ready in DB (`ADMIN`) |
-| Database | `u_printing` created + migrated + seeded |
-| Catalog | ~93 products, 14 categories in DB |
-| Admin Products | Edit / Delete / View table |
-| Orders | Checkout → DB; admin list + status + View modal |
-| Product options | All seeded products configurable |
-| Homepage | Top Sellers 4×4 filled |
-| Reviews | List + write; rating/count live update |
+| Customer dashboard UI | Top bar + rich overview |
+| Charts | `recharts` via `DashboardCharts.tsx` |
+| Profile Settings | Multi-tab professional UI |
+| Profile layout bug | Text merge fixed |
+| User DB fields | Profile columns + prefs migrated |
+| Password change | Form + API + DB hash update |
+| Profile save | Wired to `PATCH /users/me` |
 
 ---
 
-## Notes (is chat se)
-- Poora live UPrinting 150+ scrape **nahi** hua (CloudFront 403).
-- Curated UPrinting-style catalog + starting prices + best-effort images use kiye.
-- Exact live AJAX pricing matrix clone nahi — option-based starting / mod pricing.
+## Key files touched
+
+| Area | Paths |
+|------|--------|
+| Dashboard | `DashboardTopBar.tsx`, `DashboardOverview.tsx`, `DashboardCharts.tsx`, `DashboardSidebar.tsx`, `app/dashboard/layout.tsx` |
+| Profile / Security | `ProfileSettings.tsx`, `AccountSecurity.tsx`, `DashboardSection.tsx` |
+| Auth client | `lib/auth.ts`, `AuthProvider.tsx` |
+| Backend | `prisma/schema.prisma`, `users.service.ts`, `users.controller.ts`, `users/dto/update-profile.dto.ts` |
 
 ---
 
-*End of report — is chat only (23 July 2026).*
+## How to verify
+
+1. `/dashboard` — top bar, charts, quick actions  
+2. `/dashboard/profile-settings` — edit + Save → DB  
+3. `/dashboard/account-security` — change password → logout → login with new password  
+
+---
+
+*End of log — dashboard stretch only (24 July 2026).*

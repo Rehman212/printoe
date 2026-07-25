@@ -21,7 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import { SITE } from "@/lib/data";
 
-const NAV = [
+export const DASHBOARD_NAV = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true },
   { href: "/dashboard/orders", label: "Orders", icon: ShoppingBag },
   { href: "/dashboard/quotations", label: "Quotations", icon: FileText },
@@ -42,18 +42,19 @@ export function DashboardSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="flex w-full shrink-0 flex-col border-r border-border bg-card lg:w-64">
-      <div className="border-b border-border px-5 py-5">
+    <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-card lg:flex">
+      <div className="border-b border-border bg-gradient-to-br from-primary/10 via-card to-accent/5 px-5 py-5">
         <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
           Customer
         </p>
-        <p className="mt-1 text-sm font-bold text-text-primary">
-          {SITE.name} Account
+        <p className="mt-1 text-sm font-bold text-text-primary">{SITE.name} Account</p>
+        <p className="mt-1 text-[11px] font-medium text-text-secondary">
+          Orders · Designs · Billing
         </p>
       </div>
       <nav className="scrollbar-thin flex-1 overflow-y-auto p-3" aria-label="Dashboard">
         <ul className="space-y-0.5">
-          {NAV.map(({ href, label, icon: Icon, exact }) => {
+          {DASHBOARD_NAV.map(({ href, label, icon: Icon, exact }) => {
             const active = exact ? pathname === href : pathname.startsWith(href);
             return (
               <li key={href}>
@@ -62,7 +63,7 @@ export function DashboardSidebar() {
                   className={cn(
                     "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all focus-ring",
                     active
-                      ? "bg-primary/10 text-primary"
+                      ? "bg-primary/10 text-primary shadow-soft"
                       : "text-text-secondary hover:bg-secondary/5 hover:text-text-primary",
                   )}
                   aria-current={active ? "page" : undefined}

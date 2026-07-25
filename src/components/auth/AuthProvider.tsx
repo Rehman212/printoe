@@ -36,6 +36,7 @@ type AuthContextValue = {
   }) => Promise<AuthUser>;
   logout: () => void;
   refresh: () => Promise<void>;
+  setUserProfile: (user: AuthUser) => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -106,6 +107,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const setUserProfile = useCallback((next: AuthUser) => {
+    const token = getAccessToken();
+    if (token) setAuthSession(token, next);
+    else localStorage.setItem("printoe_user", JSON.stringify(next));
+    setUser(next);
+  }, []);
+
   const value = useMemo(
     () => ({
       user,
@@ -117,8 +125,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signup,
       logout,
       refresh,
+      setUserProfile,
     }),
-    [user, loading, login, adminLogin, signup, logout, refresh],
+    [user, loading, login, adminLogin, signup, logout, refresh, setUserProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

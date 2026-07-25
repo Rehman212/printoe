@@ -21,8 +21,9 @@ import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
-import { Input } from "@/components/ui/Input";
 import { EmptyState } from "@/components/ui/Misc";
+import { ProfileSettings } from "@/components/dashboard/ProfileSettings";
+import { AccountSecurity } from "@/components/dashboard/AccountSecurity";
 
 const SECTION_META: Record<
   string,
@@ -140,12 +141,14 @@ export function DashboardSection({ section }: { section: string }) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-text-primary md:text-3xl">
-          {meta.title}
-        </h1>
-        <p className="mt-1 text-sm font-medium text-text-secondary">{meta.description}</p>
-      </div>
+      {section !== "profile-settings" && section !== "account-security" ? (
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-text-primary md:text-3xl">
+            {meta.title}
+          </h1>
+          <p className="mt-1 text-sm font-medium text-text-secondary">{meta.description}</p>
+        </div>
+      ) : null}
 
       {section === "orders" && (
         <Card>
@@ -372,19 +375,9 @@ export function DashboardSection({ section }: { section: string }) {
         />
       )}
 
-      {section === "profile-settings" && (
-        <Card>
-          <CardContent className="space-y-4 p-6">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input label="First name" defaultValue="Sarah" />
-              <Input label="Last name" defaultValue="Chen" />
-              <Input label="Company" defaultValue="Lumen Studio" className="sm:col-span-2" />
-              <Input label="Email" type="email" defaultValue="sarah@lumen.studio" className="sm:col-span-2" />
-            </div>
-            <Button>Save changes</Button>
-          </CardContent>
-        </Card>
-      )}
+      {section === "profile-settings" && <ProfileSettings />}
+
+      {section === "account-security" && <AccountSecurity />}
 
       {section === "team-management" && (
         <Card>
@@ -409,31 +402,6 @@ export function DashboardSection({ section }: { section: string }) {
             </ul>
           </CardContent>
         </Card>
-      )}
-
-      {section === "account-security" && (
-        <div className="space-y-4">
-          <Card>
-            <CardContent className="flex items-center justify-between p-5">
-              <div>
-                <p className="font-bold text-text-primary">Password</p>
-                <p className="text-xs text-text-secondary">Last changed 3 months ago</p>
-              </div>
-              <Button size="sm" variant="outline">
-                Update
-              </Button>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="flex items-center justify-between p-5">
-              <div>
-                <p className="font-bold text-text-primary">Two-factor authentication</p>
-                <p className="text-xs text-text-secondary">Add an extra layer of security</p>
-              </div>
-              <Button size="sm">Enable</Button>
-            </CardContent>
-          </Card>
-        </div>
       )}
     </div>
   );
