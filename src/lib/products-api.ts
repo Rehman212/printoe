@@ -188,6 +188,57 @@ export async function deleteAdminProduct(id: string) {
   }>(`/admin/products/${id}`, "DELETE");
 }
 
+/** Upload product image → saved under printoe/public/uploads */
+export async function uploadAdminImage(file: File) {
+  const headers: HeadersInit = {};
+  const token = getAccessToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const body = new FormData();
+  body.append("file", file);
+
+  // Prefer Next.js upload (same app as public/uploads). Fall back to Nest API.
+  const attempts: Array<{ url: string; label: string }> = [
+    { url: "/api/uploads", label: "frontend" },
+    { url: `${getApiBaseUrl()}/admin/uploads`, label: "backend" },
+  ];
+
+  let lastError = "Upload failed";
+  for (const attempt of attempts) {
+    try {
+      const res = await fetch(attempt.url, {
+        method: "POST",
+        headers,
+        body,
+      });
+
+      if (!res.ok) {
+        let message = `Upload failed (${res.status})`;
+        try {
+          const err = (await res.json()) as { message?: string | string[] };
+          if (Array.isArray(err.message)) message = err.message.join(", ");
+          else if (typeof err.message === "string") message = err.message;
+        } catch {
+          /* ignore */
+        }
+        lastError = message;
+        continue;
+      }
+
+      return res.json() as Promise<{
+        success: boolean;
+        message?: string;
+        data: { url: string; filename: string };
+      }>;
+    } catch (err) {
+      lastError =
+        err instanceof Error ? err.message : `Upload via ${attempt.label} failed`;
+    }
+  }
+
+  throw new Error(lastError);
+}
+
 async function apiSend<T>(
   path: string,
   method: "POST" | "PATCH" | "DELETE",

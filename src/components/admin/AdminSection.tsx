@@ -8,12 +8,15 @@ import {
   RefreshCw,
 } from "lucide-react";
 import {
-  adminCustomers,
-  adminProofs,
-  adminQuotes,
-  type AdminProof,
-  type AdminQuote,
-} from "@/lib/admin-data";
+  fetchAdminCustomers,
+  fetchAdminProofs,
+  fetchAdminQuotes,
+  updateAdminProofStatus,
+  updateAdminQuoteStatus,
+  type AdminCustomerRow,
+  type AdminProofRow,
+  type AdminQuoteRow,
+} from "@/lib/admin-api";
 import {
   fetchAdminOrder,
   fetchAdminOrders,
@@ -40,6 +43,35 @@ const ORDER_STATUSES: OrderStatus[] = [
   "cancelled",
 ];
 
+const SETTINGS_KEY = "printoe_admin_settings";
+
+type StoreSettings = {
+  storeName: string;
+  supportEmail: string;
+  supportPhone: string;
+  emailOnOrders: boolean;
+  requireProof: boolean;
+};
+
+const defaultSettings: StoreSettings = {
+  storeName: "Printoe",
+  supportEmail: "hello@printoe.com",
+  supportPhone: "+1 (888) 555-0199",
+  emailOnOrders: true,
+  requireProof: true,
+};
+
+function loadSettings(): StoreSettings {
+  if (typeof window === "undefined") return defaultSettings;
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return defaultSettings;
+    return { ...defaultSettings, ...(JSON.parse(raw) as StoreSettings) };
+  } catch {
+    return defaultSettings;
+  }
+}
+
 export function AdminSection({ section }: { section: string }) {
   const { toast } = useToast();
   const [orders, setOrders] = useState<ApiOrderRow[]>([]);
@@ -48,8 +80,20 @@ export function AdminSection({ section }: { section: string }) {
   const [viewOpen, setViewOpen] = useState(false);
   const [viewLoading, setViewLoading] = useState(false);
   const [viewDetail, setViewDetail] = useState<ApiOrderDetail | null>(null);
-  const [quotes, setQuotes] = useState(adminQuotes);
-  const [proofs, setProofs] = useState(adminProofs);
+
+  const [customers, setCustomers] = useState<AdminCustomerRow[]>([]);
+  const [customersLoading, setCustomersLoading] = useState(false);
+  const [customersError, setCustomersError] = useState<string | null>(null);
+
+  const [quotes, setQuotes] = useState<AdminQuoteRow[]>([]);
+  const [quotesLoading, setQuotesLoading] = useState(false);
+  const [quotesError, setQuotesError] = useState<string | null>(null);
+
+  const [proofs, setProofs] = useState<AdminProofRow[]>([]);
+  const [proofsLoading, setProofsLoading] = useState(false);
+  const [proofsError, setProofsError] = useState<string | null>(null);
+
+  const [settings, setSettings] = useState<StoreSettings>(defaultSettings);
 
   const loadOrders = useCallback(async () => {
     setOrdersLoading(true);
@@ -67,9 +111,61 @@ export function AdminSection({ section }: { section: string }) {
     }
   }, []);
 
+  const loadCustomers = useCallback(async () => {
+    setCustomersLoading(true);
+    setCustomersError(null);
+    try {
+      const res = await fetchAdminCustomers();
+      setCustomers(res.data);
+    } catch (err) {
+      setCustomersError(
+        err instanceof Error ? err.message : "Could not load customers.",
+      );
+      setCustomers([]);
+    } finally {
+      setCustomersLoading(false);
+    }
+  }, []);
+
+  const loadQuotes = useCallback(async () => {
+    setQuotesLoading(true);
+    setQuotesError(null);
+    try {
+      const res = await fetchAdminQuotes();
+      setQuotes(res.data);
+    } catch (err) {
+      setQuotesError(
+        err instanceof Error ? err.message : "Could not load quotes.",
+      );
+      setQuotes([]);
+    } finally {
+      setQuotesLoading(false);
+    }
+  }, []);
+
+  const loadProofs = useCallback(async () => {
+    setProofsLoading(true);
+    setProofsError(null);
+    try {
+      const res = await fetchAdminProofs();
+      setProofs(res.data);
+    } catch (err) {
+      setProofsError(
+        err instanceof Error ? err.message : "Could not load proofs.",
+      );
+      setProofs([]);
+    } finally {
+      setProofsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (section === "orders") void loadOrders();
-  }, [section, loadOrders]);
+    if (section === "customers") void loadCustomers();
+    if (section === "quotes") void loadQuotes();
+    if (section === "proofs") void loadProofs();
+    if (section === "settings") setSettings(loadSettings());
+  }, [section, loadOrders, loadCustomers, loadQuotes, loadProofs]);
 
   const title = useMemo(() => {
     const map: Record<string, { title: string; description: string }> = {
@@ -123,9 +219,7 @@ export function AdminSection({ section }: { section: string }) {
     );
     try {
       const res = await updateAdminOrderStatus(id, status);
-      setOrders((list) =>
-        list.map((o) => (o.id === id ? res.data : o)),
-      );
+      setOrders((list) => list.map((o) => (o.id === id ? res.data : o)));
       if (viewDetail?.orderNumber === id) {
         setViewDetail((d) => (d ? { ...d, status } : d));
       }
@@ -165,27 +259,94 @@ export function AdminSection({ section }: { section: string }) {
     }
   }
 
-  function setQuoteStatus(id: string, status: AdminQuote["status"]) {
-    setQuotes((prev) =>
-      prev.map((q) => (q.id === id ? { ...q, status } : q)),
+  async function setQuoteStatus(
+    id: string,
+    status: AdminQuoteRow["status"],
+  ) {
+    const prev = quotes;
+    setQuotes((list) =>
+      list.map((q) => (q.id === id ? { ...q, status } : q)),
     );
+    try {
+      const res = await updateAdminQuoteStatus(id, status);
+      setQuotes((list) =>
+        list.map((q) => (q.id === id || q.dbId === res.data.dbId ? res.data : q)),
+      );
+      toast({
+        title: "Quote updated",
+        description: `${id} → ${status}`,
+        tone: "success",
+      });
+    } catch (err) {
+      setQuotes(prev);
+      toast({
+        title: "Quote update failed",
+        description:
+          err instanceof Error ? err.message : "Could not update quote.",
+        tone: "danger",
+      });
+    }
+  }
+
+  async function setProofStatus(
+    proof: AdminProofRow,
+    status: AdminProofRow["status"],
+  ) {
+    const prev = proofs;
+    setProofs((list) =>
+      list.map((p) => (p.id === proof.id ? { ...p, status } : p)),
+    );
+    try {
+      const res = await updateAdminProofStatus(proof.id, status);
+      setProofs((list) =>
+        list.map((p) => (p.id === proof.id ? res.data : p)),
+      );
+      toast({
+        title: "Proof updated",
+        description: `${proof.proofId} → ${status}`,
+        tone: "success",
+      });
+    } catch (err) {
+      setProofs(prev);
+      toast({
+        title: "Proof update failed",
+        description:
+          err instanceof Error ? err.message : "Could not update proof.",
+        tone: "danger",
+      });
+    }
+  }
+
+  function saveSettings() {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     toast({
-      title: "Quote updated",
-      description: `${id} → ${status}`,
+      title: "Settings saved",
+      description: "Store preferences updated on this device.",
       tone: "success",
     });
   }
 
-  function setProofStatus(id: string, status: AdminProof["status"]) {
-    setProofs((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, status } : p)),
-    );
-    toast({
-      title: "Proof updated",
-      description: `${id} → ${status}`,
-      tone: "success",
-    });
-  }
+  const refreshForSection =
+    section === "orders"
+      ? loadOrders
+      : section === "customers"
+        ? loadCustomers
+        : section === "quotes"
+          ? loadQuotes
+          : section === "proofs"
+            ? loadProofs
+            : null;
+
+  const sectionLoading =
+    section === "orders"
+      ? ordersLoading
+      : section === "customers"
+        ? customersLoading
+        : section === "quotes"
+          ? quotesLoading
+          : section === "proofs"
+            ? proofsLoading
+            : false;
 
   return (
     <div className="space-y-6">
@@ -198,15 +359,15 @@ export function AdminSection({ section }: { section: string }) {
             {title.description}
           </p>
         </div>
-        {section === "orders" ? (
+        {refreshForSection ? (
           <Button
             variant="outline"
             className="gap-2"
-            onClick={() => void loadOrders()}
-            disabled={ordersLoading}
+            onClick={() => void refreshForSection()}
+            disabled={sectionLoading}
           >
             <RefreshCw
-              className={cn("h-4 w-4", ordersLoading && "animate-spin")}
+              className={cn("h-4 w-4", sectionLoading && "animate-spin")}
             />
             Refresh
           </Button>
@@ -227,9 +388,6 @@ export function AdminSection({ section }: { section: string }) {
               <div className="p-6 text-sm text-text-secondary">
                 <p className="font-semibold text-secondary">API / DB error</p>
                 <p className="mt-1">{ordersError}</p>
-                <p className="mt-2 text-xs">
-                  Sign in as admin and ensure backend is running on :4000.
-                </p>
               </div>
             ) : ordersLoading ? (
               <div className="space-y-3 p-6">
@@ -353,8 +511,7 @@ export function AdminSection({ section }: { section: string }) {
                 {viewDetail.status}
               </Badge>
               <span className="text-xs text-text-secondary">
-                Placed{" "}
-                {new Date(viewDetail.createdAt).toLocaleString()}
+                Placed {new Date(viewDetail.createdAt).toLocaleString()}
               </span>
             </div>
 
@@ -383,10 +540,6 @@ export function AdminSection({ section }: { section: string }) {
                   ]
                     .filter(Boolean)
                     .join(", ") || "—"}
-                </p>
-                <p className="mt-1 text-xs text-text-secondary capitalize">
-                  Method: {viewDetail.shippingMethod || "—"} · Payment:{" "}
-                  {viewDetail.paymentMethod || "—"}
                 </p>
               </div>
             </div>
@@ -421,7 +574,6 @@ export function AdminSection({ section }: { section: string }) {
                         {item.size ? ` · ${item.size}` : ""}
                         {item.material ? ` · ${item.material}` : ""}
                         {item.finishing ? ` · ${item.finishing}` : ""}
-                        {item.productSlug ? ` · /${item.productSlug}` : ""}
                       </p>
                     </div>
                     <p className="font-semibold">
@@ -445,26 +597,11 @@ export function AdminSection({ section }: { section: string }) {
                 <span>Tax</span>
                 <span>{formatCurrency(viewDetail.tax)}</span>
               </div>
-              {viewDetail.discount > 0 ? (
-                <div className="mt-1 flex justify-between text-success">
-                  <span>Discount</span>
-                  <span>-{formatCurrency(viewDetail.discount)}</span>
-                </div>
-              ) : null}
               <div className="mt-3 flex justify-between border-t border-border pt-3 text-base font-bold text-text-primary">
                 <span>Total</span>
                 <span>{formatCurrency(viewDetail.total)}</span>
               </div>
             </div>
-
-            {viewDetail.notes ? (
-              <div className="rounded-xl border border-border px-4 py-3 text-sm">
-                <p className="text-xs font-bold uppercase text-text-secondary">
-                  Notes
-                </p>
-                <p className="mt-1 text-text-primary">{viewDetail.notes}</p>
-              </div>
-            ) : null}
 
             <div className="flex justify-end gap-2 pt-1">
               <Button
@@ -484,45 +621,70 @@ export function AdminSection({ section }: { section: string }) {
       {section === "customers" && (
         <Card>
           <CardContent className="overflow-x-auto p-0">
-            <table className="w-full min-w-[680px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-border bg-secondary/[0.02] text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                  <th className="px-6 py-3">Customer</th>
-                  <th className="px-6 py-3">Company</th>
-                  <th className="px-6 py-3">Orders</th>
-                  <th className="px-6 py-3">Spent</th>
-                  <th className="px-6 py-3">Status</th>
-                  <th className="px-6 py-3">Joined</th>
-                </tr>
-              </thead>
-              <tbody>
-                {adminCustomers.map((c) => (
-                  <tr
-                    key={c.id}
-                    className="border-b border-border/60 last:border-0"
-                  >
-                    <td className="px-6 py-4">
-                      <p className="font-semibold">{c.name}</p>
-                      <p className="text-xs text-text-secondary">{c.email}</p>
-                    </td>
-                    <td className="px-6 py-4 text-text-secondary">{c.company}</td>
-                    <td className="px-6 py-4 text-text-secondary">{c.orders}</td>
-                    <td className="px-6 py-4 font-semibold">
-                      {formatCurrency(c.spent)}
-                    </td>
-                    <td className="px-6 py-4">
-                      <Badge
-                        variant={c.status === "active" ? "success" : "default"}
-                        className="capitalize"
-                      >
-                        {c.status}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-4 text-text-secondary">{c.joined}</td>
-                  </tr>
+            {customersError ? (
+              <p className="p-6 text-sm text-text-secondary">{customersError}</p>
+            ) : customersLoading ? (
+              <div className="space-y-3 p-6">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="h-12 animate-pulse rounded-xl bg-border/50"
+                  />
                 ))}
-              </tbody>
-            </table>
+              </div>
+            ) : customers.length === 0 ? (
+              <p className="px-6 py-10 text-center text-sm text-text-secondary">
+                No customer accounts yet. New signups appear here.
+              </p>
+            ) : (
+              <table className="w-full min-w-[680px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-secondary/[0.02] text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                    <th className="px-6 py-3">Customer</th>
+                    <th className="px-6 py-3">Company</th>
+                    <th className="px-6 py-3">Orders</th>
+                    <th className="px-6 py-3">Spent</th>
+                    <th className="px-6 py-3">Status</th>
+                    <th className="px-6 py-3">Joined</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {customers.map((c) => (
+                    <tr
+                      key={c.id}
+                      className="border-b border-border/60 last:border-0"
+                    >
+                      <td className="px-6 py-4">
+                        <p className="font-semibold">{c.name}</p>
+                        <p className="text-xs text-text-secondary">{c.email}</p>
+                      </td>
+                      <td className="px-6 py-4 text-text-secondary">
+                        {c.company}
+                      </td>
+                      <td className="px-6 py-4 text-text-secondary">
+                        {c.orders}
+                      </td>
+                      <td className="px-6 py-4 font-semibold">
+                        {formatCurrency(c.spent)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <Badge
+                          variant={
+                            c.status === "active" ? "success" : "default"
+                          }
+                          className="capitalize"
+                        >
+                          {c.status}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-4 text-text-secondary">
+                        {c.joined}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </CardContent>
         </Card>
       )}
@@ -530,118 +692,199 @@ export function AdminSection({ section }: { section: string }) {
       {section === "quotes" && (
         <Card>
           <CardContent className="overflow-x-auto p-0">
-            <table className="w-full min-w-[700px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-border bg-secondary/[0.02] text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                  <th className="px-6 py-3">Quote</th>
-                  <th className="px-6 py-3">Customer</th>
-                  <th className="px-6 py-3">Product</th>
-                  <th className="px-6 py-3">Qty</th>
-                  <th className="px-6 py-3">Status</th>
-                  <th className="px-6 py-3 text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {quotes.map((q) => (
-                  <tr
-                    key={q.id}
-                    className="border-b border-border/60 last:border-0"
-                  >
-                    <td className="px-6 py-4 font-semibold">{q.id}</td>
-                    <td className="px-6 py-4 text-text-secondary">
-                      {q.customer}
-                    </td>
-                    <td className="px-6 py-4 text-text-secondary">
-                      {q.product}
-                    </td>
-                    <td className="px-6 py-4 text-text-secondary">
-                      {q.qty.toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-1">
-                        {(["pending", "approved", "declined"] as const).map(
-                          (s) => (
-                            <button
-                              key={s}
-                              type="button"
-                              onClick={() => setQuoteStatus(q.id, s)}
-                              className="rounded-md border border-border px-2 py-1 text-[11px] font-bold uppercase tracking-wide transition hover:border-primary hover:text-primary"
-                            >
-                              {s}
-                            </button>
-                          ),
-                        )}
-                        <Badge
-                          variant={
-                            q.status === "approved"
-                              ? "success"
-                              : q.status === "pending"
-                                ? "warning"
-                                : "default"
-                          }
-                          className="ml-1 capitalize"
-                        >
-                          {q.status}
-                        </Badge>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right font-semibold">
-                      {formatCurrency(q.total)}
-                    </td>
-                  </tr>
+            {quotesError ? (
+              <p className="p-6 text-sm text-text-secondary">{quotesError}</p>
+            ) : quotesLoading ? (
+              <div className="space-y-3 p-6">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="h-12 animate-pulse rounded-xl bg-border/50"
+                  />
                 ))}
-              </tbody>
-            </table>
+              </div>
+            ) : quotes.length === 0 ? (
+              <p className="px-6 py-10 text-center text-sm text-text-secondary">
+                No quotes in the database yet.
+              </p>
+            ) : (
+              <table className="w-full min-w-[700px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-secondary/[0.02] text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                    <th className="px-6 py-3">Quote</th>
+                    <th className="px-6 py-3">Customer</th>
+                    <th className="px-6 py-3">Product</th>
+                    <th className="px-6 py-3">Qty</th>
+                    <th className="px-6 py-3">Status</th>
+                    <th className="px-6 py-3 text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {quotes.map((q) => (
+                    <tr
+                      key={q.dbId}
+                      className="border-b border-border/60 last:border-0"
+                    >
+                      <td className="px-6 py-4 font-semibold">{q.id}</td>
+                      <td className="px-6 py-4 text-text-secondary">
+                        {q.customer}
+                      </td>
+                      <td className="px-6 py-4 text-text-secondary">
+                        {q.product}
+                      </td>
+                      <td className="px-6 py-4 text-text-secondary">
+                        {q.qty.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge
+                            variant={
+                              q.status === "approved"
+                                ? "success"
+                                : q.status === "pending"
+                                  ? "warning"
+                                  : "default"
+                            }
+                            className="capitalize"
+                          >
+                            {q.status}
+                          </Badge>
+                          {q.status !== "approved" ? (
+                            <Button
+                              size="sm"
+                              onClick={() =>
+                                void setQuoteStatus(q.id, "approved")
+                              }
+                            >
+                              Approve
+                            </Button>
+                          ) : null}
+                          {q.status !== "declined" ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                void setQuoteStatus(q.id, "declined")
+                              }
+                            >
+                              Decline
+                            </Button>
+                          ) : null}
+                          {q.status !== "pending" ? (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() =>
+                                void setQuoteStatus(q.id, "pending")
+                              }
+                            >
+                              Reopen
+                            </Button>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-right font-semibold">
+                        {formatCurrency(q.total)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </CardContent>
         </Card>
       )}
 
       {section === "proofs" && (
         <div className="space-y-3">
-          {proofs.map((p) => (
-            <Card key={p.id}>
-              <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
-                <div className="flex items-start gap-3">
-                  <div className="rounded-xl bg-primary/10 p-2.5 text-primary">
-                    <ClipboardCheck className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-text-primary">{p.fileName}</p>
-                    <p className="text-xs text-text-secondary">
-                      {p.orderId} · {p.customer} · Submitted {p.submitted}
-                    </p>
-                    <Badge
-                      className="mt-2 capitalize"
-                      variant={
-                        p.status === "approved"
-                          ? "success"
-                          : p.status === "awaiting"
-                            ? "warning"
-                            : "primary"
-                      }
-                    >
-                      {p.status === "changes" ? "Changes requested" : p.status}
-                    </Badge>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => setProofStatus(p.id, "approved")}
-                  >
-                    Approve
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setProofStatus(p.id, "changes")}
-                  >
-                    Request changes
-                  </Button>
-                </div>
+          {proofsError ? (
+            <Card>
+              <CardContent className="p-6 text-sm text-text-secondary">
+                {proofsError}
               </CardContent>
             </Card>
-          ))}
+          ) : proofsLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="h-24 animate-pulse rounded-2xl bg-border/50"
+                />
+              ))}
+            </div>
+          ) : proofs.length === 0 ? (
+            <Card>
+              <CardContent className="p-10 text-center text-sm text-text-secondary">
+                No artwork proofs yet. When customers upload files at checkout,
+                they appear here for approval.
+              </CardContent>
+            </Card>
+          ) : (
+            proofs.map((p) => (
+              <Card key={p.id}>
+                <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-xl bg-primary/10 p-2.5 text-primary">
+                      <ClipboardCheck className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-text-primary">
+                        {p.fileName}
+                      </p>
+                      <p className="text-xs text-text-secondary">
+                        {p.orderId} · {p.customer} · Submitted {p.submitted}
+                      </p>
+                      <Badge
+                        className="mt-2 capitalize"
+                        variant={
+                          p.status === "approved"
+                            ? "success"
+                            : p.status === "awaiting"
+                              ? "warning"
+                              : "primary"
+                        }
+                      >
+                        {p.status === "changes"
+                          ? "Changes requested"
+                          : p.status}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {p.status !== "approved" ? (
+                      <Button
+                        size="sm"
+                        onClick={() => void setProofStatus(p, "approved")}
+                      >
+                        Approve
+                      </Button>
+                    ) : (
+                      <Button size="sm" disabled variant="outline">
+                        Approved
+                      </Button>
+                    )}
+                    {p.status !== "changes" ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void setProofStatus(p, "changes")}
+                      >
+                        Request changes
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => void setProofStatus(p, "awaiting")}
+                      >
+                        Reopen
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
       )}
 
@@ -654,18 +897,39 @@ export function AdminSection({ section }: { section: string }) {
           </CardHeader>
           <CardContent className="space-y-4 pt-0">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Input label="Store name" defaultValue="Printoe" />
-              <Input label="Support email" defaultValue="hello@printoe.com" />
+              <Input
+                label="Store name"
+                value={settings.storeName}
+                onChange={(e) =>
+                  setSettings((s) => ({ ...s, storeName: e.target.value }))
+                }
+              />
+              <Input
+                label="Support email"
+                value={settings.supportEmail}
+                onChange={(e) =>
+                  setSettings((s) => ({ ...s, supportEmail: e.target.value }))
+                }
+              />
               <Input
                 label="Support phone"
-                defaultValue="+1 (888) 555-0199"
+                value={settings.supportPhone}
+                onChange={(e) =>
+                  setSettings((s) => ({ ...s, supportPhone: e.target.value }))
+                }
                 className="sm:col-span-2"
               />
             </div>
             <label className="flex items-center gap-2 text-sm font-semibold">
               <input
                 type="checkbox"
-                defaultChecked
+                checked={settings.emailOnOrders}
+                onChange={(e) =>
+                  setSettings((s) => ({
+                    ...s,
+                    emailOnOrders: e.target.checked,
+                  }))
+                }
                 className="h-4 w-4 accent-[var(--primary)]"
               />
               Email admin on new orders
@@ -673,26 +937,21 @@ export function AdminSection({ section }: { section: string }) {
             <label className="flex items-center gap-2 text-sm font-semibold">
               <input
                 type="checkbox"
-                defaultChecked
+                checked={settings.requireProof}
+                onChange={(e) =>
+                  setSettings((s) => ({
+                    ...s,
+                    requireProof: e.target.checked,
+                  }))
+                }
                 className="h-4 w-4 accent-[var(--primary)]"
               />
               Require PDF proof for custom artwork
             </label>
-            <Button
-              onClick={() =>
-                toast({
-                  title: "Settings saved",
-                  description: "Demo preferences updated locally.",
-                  tone: "success",
-                })
-              }
-            >
-              Save settings
-            </Button>
+            <Button onClick={saveSettings}>Save settings</Button>
           </CardContent>
         </Card>
       )}
     </div>
   );
 }
-

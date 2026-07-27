@@ -5,6 +5,8 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Calculator, Sparkles, Truck } from "lucide-react";
 import { categories, products } from "@/lib/data";
+import { createCustomerQuote } from "@/lib/customer-api";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { formatCurrency } from "@/lib/utils";
 import {
   Badge,
@@ -15,12 +17,16 @@ import {
   Input,
   Section,
   SectionHeader,
+  useToast,
 } from "@/components/ui";
 import { Breadcrumbs, Select } from "@/components/ui/Misc";
 
 const quantityPresets = [100, 250, 500, 1000, 2500];
 
 export function InstantQuote() {
+  const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
+  const [submitting, setSubmitting] = useState(false);
   const [category, setCategory] = useState(categories[0]?.slug ?? "");
   const [productSlug, setProductSlug] = useState(products[0]?.slug ?? "");
   const [size, setSize] = useState("");
@@ -198,8 +204,50 @@ export function InstantQuote() {
                     <Link href={`/products/${product.slug}`}>
                       <Button className="w-full">Configure & order</Button>
                     </Link>
+                    {isAuthenticated ? (
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        disabled={submitting}
+                        onClick={() => {
+                          setSubmitting(true);
+                          void createCustomerQuote({
+                            productName: product.name,
+                            quantity,
+                            total: Number(estimate.toFixed(2)),
+                            notes: `${effectiveSize} · ${effectiveMaterial} · ${effectiveFinishing}`,
+                          })
+                            .then(() => {
+                              toast({
+                                title: "Quote submitted",
+                                description: "Saved to your dashboard · Quotations",
+                                tone: "success",
+                              });
+                            })
+                            .catch((err) =>
+                              toast({
+                                title: "Quote failed",
+                                description:
+                                  err instanceof Error
+                                    ? err.message
+                                    : "Could not save quote",
+                                tone: "danger",
+                              }),
+                            )
+                            .finally(() => setSubmitting(false));
+                        }}
+                      >
+                        {submitting ? "Submitting…" : "Save quote to account"}
+                      </Button>
+                    ) : (
+                      <Link href="/login">
+                        <Button variant="outline" className="w-full">
+                          Sign in to save quote
+                        </Button>
+                      </Link>
+                    )}
                     <Link href="/cart">
-                      <Button variant="outline" className="w-full">
+                      <Button variant="ghost" className="w-full">
                         Add to cart
                       </Button>
                     </Link>

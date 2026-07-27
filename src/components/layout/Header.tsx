@@ -5,11 +5,16 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  Bookmark,
   ChevronDown,
   ChevronRight,
+  FileText,
+  Heart,
+  LogOut,
   Menu,
   Phone,
   Search,
+  ShoppingBag,
   ShoppingCart,
   User,
   X,
@@ -30,14 +35,23 @@ const navLinks = [
   { label: "Featured Collections", href: "/products" },
 ];
 
+const ACCOUNT_LINKS = [
+  { href: "/dashboard", label: "Dashboard", icon: User },
+  { href: "/dashboard/orders", label: "My orders", icon: ShoppingBag },
+  { href: "/dashboard/saved-designs", label: "Saved Designs", icon: Bookmark },
+  { href: "/dashboard/wishlist", label: "Wishlist", icon: Heart },
+  { href: "/dashboard/quotations", label: "Quotations", icon: FileText },
+];
+
 export function Header({ announcementOnly = false }: { announcementOnly?: boolean }) {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   const cart = useCartOptional();
   const cartCount = cart?.itemCount ?? 0;
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [productsOpen, setProductsOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [query, setQuery] = useState("");
 
   const initials = (user?.name || user?.email || "?")
@@ -128,26 +142,79 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
 
             <div className="ml-auto flex items-center gap-1 sm:gap-3">
               {isAuthenticated && user ? (
-                <Link
-                  href="/dashboard"
-                  className="flex items-center gap-2 rounded-lg px-1.5 py-1.5 hover:bg-background focus-ring sm:px-2"
-                  aria-label={`Account for ${user.name}`}
-                >
-                  <span
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white shadow-soft"
-                    title={user.email}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setAccountOpen((v) => !v)}
+                    className="flex items-center gap-2 rounded-lg px-1.5 py-1.5 hover:bg-background focus-ring sm:px-2"
+                    aria-label={`Account for ${user.name}`}
+                    aria-expanded={accountOpen}
                   >
-                    {initials}
-                  </span>
-                  <span className="hidden leading-tight sm:block">
-                    <span className="block text-xs font-medium text-text-secondary">
-                      Hi, {firstName}
+                    <span
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white shadow-soft"
+                      title={user.email}
+                    >
+                      {initials}
                     </span>
-                    <span className="text-sm font-bold text-secondary">
-                      Your Account
+                    <span className="hidden leading-tight sm:block">
+                      <span className="block text-xs font-medium text-text-secondary">
+                        Hi, {firstName}
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-sm font-bold text-secondary">
+                        Your Account
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </span>
                     </span>
-                  </span>
-                </Link>
+                  </button>
+                  {accountOpen ? (
+                    <>
+                      <button
+                        type="button"
+                        className="fixed inset-0 z-40 cursor-default"
+                        aria-label="Close account menu"
+                        onClick={() => setAccountOpen(false)}
+                      />
+                      <div className="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+                        <div className="border-b border-border px-4 py-3">
+                          <p className="truncate text-sm font-bold text-text-primary">
+                            {user.name}
+                          </p>
+                          <p className="truncate text-xs text-text-secondary">
+                            {user.email}
+                          </p>
+                        </div>
+                        <ul className="p-2">
+                          {ACCOUNT_LINKS.map(({ href, label, icon: Icon }) => (
+                            <li key={href}>
+                              <Link
+                                href={href}
+                                onClick={() => setAccountOpen(false)}
+                                className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-text-secondary transition hover:bg-secondary/5 hover:text-text-primary"
+                              >
+                                <Icon className="h-4 w-4" />
+                                {label}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                        <div className="border-t border-border p-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAccountOpen(false);
+                              logout();
+                              router.push("/");
+                            }}
+                            className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-danger transition hover:bg-danger/5"
+                          >
+                            <LogOut className="h-4 w-4" />
+                            Log out
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  ) : null}
+                </div>
               ) : (
                 <Link
                   href="/login"
@@ -294,13 +361,39 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
                   {link.label}
                 </Link>
               ))}
-              <Link
-                href={isAuthenticated ? "/dashboard" : "/login"}
-                className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-secondary hover:bg-background"
-                onClick={() => setMobileOpen(false)}
-              >
-                {isAuthenticated ? "Your Account" : "Log In"}
-              </Link>
+              {isAuthenticated ? (
+                <>
+                  {ACCOUNT_LINKS.map(({ href, label }) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-secondary hover:bg-background"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      {label}
+                    </Link>
+                  ))}
+                  <button
+                    type="button"
+                    className="block w-full rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-danger hover:bg-background"
+                    onClick={() => {
+                      setMobileOpen(false);
+                      logout();
+                      router.push("/");
+                    }}
+                  >
+                    Log out
+                  </button>
+                </>
+              ) : (
+                <Link
+                  href="/login"
+                  className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-secondary hover:bg-background"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  Log In
+                </Link>
+              )}
             </Container>
           </motion.div>
         ) : null}

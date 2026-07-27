@@ -27,7 +27,7 @@ export const defaultProductFilters: ProductFiltersState = {
   quantity: "all",
   deliveryTime: "all",
   priceMin: 0,
-  priceMax: 200,
+  priceMax: 1000,
   minRating: 0,
   sort: "featured",
 };
@@ -238,7 +238,7 @@ export function ProductFilters({
             <input
               type="range"
               min={0}
-              max={200}
+              max={1000}
               step={5}
               value={filters.priceMax}
               onChange={(e) => update({ priceMax: Number(e.target.value) })}
@@ -247,7 +247,7 @@ export function ProductFilters({
             <input
               type="range"
               min={0}
-              max={200}
+              max={1000}
               step={5}
               value={filters.priceMin}
               onChange={(e) =>

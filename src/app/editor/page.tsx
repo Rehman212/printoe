@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { DesignEditor } from "@/components/editor/DesignEditor";
 
 export const metadata = {
@@ -8,7 +9,15 @@ export const metadata = {
 export default function EditorPage() {
   return (
     <div className="h-[calc(100dvh)] overflow-hidden">
-      <DesignEditor />
+      <Suspense
+        fallback={
+          <div className="flex h-full items-center justify-center text-sm text-text-secondary">
+            Loading Design Studio…
+          </div>
+        }
+      >
+        <DesignEditor />
+      </Suspense>
     </div>
   );
 }

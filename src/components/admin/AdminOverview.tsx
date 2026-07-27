@@ -12,16 +12,14 @@ import {
   Users,
 } from "lucide-react";
 import {
-  ADMIN_METRICS,
-  adminProofs,
-  adminQuotes,
-} from "@/lib/admin-data";
+  fetchAdminStats,
+  type AdminStats,
+} from "@/lib/admin-api";
 import {
   fetchAdminOrders,
   type ApiOrderRow,
   type OrderStatus,
 } from "@/lib/orders-api";
-import { useProductsOptional } from "@/lib/product-store";
 import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -46,24 +44,44 @@ const ICONS = {
 };
 
 export function AdminOverview() {
-  const { products } = useProductsOptional();
   const [recentOrders, setRecentOrders] = useState<ApiOrderRow[]>([]);
-  const awaitingProofs = adminProofs.filter((p) => p.status === "awaiting").length;
-  const pendingQuotes = adminQuotes.filter((q) => q.status === "pending").length;
+  const [stats, setStats] = useState<AdminStats | null>(null);
 
   useEffect(() => {
     void fetchAdminOrders()
       .then((res) => setRecentOrders(res.data.slice(0, 5)))
       .catch(() => setRecentOrders([]));
+    void fetchAdminStats()
+      .then((res) => setStats(res.data))
+      .catch(() => setStats(null));
   }, []);
 
-  const metrics = ADMIN_METRICS.map((m) =>
-    m.key === "products"
-      ? { ...m, value: String(products.length) }
-      : m.key === "orders"
-        ? { ...m, value: String(recentOrders.length) }
-        : m,
-  );
+  const metrics = [
+    {
+      label: "Revenue",
+      value: stats ? formatCurrency(stats.revenue) : "—",
+      change: "all time",
+      key: "revenue" as const,
+    },
+    {
+      label: "Open Orders",
+      value: stats ? String(stats.openOrders) : "—",
+      change: "processing + printing",
+      key: "orders" as const,
+    },
+    {
+      label: "Customers",
+      value: stats ? String(stats.customers) : "—",
+      change: "storefront accounts",
+      key: "customers" as const,
+    },
+    {
+      label: "Products",
+      value: stats ? String(stats.products) : "—",
+      change: "live catalog",
+      key: "products" as const,
+    },
+  ];
 
   return (
     <div className="space-y-8">
@@ -73,7 +91,7 @@ export function AdminOverview() {
             Admin Dashboard
           </h1>
           <p className="mt-1 text-sm font-medium text-text-secondary">
-            Manage catalog, orders, customers, and proofs.
+            Manage catalog, orders, customers, quotes, and artwork proofs.
           </p>
         </div>
         <Link href="/admin/products">
@@ -86,7 +104,7 @@ export function AdminOverview() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map((m, i) => {
-          const Icon = ICONS[m.key as keyof typeof ICONS] ?? Package;
+          const Icon = ICONS[m.key] ?? Package;
           return (
             <motion.div
               key={m.label}
@@ -127,7 +145,7 @@ export function AdminOverview() {
                 Proofs awaiting review
               </p>
               <p className="mt-1 text-2xl font-extrabold text-primary">
-                {awaitingProofs}
+                {stats?.awaitingProofs ?? "—"}
               </p>
             </div>
             <Link href="/admin/proofs">
@@ -142,7 +160,7 @@ export function AdminOverview() {
             <div>
               <p className="text-sm font-bold text-text-primary">Pending quotes</p>
               <p className="mt-1 text-2xl font-extrabold text-warning">
-                {pendingQuotes}
+                {stats?.pendingQuotes ?? "—"}
               </p>
             </div>
             <Link href="/admin/quotes">
@@ -157,7 +175,7 @@ export function AdminOverview() {
             <div>
               <p className="text-sm font-bold text-text-primary">Catalog size</p>
               <p className="mt-1 text-2xl font-extrabold text-text-primary">
-                {products.length}
+                {stats?.products ?? "—"}
               </p>
             </div>
             <ClipboardCheck className="h-8 w-8 text-text-secondary/40" />
@@ -200,18 +218,17 @@ export function AdminOverview() {
                 recentOrders.map((order) => (
                   <tr
                     key={order.dbId}
-                    className="border-b border-border/60 last:border-0"
+                    className="border-b border-border/50 last:border-0"
                   >
-                    <td className="py-3.5 pr-4 font-semibold text-text-primary">
-                      {order.id}
+                    <td className="py-3 pr-4 font-semibold">{order.id}</td>
+                    <td className="py-3 pr-4">
+                      <p className="font-medium">{order.customer}</p>
+                      <p className="text-xs text-text-secondary">{order.email}</p>
                     </td>
-                    <td className="py-3.5 pr-4 text-text-secondary">
-                      {order.customer}
-                    </td>
-                    <td className="py-3.5 pr-4 text-text-secondary">
+                    <td className="py-3 pr-4 text-text-secondary">
                       {order.product}
                     </td>
-                    <td className="py-3.5 pr-4">
+                    <td className="py-3 pr-4">
                       <Badge
                         variant={STATUS_VARIANT[order.status]}
                         className="capitalize"
@@ -219,7 +236,7 @@ export function AdminOverview() {
                         {order.status}
                       </Badge>
                     </td>
-                    <td className="py-3.5 text-right font-semibold">
+                    <td className="py-3 text-right font-semibold">
                       {formatCurrency(order.total)}
                     </td>
                   </tr>

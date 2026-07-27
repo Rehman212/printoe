@@ -6,6 +6,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Bookmark,
   Pencil,
   Share2,
   Upload,
@@ -23,6 +24,7 @@ import {
   EmptyState,
   Section,
   StarRating,
+  useToast,
 } from "@/components/ui";
 import { Breadcrumbs } from "@/components/ui/Misc";
 import {
@@ -30,6 +32,8 @@ import {
   defaultSelections,
   fetchProductBySlug,
 } from "@/lib/products-api";
+import { createCustomerDesign } from "@/lib/customer-api";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { ProductReviews } from "@/components/products/ProductReviews";
 
 const faqs = [
@@ -190,9 +194,12 @@ function legacyToOptions(product: Product): ProductOptionGroup[] {
 
 export function ProductDetail({ slug }: { slug: string }) {
   const store = useProductsOptional();
+  const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
   const localProduct = store.getBySlug(slug);
 
   const [loading, setLoading] = useState(true);
+  const [savingDesign, setSavingDesign] = useState(false);
   const [name, setName] = useState(localProduct?.name ?? "");
   const [description, setDescription] = useState(localProduct?.description ?? "");
   const [basePrice, setBasePrice] = useState(localProduct?.price ?? 0);
@@ -303,6 +310,46 @@ export function ProductDetail({ slug }: { slug: string }) {
   const onOptionChange = (key: string, value: string) => {
     setSelections((prev) => ({ ...prev, [key]: value }));
   };
+
+  async function saveCurrentDesign() {
+    if (!isAuthenticated) {
+      toast({
+        title: "Sign in required",
+        description: "Log in to save designs to your account.",
+        tone: "warning",
+      });
+      return;
+    }
+    setSavingDesign(true);
+    try {
+      const summary = options
+        .map((g) => {
+          const v = g.values.find((x) => x.value === selections[g.key]);
+          return v ? `${g.label}: ${v.label}` : null;
+        })
+        .filter(Boolean)
+        .slice(0, 4)
+        .join(" · ");
+      await createCustomerDesign({
+        name: `${name || slug} · ${new Date().toLocaleDateString()}`,
+        productSlug: slug,
+        productName: summary ? `${name} (${summary})` : name || slug,
+      });
+      toast({
+        title: "Design saved",
+        description: "Find it under Account → Saved Designs.",
+        tone: "success",
+      });
+    } catch (err) {
+      toast({
+        title: "Could not save design",
+        description: err instanceof Error ? err.message : "Try again.",
+        tone: "danger",
+      });
+    } finally {
+      setSavingDesign(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -525,13 +572,13 @@ export function ProductDetail({ slug }: { slug: string }) {
                 ) : null}
               </div>
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 <Link href={`/upload?${query.toString()}`} className="block">
                   <Button size="lg" className="w-full gap-2">
                     <Upload className="h-4 w-4" /> Upload Design
                   </Button>
                 </Link>
-                <Link href="/editor" className="block">
+                <Link href={`/editor?product=${encodeURIComponent(slug)}`} className="block">
                   <Button
                     variant="outline"
                     size="lg"
@@ -540,7 +587,26 @@ export function ProductDetail({ slug }: { slug: string }) {
                     <Pencil className="h-4 w-4" /> Design Online
                   </Button>
                 </Link>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="w-full gap-2"
+                  disabled={savingDesign}
+                  onClick={() => void saveCurrentDesign()}
+                >
+                  <Bookmark className="h-4 w-4" />
+                  {savingDesign ? "Saving…" : "Save Design"}
+                </Button>
               </div>
+              <p className="mt-2 text-center text-xs text-text-secondary">
+                Saved designs appear in{" "}
+                <Link
+                  href="/dashboard/saved-designs"
+                  className="font-semibold text-primary hover:underline"
+                >
+                  Your Account → Saved Designs
+                </Link>
+              </p>
             </div>
           </div>
         </Container>

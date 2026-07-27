@@ -1,11 +1,14 @@
 "use client";
 
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlignCenter,
   AlignLeft,
   AlignRight,
+  Bookmark,
   Circle,
   Cloud,
   CloudOff,
@@ -34,6 +37,9 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { useToast } from "@/components/ui/Toast";
+import { createCustomerDesign } from "@/lib/customer-api";
 
 type ToolPanel =
   | "templates"
@@ -77,10 +83,15 @@ const INITIAL_LAYERS: Layer[] = [
 ];
 
 export function DesignEditor() {
+  const searchParams = useSearchParams();
+  const productSlug = searchParams.get("product") || undefined;
+  const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
   const [activePanel, setActivePanel] = useState<ToolPanel>("templates");
   const [zoom, setZoom] = useState(100);
   const [livePreview, setLivePreview] = useState(false);
   const [saved, setSaved] = useState(true);
+  const [savingAccount, setSavingAccount] = useState(false);
   const [selectedLayer, setSelectedLayer] = useState("l2");
   const [layers, setLayers] = useState<Layer[]>(INITIAL_LAYERS);
   const [history, setHistory] = useState<number[]>([100]);
@@ -101,6 +112,44 @@ export function DesignEditor() {
       return () => clearTimeout(t);
     }
   }, [saved]);
+
+  async function saveToAccount() {
+    if (!isAuthenticated) {
+      toast({
+        title: "Sign in required",
+        description: "Log in to save designs to your account.",
+        tone: "warning",
+      });
+      return;
+    }
+    setSavingAccount(true);
+    try {
+      const label =
+        layers.find((l) => l.type === "text" && l.id === selectedLayer)?.name ||
+        "Studio design";
+      await createCustomerDesign({
+        name: `${label} · ${new Date().toLocaleDateString()}`,
+        productSlug,
+        productName: productSlug
+          ? `Design Studio · ${productSlug}`
+          : "Design Studio",
+      });
+      setSaved(true);
+      toast({
+        title: "Design saved",
+        description: "Open Account → Saved Designs anytime.",
+        tone: "success",
+      });
+    } catch (err) {
+      toast({
+        title: "Could not save design",
+        description: err instanceof Error ? err.message : "Try again.",
+        tone: "danger",
+      });
+    } finally {
+      setSavingAccount(false);
+    }
+  }
 
   const handleZoom = (delta: number) => {
     const next = Math.min(200, Math.max(25, zoom + delta));
@@ -179,15 +228,33 @@ export function DesignEditor() {
             {saved ? (
               <>
                 <Cloud className="h-3.5 w-3.5 text-success" />
-                Saved
+                Draft ready
               </>
             ) : (
               <>
                 <CloudOff className="h-3.5 w-3.5 animate-pulse text-warning" />
-                Saving…
+                Editing…
               </>
             )}
           </motion.div>
+          <Link
+            href="/dashboard/saved-designs"
+            className="hidden text-xs font-semibold text-primary hover:underline sm:inline"
+          >
+            My designs
+          </Link>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            disabled={savingAccount}
+            onClick={() => void saveToAccount()}
+          >
+            <Bookmark className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">
+              {savingAccount ? "Saving…" : "Save design"}
+            </span>
+          </Button>
           <Button
             variant="outline"
             size="sm"

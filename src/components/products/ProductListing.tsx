@@ -15,7 +15,9 @@ import {
 } from "lucide-react";
 import { useProductsOptional } from "@/lib/product-store";
 import { fetchProducts } from "@/lib/products-api";
+import { addCustomerWishlist } from "@/lib/customer-api";
 import { useCart } from "@/lib/cart-store";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { CatalogProduct, Product } from "@/types";
 import { ProductVisual } from "@/components/shared/ProductVisual";
@@ -43,7 +45,7 @@ export type ProductListingProps = {
   searchQuery?: string;
 };
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 12;
 
 function catalogToProduct(p: CatalogProduct): Product {
   return {
@@ -138,6 +140,7 @@ function sortProducts(list: Product[], sort: string) {
 function ProductCard({ product }: { product: Product }) {
   const { toast } = useToast();
   const { addItem } = useCart();
+  const { isAuthenticated } = useAuth();
 
   return (
     <Card hover className="group flex h-full flex-col overflow-hidden">
@@ -161,7 +164,32 @@ function ProductCard({ product }: { product: Product }) {
             aria-label="Add to wishlist"
             onClick={(e) => {
               e.preventDefault();
-              toast({ title: "Saved to wishlist", tone: "success" });
+              if (!isAuthenticated) {
+                toast({
+                  title: "Sign in required",
+                  description: "Log in to save wishlist items.",
+                  tone: "warning",
+                });
+                return;
+              }
+              void addCustomerWishlist({
+                productSlug: product.slug,
+                name: product.name,
+                productId: product.id,
+                imageUrl: product.imageUrl,
+                basePrice: product.price,
+              })
+                .then(() =>
+                  toast({ title: "Saved to wishlist", tone: "success" }),
+                )
+                .catch((err) =>
+                  toast({
+                    title: "Wishlist failed",
+                    description:
+                      err instanceof Error ? err.message : "Try again",
+                    tone: "danger",
+                  }),
+                );
             }}
           >
             <Heart className="h-4 w-4" />

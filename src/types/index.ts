@@ -140,6 +140,7 @@ export type CartItem = {
   productId: string;
   name: string;
   image: string;
+  imageUrl?: string;
   quantity: number;
   unitPrice: number;
   size: string;

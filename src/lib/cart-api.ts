@@ -71,6 +71,7 @@ export function mapApiCartItem(item: ApiCartItem): CartItem {
     productId: item.productId ?? item.productSlug ?? item.id,
     name: item.name,
     image: item.image || "default",
+    imageUrl: item.imageUrl ?? undefined,
     quantity: item.quantity,
     unitPrice: item.unitPrice,
     size: item.size || "—",

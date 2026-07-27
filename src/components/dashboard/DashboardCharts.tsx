@@ -188,11 +188,16 @@ export function QuotesSparkChart() {
   );
 }
 
-export function SpendingOverviewChart() {
+export function SpendingOverviewChart({
+  data,
+}: {
+  data?: Array<{ month: string; spend: number }>;
+} = {}) {
+  const chartData = data?.length ? data : SPEND_TREND;
   return (
     <ChartFrame className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={SPEND_TREND} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
+        <AreaChart data={chartData} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="spendMain" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#e6007a" stopOpacity={0.35} />
@@ -228,15 +233,20 @@ export function SpendingOverviewChart() {
   );
 }
 
-export function OrderStatusDonut() {
-  const total = STATUS_BREAKDOWN.reduce((s, x) => s + x.value, 0);
+export function OrderStatusDonut({
+  data,
+}: {
+  data?: Array<{ name: string; value: number; color: string }>;
+} = {}) {
+  const breakdown = data?.length ? data : STATUS_BREAKDOWN;
+  const total = breakdown.reduce((s, x) => s + x.value, 0);
   return (
     <div>
       <ChartFrame className="mx-auto h-48 w-full max-w-[220px]">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
-              data={STATUS_BREAKDOWN}
+              data={breakdown}
               dataKey="value"
               nameKey="name"
               innerRadius={52}
@@ -244,7 +254,7 @@ export function OrderStatusDonut() {
               paddingAngle={3}
               strokeWidth={0}
             >
-              {STATUS_BREAKDOWN.map((entry) => (
+              {breakdown.map((entry) => (
                 <Cell key={entry.name} fill={entry.color} />
               ))}
             </Pie>
@@ -254,7 +264,7 @@ export function OrderStatusDonut() {
       </ChartFrame>
       <p className="sr-only">{total} orders in pipeline</p>
       <ul className="mt-2 space-y-2">
-        {STATUS_BREAKDOWN.map((s) => (
+        {breakdown.map((s) => (
           <li key={s.name} className="flex items-center justify-between text-sm">
             <span className="flex items-center gap-2 font-medium text-text-secondary">
               <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: s.color }} />

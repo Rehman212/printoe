@@ -19,6 +19,7 @@ import {
   fetchAdminCategories,
   fetchAdminProducts,
   updateAdminProduct,
+  uploadAdminImage,
 } from "@/lib/products-api";
 import {
   getOptionTemplateForCategory,
@@ -79,6 +80,7 @@ export function AdminProducts() {
   const [editing, setEditing] = useState<ProductDetailPayload | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<ProductDetailPayload[]>([]);
@@ -180,7 +182,7 @@ export function AdminProducts() {
     }));
   }
 
-  function onPickImage(file: File | null) {
+  async function onPickImage(file: File | null) {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
       toast({
@@ -190,16 +192,57 @@ export function AdminProducts() {
       });
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = String(reader.result ?? "");
+
+    // Local preview immediately
+    const localPreview = URL.createObjectURL(file);
+    setForm((f) => ({
+      ...f,
+      previewDataUrl: localPreview,
+    }));
+
+    setUploading(true);
+    try {
+      const res = await uploadAdminImage(file);
+      const url = res.data.url;
       setForm((f) => ({
         ...f,
-        previewDataUrl: dataUrl,
-        imageUrl: dataUrl,
+        imageUrl: url,
+        previewDataUrl: url,
       }));
-    };
-    reader.readAsDataURL(file);
+
+      // If editing an existing product, persist image to DB immediately
+      if (editing?.product?.id) {
+        await updateAdminProduct(editing.product.id, {
+          imageUrl: url,
+          galleryUrls: [url],
+        });
+        await load();
+        toast({
+          title: "Image saved",
+          description: "Uploaded to public/uploads and stored on this product.",
+          tone: "success",
+        });
+      } else {
+        toast({
+          title: "Image uploaded",
+          description: "Saved to uploads — click Save to attach to the new product.",
+          tone: "success",
+        });
+      }
+    } catch (err) {
+      setForm((f) => ({
+        ...f,
+        previewDataUrl: f.imageUrl || null,
+      }));
+      toast({
+        title: "Upload failed",
+        description:
+          err instanceof Error ? err.message : "Could not upload image.",
+        tone: "danger",
+      });
+    } finally {
+      setUploading(false);
+    }
   }
 
   function buildOptionsPayload() {
@@ -239,9 +282,21 @@ export function AdminProducts() {
     }
 
     setSaving(true);
-    const imageUrl = form.imageUrl.startsWith("data:")
-      ? undefined
-      : form.imageUrl || undefined;
+    // Persist public/uploaded URL; never send data: previews
+    const imageUrl =
+      form.imageUrl && !form.imageUrl.startsWith("data:")
+        ? form.imageUrl.trim()
+        : "";
+
+    if (form.previewDataUrl?.startsWith("blob:") && !imageUrl) {
+      setSaving(false);
+      toast({
+        title: "Image not uploaded",
+        description: "Wait for upload to finish, or paste a public image URL.",
+        tone: "warning",
+      });
+      return;
+    }
 
     try {
       if (editing) {
@@ -256,6 +311,7 @@ export function AdminProducts() {
           featured: form.featured,
           active: form.active,
           imageUrl,
+          galleryUrls: imageUrl ? [imageUrl] : [],
           options: buildOptionsPayload(),
         });
         toast({
@@ -276,7 +332,8 @@ export function AdminProducts() {
           categoryId: form.categoryId,
           deliveryDays: Number(form.deliveryDays) || 3,
           badge: form.badge.trim() || undefined,
-          imageUrl,
+          imageUrl: imageUrl || undefined,
+          galleryUrls: imageUrl ? [imageUrl] : undefined,
           featured: form.featured,
           active: form.active,
           options: buildOptionsPayload(),
@@ -706,13 +763,14 @@ export function AdminProducts() {
 
           <div className="space-y-2">
             <p className="text-sm font-semibold text-text-primary">
-              Product image URL
+              Product image
             </p>
             <div className="flex flex-wrap items-start gap-4">
               <label
                 htmlFor={fileId}
                 className={cn(
-                  "flex h-32 w-32 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-border bg-[#f5f6f8] transition hover:border-primary/50",
+                  "relative flex h-32 w-32 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-border bg-[#f5f6f8] transition hover:border-primary/50",
+                  uploading && "pointer-events-none opacity-70",
                 )}
               >
                 {form.previewDataUrl ? (
@@ -726,18 +784,24 @@ export function AdminProducts() {
                   <>
                     <ImagePlus className="h-7 w-7 text-text-secondary" />
                     <span className="mt-1 text-[11px] font-semibold text-text-secondary">
-                      Preview
+                      Upload
                     </span>
                   </>
                 )}
+                {uploading ? (
+                  <span className="absolute inset-x-0 bottom-0 bg-black/60 py-1 text-center text-[10px] font-semibold text-white">
+                    Uploading…
+                  </span>
+                ) : null}
               </label>
               <input
                 id={fileId}
                 type="file"
                 accept="image/*"
                 className="hidden"
+                disabled={uploading || saving}
                 onChange={(e) => {
-                  onPickImage(e.target.files?.[0] ?? null);
+                  void onPickImage(e.target.files?.[0] ?? null);
                   e.target.value = "";
                 }}
               />
@@ -752,11 +816,12 @@ export function AdminProducts() {
                       previewDataUrl: e.target.value || f.previewDataUrl,
                     }))
                   }
-                  placeholder="https://…"
+                  placeholder="https://… or pick a file to upload"
                 />
                 <p className="text-[11px] text-text-secondary">
-                  Local file preview is not uploaded yet — paste a public URL to
-                  persist.
+                  Choose a file to save it under{" "}
+                  <code className="rounded bg-[#f5f6f8] px-1">public/uploads</code>
+                  {" "}and into the product record. Or paste any public image URL.
                 </p>
                 {form.previewDataUrl ? (
                   <button
@@ -810,12 +875,14 @@ export function AdminProducts() {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" disabled={saving || uploading}>
               {saving
                 ? "Saving to DB…"
-                : editing
-                  ? "Update in database"
-                  : "Save to database"}
+                : uploading
+                  ? "Uploading image…"
+                  : editing
+                    ? "Update in database"
+                    : "Save to database"}
             </Button>
           </div>
         </form>

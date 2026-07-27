@@ -122,6 +122,8 @@ export function CartView() {
                   <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:p-5">
                     <ProductVisual
                       variant={item.image}
+                      imageUrl={item.imageUrl}
+                      label={item.name}
                       className="h-28 w-full shrink-0 sm:h-24 sm:w-28"
                     />
                     <div className="min-w-0 flex-1 space-y-2">
