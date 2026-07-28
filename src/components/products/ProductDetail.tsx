@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Check,
   ChevronLeft,
   ChevronRight,
   Bookmark,
+  BookmarkCheck,
+  Heart,
   Pencil,
   Share2,
   Upload,
@@ -32,9 +34,36 @@ import {
   defaultSelections,
   fetchProductBySlug,
 } from "@/lib/products-api";
-import { createCustomerDesign } from "@/lib/customer-api";
+import {
+  addCustomerWishlist,
+  createCustomerDesign,
+  deleteCustomerDesign,
+  fetchCustomerDesigns,
+  fetchCustomerWishlist,
+  removeCustomerWishlist,
+} from "@/lib/customer-api";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { ProductReviews } from "@/components/products/ProductReviews";
+
+function buildOptionsKey(selections: Record<string, string>) {
+  return Object.keys(selections)
+    .sort()
+    .map((k) => `${k}=${selections[k]}`)
+    .join("&");
+}
+
+function buildOptionsSummary(
+  options: ProductOptionGroup[],
+  selections: Record<string, string>,
+) {
+  return options
+    .map((g) => {
+      const v = g.values.find((x) => x.value === selections[g.key]);
+      return v ? `${g.label}: ${v.label}` : null;
+    })
+    .filter(Boolean)
+    .join(" · ");
+}
 
 const faqs = [
   {
@@ -200,6 +229,12 @@ export function ProductDetail({ slug }: { slug: string }) {
 
   const [loading, setLoading] = useState(true);
   const [savingDesign, setSavingDesign] = useState(false);
+  const [savedDesignId, setSavedDesignId] = useState<string | null>(null);
+  const [wishlistId, setWishlistId] = useState<string | null>(null);
+  const [wishlistBusy, setWishlistBusy] = useState(false);
+  const [productId, setProductId] = useState<string | undefined>(
+    localProduct?.id,
+  );
   const [name, setName] = useState(localProduct?.name ?? "");
   const [description, setDescription] = useState(localProduct?.description ?? "");
   const [basePrice, setBasePrice] = useState(localProduct?.price ?? 0);
@@ -237,6 +272,7 @@ export function ProductDetail({ slug }: { slug: string }) {
         if (cancelled) return;
         const { product, options: apiOptions } = res.data;
         setFromApi(true);
+        setProductId(product.id);
         setName(product.name);
         setDescription(product.description);
         setBasePrice(product.basePrice);
@@ -262,6 +298,7 @@ export function ProductDetail({ slug }: { slug: string }) {
         if (localProduct) {
           setFromApi(false);
           const opts = legacyToOptions(localProduct);
+          setProductId(localProduct.id);
           setName(localProduct.name);
           setDescription(localProduct.description);
           setBasePrice(localProduct.price);
@@ -307,11 +344,96 @@ export function ProductDetail({ slug }: { slug: string }) {
     [basePrice, options, selections],
   );
 
+  const optionsKey = useMemo(() => buildOptionsKey(selections), [selections]);
+  const optionsSummary = useMemo(
+    () => buildOptionsSummary(options, selections),
+    [options, selections],
+  );
+  const designProductName = useMemo(
+    () => (optionsSummary ? `${name} (${optionsSummary})` : name || slug),
+    [name, optionsSummary, slug],
+  );
+
+  const syncSavedState = useCallback(async () => {
+    if (!isAuthenticated) {
+      setSavedDesignId(null);
+      setWishlistId(null);
+      return;
+    }
+    try {
+      const [designsRes, wishlistRes] = await Promise.all([
+        fetchCustomerDesigns(),
+        fetchCustomerWishlist(),
+      ]);
+      const match = designsRes.data.find((d) => {
+        if (d.productSlug !== slug) return false;
+        if (d.previewUrl === `options:${optionsKey}`) return true;
+        return d.productName === designProductName;
+      });
+      setSavedDesignId(match?.id ?? null);
+      setWishlistId(
+        wishlistRes.data.find((w) => w.productSlug === slug)?.id ?? null,
+      );
+    } catch {
+      setSavedDesignId(null);
+      setWishlistId(null);
+    }
+  }, [isAuthenticated, slug, optionsKey, designProductName]);
+
+  useEffect(() => {
+    void syncSavedState();
+  }, [syncSavedState]);
+
   const onOptionChange = (key: string, value: string) => {
     setSelections((prev) => ({ ...prev, [key]: value }));
   };
 
-  async function saveCurrentDesign() {
+  async function toggleWishlist() {
+    if (!isAuthenticated) {
+      toast({
+        title: "Sign in required",
+        description: "Log in to use wishlist.",
+        tone: "warning",
+      });
+      return;
+    }
+    if (wishlistBusy) return;
+    setWishlistBusy(true);
+    try {
+      if (wishlistId) {
+        await removeCustomerWishlist(wishlistId);
+        setWishlistId(null);
+        toast({ title: "Removed from wishlist", tone: "success" });
+        return;
+      }
+      const res = await addCustomerWishlist({
+        productSlug: slug,
+        name: name || slug,
+        productId,
+        imageUrl: imageUrl ?? gallery[0],
+        basePrice: basePrice,
+      });
+      if (res.data?.id) {
+        setWishlistId(res.data.id);
+      } else {
+        const list = await fetchCustomerWishlist();
+        setWishlistId(
+          list.data.find((w) => w.productSlug === slug)?.id ?? null,
+        );
+      }
+      toast({ title: "Added to wishlist", tone: "success" });
+    } catch (err) {
+      toast({
+        title: "Wishlist failed",
+        description: err instanceof Error ? err.message : "Try again.",
+        tone: "danger",
+      });
+    } finally {
+      setWishlistBusy(false);
+    }
+  }
+
+  async function toggleSaveDesign() {
     if (!isAuthenticated) {
       toast({
         title: "Sign in required",
@@ -320,29 +442,35 @@ export function ProductDetail({ slug }: { slug: string }) {
       });
       return;
     }
+    if (savingDesign) return;
     setSavingDesign(true);
     try {
-      const summary = options
-        .map((g) => {
-          const v = g.values.find((x) => x.value === selections[g.key]);
-          return v ? `${g.label}: ${v.label}` : null;
-        })
-        .filter(Boolean)
-        .slice(0, 4)
-        .join(" · ");
-      await createCustomerDesign({
-        name: `${name || slug} · ${new Date().toLocaleDateString()}`,
+      if (savedDesignId) {
+        await deleteCustomerDesign(savedDesignId);
+        setSavedDesignId(null);
+        toast({
+          title: "Unsaved",
+          description: "Removed from Saved Designs.",
+          tone: "success",
+        });
+        return;
+      }
+
+      const res = await createCustomerDesign({
+        name: name || slug,
         productSlug: slug,
-        productName: summary ? `${name} (${summary})` : name || slug,
+        productName: designProductName,
+        optionsKey,
       });
+      setSavedDesignId(res.data.id);
       toast({
-        title: "Design saved",
-        description: "Find it under Account → Saved Designs.",
+        title: "Saved",
+        description: "Added to Your Account → Saved Designs.",
         tone: "success",
       });
     } catch (err) {
       toast({
-        title: "Could not save design",
+        title: "Could not update design",
         description: err instanceof Error ? err.message : "Try again.",
         tone: "danger",
       });
@@ -497,12 +625,34 @@ export function ProductDetail({ slug }: { slug: string }) {
                     {badge ? <Badge variant="primary">{badge}</Badge> : null}
                   </div>
                 </div>
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:underline"
-                >
-                  <Share2 className="h-4 w-4" /> Share Product
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void toggleWishlist()}
+                    disabled={wishlistBusy}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-semibold transition",
+                      wishlistId
+                        ? "border-primary/40 bg-primary/10 text-primary"
+                        : "border-border text-text-secondary hover:border-primary/40 hover:text-primary",
+                    )}
+                    aria-pressed={Boolean(wishlistId)}
+                    aria-label={
+                      wishlistId ? "Remove from wishlist" : "Add to wishlist"
+                    }
+                  >
+                    <Heart
+                      className={cn("h-4 w-4", wishlistId && "fill-current")}
+                    />
+                    {wishlistId ? "Wishlisted" : "Wishlist"}
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:underline"
+                  >
+                    <Share2 className="h-4 w-4" /> Share Product
+                  </button>
+                </div>
               </div>
 
               <p className="mt-3 text-sm leading-relaxed text-text-secondary">
@@ -588,24 +738,58 @@ export function ProductDetail({ slug }: { slug: string }) {
                   </Button>
                 </Link>
                 <Button
-                  variant="outline"
+                  variant={savedDesignId ? "primary" : "outline"}
                   size="lg"
-                  className="w-full gap-2"
+                  className={cn(
+                    "w-full gap-2",
+                    savedDesignId
+                      ? "bg-primary text-white hover:bg-primary-hover"
+                      : undefined,
+                  )}
                   disabled={savingDesign}
-                  onClick={() => void saveCurrentDesign()}
+                  onClick={() => void toggleSaveDesign()}
+                  aria-pressed={Boolean(savedDesignId)}
                 >
-                  <Bookmark className="h-4 w-4" />
-                  {savingDesign ? "Saving…" : "Save Design"}
+                  {savedDesignId ? (
+                    <BookmarkCheck className="h-4 w-4" />
+                  ) : (
+                    <Bookmark className="h-4 w-4" />
+                  )}
+                  {savingDesign
+                    ? savedDesignId
+                      ? "Unsaving…"
+                      : "Saving…"
+                    : savedDesignId
+                      ? "Saved"
+                      : "Save Design"}
                 </Button>
               </div>
               <p className="mt-2 text-center text-xs text-text-secondary">
-                Saved designs appear in{" "}
-                <Link
-                  href="/dashboard/saved-designs"
-                  className="font-semibold text-primary hover:underline"
-                >
-                  Your Account → Saved Designs
-                </Link>
+                {savedDesignId ? (
+                  <>
+                    Status: <span className="font-semibold text-primary">Saved</span>
+                    {" · "}
+                    Press again to unsave, or manage in{" "}
+                    <Link
+                      href="/dashboard/saved-designs"
+                      className="font-semibold text-primary hover:underline"
+                    >
+                      Saved Designs
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    Status: <span className="font-semibold">Unsaved</span>
+                    {" · "}
+                    Save to keep this setup in{" "}
+                    <Link
+                      href="/dashboard/saved-designs"
+                      className="font-semibold text-primary hover:underline"
+                    >
+                      Your Account
+                    </Link>
+                  </>
+                )}
               </p>
             </div>
           </div>

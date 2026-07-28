@@ -8,13 +8,14 @@ import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Logo } from "@/components/shared/Logo";
+import { ADMIN_CREDENTIALS } from "@/lib/admin-data";
 
 export function AdminLoginForm() {
   const router = useRouter();
   const { toast } = useToast();
   const { adminLogin } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState(ADMIN_CREDENTIALS.email);
+  const [password, setPassword] = useState(ADMIN_CREDENTIALS.password);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});

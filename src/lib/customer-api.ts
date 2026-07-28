@@ -141,6 +141,7 @@ export function fetchCustomerWishlist() {
     success: boolean;
     data: Array<{
       id: string;
+      productId?: string | null;
       productSlug: string;
       name: string;
       imageUrl?: string | null;
@@ -156,11 +157,11 @@ export function addCustomerWishlist(payload: {
   imageUrl?: string;
   basePrice?: number;
 }) {
-  return customerFetch<{ success: boolean; message?: string }>(
-    "/customer/wishlist",
-    "POST",
-    payload,
-  );
+  return customerFetch<{
+    success: boolean;
+    message?: string;
+    data?: { id: string };
+  }>("/customer/wishlist", "POST", payload);
 }
 
 export function removeCustomerWishlist(id: string) {
@@ -203,6 +204,7 @@ export function fetchCustomerDesigns() {
       name: string;
       productName?: string | null;
       productSlug?: string | null;
+      previewUrl?: string | null;
       updatedAt: string;
     }>;
   }>("/customer/designs");
@@ -212,15 +214,25 @@ export function createCustomerDesign(payload: {
   name: string;
   productSlug?: string;
   productName?: string;
+  optionsKey?: string;
 }) {
   return customerFetch<{
     success: boolean;
+    alreadySaved?: boolean;
     data: {
       id: string;
       name: string;
       productName?: string | null;
       productSlug?: string | null;
+      previewUrl?: string | null;
       updatedAt: string;
     };
   }>("/customer/designs", "POST", payload);
+}
+
+export function deleteCustomerDesign(id: string) {
+  return customerFetch<{ success: boolean; data: { id: string } }>(
+    `/customer/designs/${encodeURIComponent(id)}`,
+    "DELETE",
+  );
 }

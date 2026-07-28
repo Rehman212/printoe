@@ -15,12 +15,16 @@ import {
   Receipt,
   Settings,
   ShoppingBag,
+  ShoppingCart,
   Users,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useCartOptional } from "@/lib/cart-store";
+import { ProductMedia } from "@/components/shared/ProductMedia";
 import {
   createCustomerDesign,
   createCustomerTicket,
+  deleteCustomerDesign,
   fetchCustomerDesigns,
   fetchCustomerDownloads,
   fetchCustomerInvoices,
@@ -136,6 +140,7 @@ function relativeTime(iso: string) {
 export function DashboardSection({ section }: { section: string }) {
   const meta = SECTION_META[section];
   const { user, refresh, setUserProfile } = useAuth();
+  const cart = useCartOptional();
   const { toast } = useToast();
 
   const [orders, setOrders] = useState<ApiOrderRow[]>([]);
@@ -170,6 +175,7 @@ export function DashboardSection({ section }: { section: string }) {
   const [wishlist, setWishlist] = useState<
     Array<{
       id: string;
+      productId?: string | null;
       productSlug: string;
       name: string;
       imageUrl?: string | null;
@@ -194,6 +200,7 @@ export function DashboardSection({ section }: { section: string }) {
       id: string;
       name: string;
       productName?: string | null;
+      productSlug?: string | null;
       updatedAt: string;
     }>
   >([]);
@@ -324,6 +331,20 @@ export function DashboardSection({ section }: { section: string }) {
       });
     } finally {
       setSavingDesign(false);
+    }
+  }
+
+  async function removeDesign(id: string) {
+    try {
+      await deleteCustomerDesign(id);
+      setDesigns((prev) => prev.filter((d) => d.id !== id));
+      toast({ title: "Design removed", tone: "success" });
+    } catch (err) {
+      toast({
+        title: "Could not remove design",
+        description: err instanceof Error ? err.message : "Try again.",
+        tone: "danger",
+      });
     }
   }
 
@@ -528,10 +549,23 @@ export function DashboardSection({ section }: { section: string }) {
                       {d.productName || "Custom"} · Updated{" "}
                       {new Date(d.updatedAt).toLocaleDateString()}
                     </p>
-                    <div className="mt-4">
-                      <Link href="/editor">
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Link
+                        href={
+                          d.productSlug
+                            ? `/products/${d.productSlug}`
+                            : "/editor"
+                        }
+                      >
                         <Button size="sm">Edit</Button>
                       </Link>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void removeDesign(d.id)}
+                      >
+                        Remove
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -636,44 +670,119 @@ export function DashboardSection({ section }: { section: string }) {
             }
           />
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {wishlist.map((w) => (
-              <Card key={w.id}>
-                <CardContent className="flex items-center justify-between gap-3 p-5">
-                  <div>
+              <Card key={w.id} hover className="overflow-hidden">
+                <CardContent className="flex h-full flex-col p-0">
+                  <Link
+                    href={`/products/${w.productSlug}`}
+                    className="relative aspect-[5/4] w-full overflow-hidden border-b border-border bg-background"
+                  >
+                    <ProductMedia
+                      imageUrl={w.imageUrl ?? undefined}
+                      fallbackVariant={w.productSlug}
+                      label={w.name}
+                      className="h-full w-full"
+                    />
+                  </Link>
+                  <div className="flex flex-1 flex-col p-3">
                     <Link
                       href={`/products/${w.productSlug}`}
-                      className="font-bold text-text-primary hover:text-primary"
+                      className="line-clamp-2 text-sm font-bold text-text-primary hover:text-primary"
                     >
                       {w.name}
                     </Link>
                     {w.basePrice != null ? (
-                      <p className="text-sm text-text-secondary">
+                      <p className="mt-1 text-xs text-text-secondary">
                         from {formatCurrency(w.basePrice)}
                       </p>
                     ) : null}
+                    <div className="mt-auto flex flex-col gap-1.5 pt-3">
+                      <Button
+                        size="sm"
+                        className="w-full gap-1.5 text-xs"
+                        onClick={() => {
+                          if (!cart) {
+                            toast({
+                              title: "Cart unavailable",
+                              tone: "warning",
+                            });
+                            return;
+                          }
+                          void cart
+                            .addItem({
+                              productId: w.productId ?? undefined,
+                              productSlug: w.productSlug,
+                              name: w.name,
+                              imageUrl: w.imageUrl ?? undefined,
+                              image: w.productSlug,
+                              quantity: 1,
+                              unitPrice: w.basePrice ?? 0,
+                            })
+                            .then(() =>
+                              toast({
+                                title: "Added to cart",
+                                description: w.name,
+                                tone: "success",
+                              }),
+                            )
+                            .catch((err) =>
+                              toast({
+                                title: "Could not add to cart",
+                                description:
+                                  err instanceof Error
+                                    ? err.message
+                                    : "Try again",
+                                tone: "danger",
+                              }),
+                            );
+                        }}
+                      >
+                        <ShoppingCart className="h-4 w-4" />
+                        Add to cart
+                      </Button>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Link href={`/products/${w.productSlug}`} className="block">
+                          <Button size="sm" variant="outline" className="w-full">
+                            Order
+                          </Button>
+                        </Link>
+                        <Link href="/checkout" className="block">
+                          <Button size="sm" variant="outline" className="w-full">
+                            Checkout
+                          </Button>
+                        </Link>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="w-full"
+                        onClick={() =>
+                          void removeCustomerWishlist(w.id)
+                            .then(async () => {
+                              const res = await fetchCustomerWishlist();
+                              setWishlist(res.data);
+                              toast({
+                                title: "Removed from wishlist",
+                                tone: "success",
+                              });
+                            })
+                            .catch((err) =>
+                              toast({
+                                title: "Remove failed",
+                                description:
+                                  err instanceof Error
+                                    ? err.message
+                                    : "Try again",
+                                tone: "danger",
+                              }),
+                            )
+                        }
+                      >
+                        Remove
+                      </Button>
+                    </div>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() =>
-                      void removeCustomerWishlist(w.id)
-                        .then(async () => {
-                          const res = await fetchCustomerWishlist();
-                          setWishlist(res.data);
-                        })
-                        .catch((err) =>
-                          toast({
-                            title: "Remove failed",
-                            description:
-                              err instanceof Error ? err.message : "Try again",
-                            tone: "danger",
-                          }),
-                        )
-                    }
-                  >
-                    Remove
-                  </Button>
                 </CardContent>
               </Card>
             ))}

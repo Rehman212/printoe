@@ -35,10 +35,10 @@ const icons = {
 };
 
 const tones: Record<ToastTone, string> = {
-  success: "border-success/30 bg-success/5 text-success",
-  info: "border-primary/30 bg-primary/5 text-primary",
-  warning: "border-warning/30 bg-warning/5 text-warning",
-  danger: "border-danger/30 bg-danger/5 text-danger",
+  success: "border-success/40 bg-white text-success",
+  info: "border-primary/40 bg-white text-primary",
+  warning: "border-warning/40 bg-white text-warning",
+  danger: "border-danger/40 bg-white text-danger",
 };
 
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -46,10 +46,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const toast = useCallback((item: Omit<ToastItem, "id">) => {
     const id = Math.random().toString(36).slice(2);
-    setItems((prev) => [...prev, { ...item, id }]);
+    setItems((prev) => {
+      // Keep only the latest toast so repeated clicks don't stack
+      return [{ ...item, id }];
+    });
     window.setTimeout(() => {
       setItems((prev) => prev.filter((t) => t.id !== id));
-    }, 4200);
+    }, 3200);
   }, []);
 
   const value = useMemo(() => ({ toast }), [toast]);
@@ -57,18 +60,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="pointer-events-none fixed bottom-6 right-6 z-[100] flex w-full max-w-sm flex-col gap-3">
+      <div className="pointer-events-none fixed top-4 right-4 z-[200] flex w-[calc(100%-2rem)] max-w-sm flex-col gap-3 sm:top-6 sm:right-6">
         <AnimatePresence>
           {items.map((item) => {
             const Icon = icons[item.tone || "info"];
             return (
               <motion.div
                 key={item.id}
-                initial={{ opacity: 0, y: 16, x: 12 }}
+                initial={{ opacity: 0, y: -16, x: 12 }}
                 animate={{ opacity: 1, y: 0, x: 0 }}
-                exit={{ opacity: 0, x: 24 }}
+                exit={{ opacity: 0, y: -8, x: 12 }}
                 className={cn(
-                  "pointer-events-auto flex gap-3 rounded-2xl border bg-card p-4 shadow-card",
+                  "pointer-events-auto flex gap-3 rounded-2xl border-2 bg-white p-4 shadow-lg ring-1 ring-black/5",
                   tones[item.tone || "info"],
                 )}
               >
