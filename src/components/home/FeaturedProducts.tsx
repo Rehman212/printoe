@@ -92,16 +92,28 @@ export function FeaturedProducts() {
             <Link
               key={product.id}
               href={`/products/${product.slug}`}
-              className="group border border-border bg-white transition hover:border-primary/40 hover:shadow-soft focus-ring"
+              className="group border border-border bg-white focus-ring"
             >
-              <ProductMedia
-                imageUrl={product.imageUrl ?? undefined}
-                fallbackVariant={product.image}
-                label={product.name}
-                className="aspect-square"
-              />
-              <div className="space-y-2 border-t border-border p-4">
-                <h3 className="text-sm font-bold text-secondary group-hover:text-primary">
+              <div className="relative overflow-hidden">
+                <div className="transition-[filter,transform] duration-300 ease-out group-hover:scale-[1.03] group-hover:blur-[2.5px]">
+                  <ProductMedia
+                    imageUrl={product.imageUrl ?? undefined}
+                    fallbackVariant={product.image}
+                    label={product.name}
+                    className="aspect-square"
+                  />
+                </div>
+                <div
+                  className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                  aria-hidden
+                >
+                  <span className="rounded-sm bg-[#1b5e20] px-5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-white shadow-md">
+                    Shop Now
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-2 border-t border-border bg-transparent p-4 transition duration-300 group-hover:bg-white group-hover:shadow-md">
+                <h3 className="text-sm font-bold text-secondary">
                   {product.name}
                 </h3>
                 <StarRating rating={product.rating} reviews={product.reviews} />

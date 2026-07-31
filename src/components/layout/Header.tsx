@@ -20,20 +20,12 @@ import {
   X,
 } from "lucide-react";
 import { SITE, categories } from "@/lib/data";
+import { HEADER_NAV_GROUPS } from "@/lib/uprinting-nav";
 import { cn } from "@/lib/utils";
 import { Container } from "@/components/ui/Section";
 import { Logo } from "@/components/shared/Logo";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useCartOptional } from "@/lib/cart-store";
-
-const navLinks = [
-  { label: "Marketing Materials", href: "/products?category=marketing-materials" },
-  { label: "Stickers & Labels", href: "/products?category=stickers" },
-  { label: "Boxes & Packaging", href: "/products?category=packaging" },
-  { label: "Signs & Banners", href: "/products?category=banners" },
-  { label: "Apparel & Promo", href: "/products?category=apparel" },
-  { label: "Featured Collections", href: "/products" },
-];
 
 const ACCOUNT_LINKS = [
   { href: "/dashboard", label: "Dashboard", icon: User },
@@ -51,6 +43,8 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [productsOpen, setProductsOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState<string | null>(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState<string | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -296,7 +290,10 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
           >
             <div
               className="relative"
-              onMouseEnter={() => setProductsOpen(true)}
+              onMouseEnter={() => {
+                setProductsOpen(true);
+                setNavOpen(null);
+              }}
               onMouseLeave={() => setProductsOpen(false)}
             >
               <button
@@ -314,11 +311,19 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
                     exit={{ opacity: 0, y: 6 }}
                     className="absolute left-0 top-full z-50 w-72 border border-border bg-card py-2 shadow-card"
                   >
+                    <Link
+                      href="/custom-printing"
+                      className="flex items-center justify-between px-4 py-2.5 text-sm font-medium text-secondary hover:bg-[#e8f4fc] hover:text-primary"
+                      onClick={() => setProductsOpen(false)}
+                    >
+                      Custom Product Builder
+                      <ChevronRight className="h-3.5 w-3.5 text-text-secondary" />
+                    </Link>
                     {categories.map((cat) => (
                       <Link
                         key={cat.id}
                         href={`/products?category=${cat.slug}`}
-                        className="flex items-center justify-between px-4 py-2.5 text-sm font-medium text-secondary hover:bg-background hover:text-primary"
+                        className="flex items-center justify-between px-4 py-2.5 text-sm font-medium text-secondary hover:bg-[#e8f4fc] hover:text-primary"
                         onClick={() => setProductsOpen(false)}
                       >
                         {cat.name}
@@ -329,15 +334,55 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
                 ) : null}
               </AnimatePresence>
             </div>
-            {navLinks.map((link) => (
-              <Link
-                key={link.label}
-                href={link.href}
-                className="whitespace-nowrap px-3 py-3.5 text-sm font-semibold text-secondary transition hover:text-primary"
-              >
-                {link.label}
-              </Link>
-            ))}
+
+            {HEADER_NAV_GROUPS.map((group) => {
+              const isOpen = navOpen === group.label;
+              return (
+                <div
+                  key={group.label}
+                  className="relative"
+                  onMouseEnter={() => {
+                    setNavOpen(group.label);
+                    setProductsOpen(false);
+                  }}
+                  onMouseLeave={() => setNavOpen(null)}
+                >
+                  <Link
+                    href={group.href}
+                    className={cn(
+                      "inline-flex items-center gap-1 whitespace-nowrap px-3 py-3.5 text-sm font-semibold transition",
+                      isOpen
+                        ? "text-primary"
+                        : "text-secondary hover:text-primary",
+                    )}
+                  >
+                    {group.label}
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </Link>
+                  <AnimatePresence>
+                    {isOpen ? (
+                      <motion.div
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 6 }}
+                        className="absolute left-0 top-full z-50 min-w-[240px] border border-border bg-card py-2 shadow-card"
+                      >
+                        {group.children.map((child) => (
+                          <Link
+                            key={child.href + child.label}
+                            href={child.href}
+                            className="block px-4 py-2.5 text-sm font-medium text-secondary hover:bg-[#e8f4fc] hover:text-primary"
+                            onClick={() => setNavOpen(null)}
+                          >
+                            {child.label}
+                          </Link>
+                        ))}
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
           </nav>
         </Container>
       </div>
@@ -351,16 +396,57 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
             className="overflow-hidden border-b border-border bg-card lg:hidden"
           >
             <Container className="space-y-1 py-3">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-secondary hover:bg-background"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  {link.label}
-                </Link>
-              ))}
+              <Link
+                href="/custom-printing"
+                className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-secondary hover:bg-background"
+                onClick={() => setMobileOpen(false)}
+              >
+                Custom Product Builder
+              </Link>
+              {HEADER_NAV_GROUPS.map((group) => {
+                const open = mobileNavOpen === group.label;
+                return (
+                  <div key={group.label} className="border-b border-border/60 pb-1">
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-secondary hover:bg-background"
+                      onClick={() =>
+                        setMobileNavOpen(open ? null : group.label)
+                      }
+                      aria-expanded={open}
+                    >
+                      {group.label}
+                      <ChevronDown
+                        className={cn(
+                          "h-4 w-4 transition",
+                          open && "rotate-180",
+                        )}
+                      />
+                    </button>
+                    {open ? (
+                      <div className="pb-2 pl-2">
+                        <Link
+                          href={group.href}
+                          className="block rounded-lg px-3 py-2 text-sm font-medium text-primary"
+                          onClick={() => setMobileOpen(false)}
+                        >
+                          View all
+                        </Link>
+                        {group.children.map((child) => (
+                          <Link
+                            key={child.href + child.label}
+                            href={child.href}
+                            className="block rounded-lg px-3 py-2 text-sm font-medium text-secondary hover:bg-background"
+                            onClick={() => setMobileOpen(false)}
+                          >
+                            {child.label}
+                          </Link>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
               {isAuthenticated ? (
                 <>
                   {ACCOUNT_LINKS.map(({ href, label }) => (

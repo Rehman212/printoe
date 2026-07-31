@@ -32,7 +32,7 @@ const columns = [
       { label: "Brand Identity", href: "/services" },
       { label: "Packaging Design", href: "/services" },
       { label: "Large Format", href: "/services" },
-      { label: "Custom Printing", href: "/services" },
+      { label: "Custom Printing", href: "/custom-printing" },
     ],
   },
   {
@@ -49,6 +49,7 @@ const columns = [
     title: "Resources",
     links: [
       { label: "Blog", href: "/blog" },
+      { label: "Custom Product Builder", href: "/custom-printing" },
       { label: "Design Studio", href: "/editor" },
       { label: "Templates", href: "/editor" },
       { label: "Artwork Guidelines", href: "/blog" },

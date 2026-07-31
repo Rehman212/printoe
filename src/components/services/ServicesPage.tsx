@@ -46,10 +46,15 @@ export function ServicesPage() {
               your brand looks flawless from screen to substrate.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
-              <Link href="/quote">
+              <Link href="/custom-printing">
                 <Button size="lg" className="gap-2">
-                  Request a quote
+                  Custom Product Builder
                   <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+              <Link href="/quote">
+                <Button size="lg" variant="outline">
+                  Request a quote
                 </Button>
               </Link>
               <Link href="/editor">

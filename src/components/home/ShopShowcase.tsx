@@ -2,99 +2,43 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ChevronRight } from "lucide-react";
-import { categories, products as localProducts } from "@/lib/data";
+import { ChevronRight, Settings } from "lucide-react";
+import { products as localProducts } from "@/lib/data";
 import { fetchProducts } from "@/lib/products-api";
 import { DynamicIcon } from "@/lib/icons";
+import {
+  CATEGORY_SUBMENUS,
+  POPULAR_FOOTER_LINKS,
+  POPULAR_PRODUCT_CATEGORIES,
+} from "@/lib/uprinting-nav";
+import { BUSINESS_CARDS_FLYOUT_SECTIONS } from "@/lib/business-cards-catalog";
+import { SHOP_FLYOUTS, SHOP_STATIC_CATEGORIES } from "@/lib/shop-catalog";
 import { Container } from "@/components/ui/Section";
 import { ProductMedia } from "@/components/shared/ProductMedia";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { CatalogProduct } from "@/types";
 
-/** Static flyout extras under Popular Products (kept as browse links) */
-const categorySubmenus: Record<string, { label: string; href: string }[]> = {
-  builder: [
-    { label: "Start from blank", href: "/editor" },
-    { label: "Upload artwork", href: "/editor" },
-    { label: "Use a template", href: "/editor" },
-  ],
-  apparel: [
-    { label: "Custom T-Shirts", href: "/products?category=apparel" },
-    { label: "Hoodies", href: "/products?category=apparel" },
-  ],
-  banners: [
-    { label: "Vinyl Banners", href: "/products?category=banners" },
-    { label: "Retractable Banners", href: "/products?category=banners" },
-  ],
-  boxes: [
-    { label: "Mailer Boxes", href: "/products?category=boxes" },
-    { label: "Product Boxes", href: "/products?category=boxes" },
-  ],
-  brochures: [
-    { label: "Bi-Fold Brochures", href: "/products?category=brochures" },
-    { label: "Booklets", href: "/products?category=brochures" },
-  ],
-  "business-cards": [
-    { label: "Standard Business Cards", href: "/products?category=business-cards" },
-    { label: "Silk Business Cards", href: "/products?category=business-cards" },
-  ],
-  flyers: [
-    { label: "Business Flyers", href: "/products?category=flyers" },
-    { label: "Die-Cut Flyers", href: "/products?category=flyers" },
-  ],
-  labels: [
-    { label: "Bottle Labels", href: "/products?category=labels" },
-    { label: "Roll Labels", href: "/products?category=labels" },
-  ],
-  packaging: [
-    { label: "Take-out Bags", href: "/products?category=packaging" },
-    { label: "Stand Up Pouches", href: "/products?category=packaging" },
-  ],
-  postcards: [
-    { label: "Standard Postcards", href: "/products?category=postcards" },
-    { label: "EDDM Postcards", href: "/products?category=postcards" },
-  ],
-  "promotional-products": [
-    { label: "Event Tents", href: "/products?category=promotional-products" },
-    { label: "Drinkware", href: "/products?category=promotional-products" },
-  ],
-  signs: [
-    { label: "Yard Signs", href: "/products?category=signs" },
-    { label: "Wall Decals", href: "/products?category=signs" },
-  ],
-  stickers: [
-    { label: "Custom Stickers", href: "/products?category=stickers" },
-    { label: "Die-Cut Stickers", href: "/products?category=stickers" },
-  ],
-  "marketing-materials": [
-    { label: "Menus", href: "/products?category=marketing-materials" },
-    { label: "Notepads", href: "/products?category=marketing-materials" },
-  ],
-  posters: [
-    { label: "Large Format Posters", href: "/products?category=posters" },
-    { label: "Bulk Posters", href: "/products?category=posters" },
-  ],
-};
+const STATIC_FLYOUT_IDS = new Set<string>([
+  "apparel",
+  "banners",
+  "boxes",
+  "business-cards",
+  ...SHOP_STATIC_CATEGORIES,
+]);
 
 const popularItems = [
   {
     id: "builder",
     name: "Custom Product Builder",
-    href: "/editor",
+    href: "/custom-printing",
     icon: "Sparkles",
   },
-  ...categories.map((c) => ({
+  ...POPULAR_PRODUCT_CATEGORIES.map((c) => ({
     id: c.slug,
     name: c.name,
     href: `/products?category=${c.slug}`,
     icon: c.icon,
   })),
-];
-
-const footerLinks = [
-  { label: "Custom Quote", href: "/quote" },
-  { label: "Direct Mail", href: "/products?category=postcards" },
-  { label: "See More Products", href: "/products", chevron: true },
 ];
 
 const TOP_SELLER_ORDER = [
@@ -215,21 +159,31 @@ export function ShopShowcase() {
       <Container size="wide">
         <div className="grid gap-8 lg:grid-cols-[260px_1fr] xl:grid-cols-[280px_1fr] lg:items-start">
           <aside className="relative z-30">
-            <h2 className="mb-3 text-lg font-bold text-secondary">
-              Popular Products
-            </h2>
             <nav
-              className="relative border border-border bg-white"
+              className="relative border border-border bg-white shadow-soft"
               aria-label="Popular products"
               onMouseLeave={() => setOpenId(null)}
             >
+              <h2 className="border-b border-border bg-[#f5f5f5] px-3.5 py-3 text-base font-bold text-secondary">
+                Popular Products
+              </h2>
               <ul className="divide-y divide-border">
                 {popularItems.map((item) => {
-                  const live = submenuByCategory[item.id] ?? [];
-                  const staticExtras = categorySubmenus[item.id] ?? [];
-                  const submenu = [...live, ...staticExtras].slice(0, 8);
-                  const hasSubmenu = submenu.length > 0;
+                  const isBuilder = item.id === "builder";
+                  const live = isBuilder
+                    ? []
+                    : (submenuByCategory[item.id] ?? []);
+                  const staticExtras = isBuilder
+                    ? []
+                    : (CATEGORY_SUBMENUS[item.id] ?? []);
+                  // Apparel / Banners flyouts match UPrinting subtype lists
+                  const submenu = STATIC_FLYOUT_IDS.has(item.id)
+                      ? staticExtras
+                      : [...live, ...staticExtras].slice(0, 8);
+                  const hasSubmenu = !isBuilder && submenu.length > 0;
                   const isOpen = openId === item.id;
+                  const isBcFlyout = item.id === "business-cards";
+                  const shopSections = SHOP_FLYOUTS[item.id];
 
                   return (
                     <li
@@ -267,7 +221,7 @@ export function ShopShowcase() {
                         >
                           {item.name}
                         </span>
-                        {hasSubmenu && (
+                        {(hasSubmenu || isBuilder) && (
                           <ChevronRight
                             className={cn(
                               "h-4 w-4",
@@ -282,23 +236,66 @@ export function ShopShowcase() {
                       {hasSubmenu && isOpen && (
                         <div
                           role="menu"
-                          className="absolute left-full top-0 z-40 ml-0 min-w-[220px] border border-border bg-white py-2 shadow-soft"
+                          className="absolute left-full top-0 z-40 ml-0 max-h-[min(70vh,560px)] min-w-[280px] overflow-y-auto border border-border bg-white py-2 shadow-soft"
                         >
-                          {live.length > 0 ? (
-                            <p className="px-4 pb-1 pt-1 text-[10px] font-bold uppercase tracking-wide text-text-secondary">
-                              Live products
-                            </p>
-                          ) : null}
-                          {submenu.map((sub) => (
-                            <Link
-                              key={sub.href + sub.label}
-                              href={sub.href}
-                              role="menuitem"
-                              className="block px-4 py-2 text-sm text-secondary transition hover:bg-[#e8f4fc] hover:text-primary"
-                            >
-                              {sub.label}
-                            </Link>
-                          ))}
+                          {isBcFlyout ? (
+                            BUSINESS_CARDS_FLYOUT_SECTIONS.map((section) => (
+                              <div key={section.title} className="pb-2">
+                                <p className="px-4 pb-1 pt-2 text-sm font-bold text-secondary">
+                                  {section.title}
+                                </p>
+                                {section.items.map((sub) => (
+                                  <Link
+                                    key={sub.href}
+                                    href={sub.href}
+                                    role="menuitem"
+                                    className="block px-4 py-1.5 text-sm text-secondary transition hover:bg-[#e8f4fc] hover:text-primary"
+                                  >
+                                    {sub.label}
+                                  </Link>
+                                ))}
+                              </div>
+                            ))
+                          ) : shopSections ? (
+                            shopSections.map((section, si) => (
+                              <div key={(section.title ?? "s") + si} className="pb-1">
+                                {section.header ? (
+                                  <p className="flex items-center gap-2 px-4 pb-1 pt-2 text-sm font-bold text-secondary">
+                                    <Settings className="h-4 w-4 text-text-secondary" />
+                                    {section.header}
+                                  </p>
+                                ) : null}
+                                {section.title ? (
+                                  <p className="px-4 pb-1 pt-2 text-sm font-bold text-secondary">
+                                    {section.title}
+                                  </p>
+                                ) : null}
+                                {section.items.map((sub) => (
+                                  <Link
+                                    key={sub.href + sub.label}
+                                    href={sub.href}
+                                    role="menuitem"
+                                    className="block px-4 py-1.5 text-sm text-secondary transition hover:bg-[#e8f4fc] hover:text-primary"
+                                  >
+                                    {sub.label}
+                                  </Link>
+                                ))}
+                              </div>
+                            ))
+                          ) : (
+                            <>
+                              {submenu.map((sub) => (
+                                <Link
+                                  key={sub.href + sub.label}
+                                  href={sub.href}
+                                  role="menuitem"
+                                  className="block px-4 py-2 text-sm text-secondary transition hover:bg-[#e8f4fc] hover:text-primary"
+                                >
+                                  {sub.label}
+                                </Link>
+                              ))}
+                            </>
+                          )}
                           <Link
                             href={item.href}
                             className="mt-1 block border-t border-border px-4 py-2 text-xs font-semibold text-primary hover:underline"
@@ -313,14 +310,17 @@ export function ShopShowcase() {
               </ul>
 
               <div className="border-t border-border py-1">
-                {footerLinks.map((link) => (
+                {POPULAR_FOOTER_LINKS.map((link) => (
                   <Link
                     key={link.label}
                     href={link.href}
-                    className="flex items-center justify-between px-3.5 py-2.5 text-sm font-medium text-secondary transition hover:bg-[#e8f4fc] hover:text-primary"
+                    className={cn(
+                      "flex items-center justify-between px-3.5 py-2.5 text-sm text-secondary transition hover:bg-[#e8f4fc] hover:text-primary",
+                      link.bold ? "font-bold" : "font-medium",
+                    )}
                   >
                     {link.label}
-                    {"chevron" in link && link.chevron ? (
+                    {link.chevron ? (
                       <ChevronRight className="h-4 w-4 text-text-secondary/70" />
                     ) : null}
                   </Link>
@@ -347,15 +347,25 @@ export function ShopShowcase() {
                   href={`/products/${item.slug}`}
                   className="group focus-ring"
                 >
-                  <div className="overflow-hidden border border-border bg-[#f3f4f6] transition group-hover:border-primary/40 group-hover:shadow-soft">
-                    <ProductMedia
-                      imageUrl={item.imageUrl ?? undefined}
-                      fallbackVariant={item.image}
-                      className="aspect-square"
-                      label={item.name}
-                    />
+                  <div className="relative overflow-hidden border border-border bg-[#f3f4f6]">
+                    <div className="transition-[filter,transform] duration-300 ease-out group-hover:scale-[1.03] group-hover:blur-[2.5px]">
+                      <ProductMedia
+                        imageUrl={item.imageUrl ?? undefined}
+                        fallbackVariant={item.image}
+                        className="aspect-square"
+                        label={item.name}
+                      />
+                    </div>
+                    <div
+                      className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                      aria-hidden
+                    >
+                      <span className="rounded-sm bg-[#1b5e20] px-5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-white shadow-md">
+                        Shop Now
+                      </span>
+                    </div>
                   </div>
-                  <p className="mt-2.5 text-center text-sm font-semibold text-secondary group-hover:text-primary">
+                  <p className="mt-2.5 bg-transparent px-1 py-1 text-center text-sm font-semibold text-secondary transition duration-300 group-hover:bg-white group-hover:shadow-md">
                     {item.name}
                   </p>
                   <p className="text-center text-xs font-medium text-text-secondary">
