@@ -72,7 +72,12 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
   };
 
   return (
-    <header className={cn("z-50 bg-card", !announcementOnly && "sticky top-0")}>
+    <header
+      className={cn(
+        "relative z-[100] bg-card",
+        !announcementOnly && "sticky top-0",
+      )}
+    >
       {/* Announcement bar */}
       <div className="bg-secondary text-center text-[13px] font-medium tracking-wide text-white">
         <div className="brand-cmy-bar h-1 w-full" aria-hidden />
@@ -282,14 +287,14 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
       </div>
 
       {/* Category navigation */}
-      <div className="hidden border-b border-border bg-card lg:block">
+      <div className="relative z-[110] hidden border-b border-border bg-card lg:block">
         <Container size="wide">
           <nav
-            className="flex items-center gap-1 overflow-x-auto py-0"
+            className="relative flex items-center gap-1 py-0"
             aria-label="Product categories"
           >
             <div
-              className="relative"
+              className={cn("relative", productsOpen && "z-[120]")}
               onMouseEnter={() => {
                 setProductsOpen(true);
                 setNavOpen(null);
@@ -309,7 +314,7 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 6 }}
-                    className="absolute left-0 top-full z-50 w-72 border border-border bg-card py-2 shadow-card"
+                    className="absolute left-0 top-full z-[120] w-72 border border-border bg-card py-2 shadow-card"
                   >
                     <Link
                       href="/custom-printing"
@@ -340,7 +345,7 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
               return (
                 <div
                   key={group.label}
-                  className="relative"
+                  className={cn("relative", isOpen && "z-[120]")}
                   onMouseEnter={() => {
                     setNavOpen(group.label);
                     setProductsOpen(false);
@@ -365,7 +370,7 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
                         initial={{ opacity: 0, y: 6 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 6 }}
-                        className="absolute left-0 top-full z-50 min-w-[240px] border border-border bg-card py-2 shadow-card"
+                        className="absolute left-0 top-full z-[120] min-w-[240px] border border-border bg-card py-2 shadow-card"
                       >
                         {group.children.map((child) => (
                           <Link
