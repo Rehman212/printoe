@@ -13,6 +13,8 @@ const OPTIMIZED_HOSTS = new Set([
 ]);
 
 function canOptimize(url: string) {
+  // Local public assets (e.g. /uploads/catalog/menus.jpg)
+  if (url.startsWith("/")) return true;
   try {
     const host = new URL(url).hostname;
     return OPTIMIZED_HOSTS.has(host) || host.endsWith(".magnific.com");

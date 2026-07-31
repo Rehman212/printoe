@@ -34,7 +34,6 @@ import {
   fetchCustomerWishlist,
   removeCustomerWishlist,
 } from "@/lib/customer-api";
-import { fetchMyOrders, type ApiOrderRow, type OrderStatus } from "@/lib/orders-api";
 import { updateProfileRequest } from "@/lib/auth";
 import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/Badge";
@@ -45,6 +44,7 @@ import { EmptyState } from "@/components/ui/Misc";
 import { useToast } from "@/components/ui/Toast";
 import { ProfileSettings } from "@/components/dashboard/ProfileSettings";
 import { AccountSecurity } from "@/components/dashboard/AccountSecurity";
+import { OrdersPage } from "@/components/dashboard/OrdersPage";
 
 const SECTION_META: Record<
   string,
@@ -117,17 +117,6 @@ const SECTION_META: Record<
   },
 };
 
-const STATUS_VARIANT: Record<
-  OrderStatus,
-  "default" | "primary" | "accent" | "success" | "warning"
-> = {
-  processing: "warning",
-  printing: "primary",
-  shipped: "accent",
-  delivered: "success",
-  cancelled: "default",
-};
-
 function relativeTime(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
@@ -143,7 +132,6 @@ export function DashboardSection({ section }: { section: string }) {
   const cart = useCartOptional();
   const { toast } = useToast();
 
-  const [orders, setOrders] = useState<ApiOrderRow[]>([]);
   const [quotes, setQuotes] = useState<
     Array<{
       id: string;
@@ -218,12 +206,13 @@ export function DashboardSection({ section }: { section: string }) {
   });
 
   const loadSection = useCallback(async () => {
+    if (section === "orders") {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      if (section === "orders") {
-        const res = await fetchMyOrders();
-        setOrders(res.data);
-      } else if (section === "quotations") {
+      if (section === "quotations") {
         const res = await fetchCustomerQuotes();
         setQuotes(res.data);
       } else if (section === "downloads") {
@@ -375,74 +364,15 @@ export function DashboardSection({ section }: { section: string }) {
         </div>
       ) : null}
 
-      {loading ? (
+      {section === "orders" ? <OrdersPage /> : null}
+
+      {loading && section !== "orders" ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <div key={i} className="h-14 animate-pulse rounded-xl bg-border/50" />
           ))}
         </div>
       ) : null}
-
-      {!loading && section === "orders" && (
-        <Card>
-          <CardContent className="overflow-x-auto p-0">
-            {orders.length === 0 ? (
-              <p className="px-6 py-10 text-center text-sm text-text-secondary">
-                No orders yet.{" "}
-                <Link href="/products" className="font-semibold text-primary">
-                  Browse products
-                </Link>
-              </p>
-            ) : (
-              <table className="w-full min-w-[560px] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-secondary/[0.02] text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                    <th className="px-6 py-3">Order ID</th>
-                    <th className="px-6 py-3">Product</th>
-                    <th className="px-6 py-3">Qty</th>
-                    <th className="px-6 py-3">Status</th>
-                    <th className="px-6 py-3">Date</th>
-                    <th className="px-6 py-3 text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orders.map((order) => (
-                    <tr
-                      key={order.dbId}
-                      className="border-b border-border/60 last:border-0"
-                    >
-                      <td className="px-6 py-4 font-semibold">{order.id}</td>
-                      <td className="px-6 py-4 text-text-secondary">
-                        {order.product}
-                      </td>
-                      <td className="px-6 py-4 text-text-secondary">
-                        {order.quantity}
-                      </td>
-                      <td className="px-6 py-4">
-                        <Badge
-                          variant={
-                            STATUS_VARIANT[order.status as OrderStatus] ??
-                            "default"
-                          }
-                          className="capitalize"
-                        >
-                          {order.status}
-                        </Badge>
-                      </td>
-                      <td className="px-6 py-4 text-text-secondary">
-                        {order.date}
-                      </td>
-                      <td className="px-6 py-4 text-right font-semibold">
-                        {formatCurrency(order.total)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
       {!loading && section === "quotations" && (
         <Card>

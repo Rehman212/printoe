@@ -14,21 +14,21 @@ export const HOMEPAGE_SHOWCASE_ROWS: ShowcaseRow[] = [
   {
     title: "Top Sellers",
     items: [
-      { name: "Menus", slug: "menus", image: "/home-showcase/menus.jpg" },
+      { name: "Menus", slug: "menus", image: "/uploads/catalog/menus.jpg" },
       {
         name: "Coasters",
         slug: "coasters",
-        image: "/home-showcase/coasters.jpg",
+        image: "/uploads/catalog/coasters.jpg",
       },
       {
         name: "Bottle Labels",
         slug: "bottle-labels",
-        image: "/home-showcase/bottle-labels.jpg",
+        image: "/uploads/catalog/bottle-labels.jpg",
       },
       {
         name: "Vinyl Banners",
         slug: "vinyl-banners",
-        image: "/home-showcase/vinyl-banners.jpg",
+        image: "/uploads/catalog/vinyl-banners.jpg",
       },
     ],
   },
@@ -38,18 +38,22 @@ export const HOMEPAGE_SHOWCASE_ROWS: ShowcaseRow[] = [
       {
         name: "Table Tents",
         slug: "table-tents",
-        image: "/home-showcase/table-tents.jpg",
+        image: "/uploads/catalog/table-tents.jpg",
       },
       {
         name: "Drinkware",
         slug: "drinkware",
-        image: "/home-showcase/drinkware.jpg",
+        image: "/uploads/catalog/drinkware.jpg",
       },
-      { name: "Pouches", slug: "pouches", image: "/home-showcase/pouches.jpg" },
+      {
+        name: "Pouches",
+        slug: "pouches",
+        image: "/uploads/catalog/pouches.jpg",
+      },
       {
         name: "Wall Decals",
         slug: "wall-decals",
-        image: "/home-showcase/wall-decals.jpg",
+        image: "/uploads/catalog/wall-decals.jpg",
       },
     ],
   },
@@ -59,27 +63,26 @@ export const HOMEPAGE_SHOWCASE_ROWS: ShowcaseRow[] = [
       {
         name: "Trading Cards",
         slug: "trading-cards",
-        image: "/home-showcase/trading-cards.jpg",
+        image: "/uploads/catalog/trading-cards.jpg",
       },
       {
         name: "Every Door Direct Mail",
         slug: "eddm-postcards",
-        image: "/home-showcase/every-door-direct-mail.jpg",
+        image: "/uploads/catalog/every-door-direct-mail.jpg",
       },
       {
         name: "Magazines",
         slug: "magazines",
-        image: "/home-showcase/magazines.jpg",
+        image: "/uploads/catalog/magazines.jpg",
       },
       {
         name: "Waterproof Menus",
         slug: "waterproof-menus",
-        image: "/home-showcase/waterproof-menus.jpg",
+        image: "/uploads/catalog/waterproof-menus.jpg",
       },
     ],
   },
 ];
-
 export const SHOWCASE_IMAGE_BY_SLUG: Record<string, string> =
   Object.fromEntries(
     HOMEPAGE_SHOWCASE_ROWS.flatMap((row) =>

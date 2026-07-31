@@ -18,6 +18,8 @@ export type ApiOrderRow = {
   customer: string;
   email: string;
   itemCount: number;
+  imageUrl?: string | null;
+  productSlug?: string | null;
 };
 
 export type CheckoutPayload = {
@@ -98,6 +100,12 @@ export function placeCheckout(payload: CheckoutPayload) {
 
 export function fetchMyOrders() {
   return ordersFetch<{ success: boolean; data: ApiOrderRow[] }>("/orders");
+}
+
+export function fetchMyOrder(id: string) {
+  return ordersFetch<{ success: boolean; data: ApiOrderDetail }>(
+    `/orders/${encodeURIComponent(id)}`,
+  );
 }
 
 export function fetchAdminOrders(status?: string) {
