@@ -1,10 +1,24 @@
 import { getApiBaseUrl, getAccessToken } from "@/lib/auth";
+import { showcaseImageForSlug } from "@/lib/homepage-showcase";
 import type {
   CatalogProduct,
   ProductDetailPayload,
   ProductOptionGroup,
 } from "@/types";
 
+function applyShowcaseImage<T extends {
+  slug: string;
+  imageUrl?: string | null;
+  galleryUrls?: string[];
+}>(product: T): T {
+  const image = showcaseImageForSlug(product.slug);
+  if (!image) return product;
+  return {
+    ...product,
+    imageUrl: image,
+    galleryUrls: [image, ...(product.galleryUrls ?? []).filter((u) => u !== image)],
+  };
+}
 async function apiGet<T>(path: string, auth = false): Promise<T> {
   const headers: HeadersInit = { "Content-Type": "application/json" };
   if (auth) {
@@ -30,7 +44,13 @@ export async function fetchProducts(category?: string, featured?: boolean) {
   if (category) params.set("category", category);
   if (featured) params.set("featured", "true");
   const q = params.toString() ? `?${params.toString()}` : "";
-  return apiGet<{ success: boolean; data: CatalogProduct[] }>(`/products${q}`);
+  const res = await apiGet<{ success: boolean; data: CatalogProduct[] }>(
+    `/products${q}`,
+  );
+  return {
+    ...res,
+    data: res.data.map(applyShowcaseImage),
+  };
 }
 
 export async function fetchStoreCategories() {
@@ -47,9 +67,16 @@ export async function fetchStoreCategories() {
 }
 
 export async function fetchProductBySlug(slug: string) {
-  return apiGet<{ success: boolean; data: ProductDetailPayload }>(
+  const res = await apiGet<{ success: boolean; data: ProductDetailPayload }>(
     `/products/${encodeURIComponent(slug)}`,
   );
+  return {
+    ...res,
+    data: {
+      ...res.data,
+      product: applyShowcaseImage(res.data.product),
+    },
+  };
 }
 
 export async function fetchAdminProducts() {

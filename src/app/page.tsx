@@ -2,7 +2,6 @@ import {
   HeroSection,
   ShopShowcase,
   CategoryGrid,
-  FeaturedProducts,
   ProcessSection,
   WhyChooseUs,
   PriceCalculator,
@@ -20,7 +19,6 @@ export default function HomePage() {
       <HeroSection />
       <ShopShowcase />
       <CategoryGrid />
-      <FeaturedProducts />
       <ProcessSection />
       <WhyChooseUs />
       <PriceCalculator />

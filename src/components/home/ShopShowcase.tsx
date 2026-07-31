@@ -1,9 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { ChevronRight, Settings } from "lucide-react";
-import { products as localProducts } from "@/lib/data";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Settings } from "lucide-react";
 import { fetchProducts } from "@/lib/products-api";
 import { DynamicIcon } from "@/lib/icons";
 import {
@@ -13,9 +13,12 @@ import {
 } from "@/lib/uprinting-nav";
 import { BUSINESS_CARDS_FLYOUT_SECTIONS } from "@/lib/business-cards-catalog";
 import { SHOP_FLYOUTS, SHOP_STATIC_CATEGORIES } from "@/lib/shop-catalog";
+import {
+  HOMEPAGE_SHOWCASE_ROWS,
+  type ShowcaseItem,
+} from "@/lib/homepage-showcase";
 import { Container } from "@/components/ui/Section";
-import { ProductMedia } from "@/components/shared/ProductMedia";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import type { CatalogProduct } from "@/types";
 
 const STATIC_FLYOUT_IDS = new Set<string>([
@@ -41,42 +44,105 @@ const popularItems = [
   })),
 ];
 
-const TOP_SELLER_ORDER = [
-  "menus",
-  "coasters",
-  "bottle-labels",
-  "vinyl-banners",
-  "bag-toppers",
-  "notepads",
-  "carbonless-forms",
-  "postcards",
-];
+function ShowcaseRowCarousel({
+  title,
+  items,
+}: {
+  title: string;
+  items: ShowcaseItem[];
+}) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [canPrev, setCanPrev] = useState(false);
+  const [canNext, setCanNext] = useState(false);
 
-/** Extra homepage grid (UPrinting Featured-style) — fills rows under Top Sellers */
-const FEATURED_GRID_ORDER = [
-  "custom-stickers",
-  "event-tents",
-  "take-out-bags",
-  "yard-signs",
-  "table-tents",
-  "drinkware",
-  "pouches",
-  "wall-decals",
-];
+  const updateArrows = () => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    setCanPrev(el.scrollLeft > 4);
+    setCanNext(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  };
 
-const HOMEPAGE_GRID_COUNT = 16;
-
-function mapCard(p: CatalogProduct | { name: string; slug: string; image: string; imageUrl?: string | null; price: number }) {
-  if ("basePrice" in p) {
-    return {
-      name: p.name,
-      slug: p.slug,
-      image: p.category.slug,
-      imageUrl: p.imageUrl,
-      price: p.basePrice,
+  useEffect(() => {
+    updateArrows();
+    const el = scrollerRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", updateArrows, { passive: true });
+    window.addEventListener("resize", updateArrows);
+    return () => {
+      el.removeEventListener("scroll", updateArrows);
+      window.removeEventListener("resize", updateArrows);
     };
-  }
-  return p;
+  }, [items]);
+
+  const scrollByPage = (dir: -1 | 1) => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * el.clientWidth * 0.85, behavior: "smooth" });
+  };
+
+  return (
+    <div className="relative">
+      <h2 className="mb-3 text-lg font-bold text-secondary">{title}</h2>
+      <div className="relative">
+        {canPrev ? (
+          <button
+            type="button"
+            aria-label={`Previous ${title}`}
+            onClick={() => scrollByPage(-1)}
+            className="absolute -left-2 top-[42%] z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center bg-white/90 text-secondary shadow-soft hover:bg-white md:-left-3"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+        ) : null}
+        {canNext ? (
+          <button
+            type="button"
+            aria-label={`Next ${title}`}
+            onClick={() => scrollByPage(1)}
+            className="absolute -right-2 top-[42%] z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center bg-white/90 text-secondary shadow-soft hover:bg-white md:-right-3"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        ) : null}
+
+        <div
+          ref={scrollerRef}
+          className="scrollbar-thin flex gap-3 overflow-x-auto scroll-smooth pb-1 sm:gap-4"
+        >
+          {items.map((item) => (
+            <Link
+              key={item.slug}
+              href={`/products/${item.slug}`}
+              className="group w-[calc(50%-6px)] shrink-0 focus-ring sm:w-[calc(33.333%-11px)] md:w-[calc(25%-12px)]"
+            >
+              <div className="relative overflow-hidden border border-border bg-[#f3f4f6]">
+                <div className="relative aspect-square transition-[filter,transform] duration-300 ease-out group-hover:scale-[1.03] group-hover:blur-[2.5px]">
+                  <Image
+                    src={item.image}
+                    alt={item.name}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 50vw, 20vw"
+                  />
+                </div>
+                <div
+                  className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                  aria-hidden
+                >
+                  <span className="rounded-sm bg-[#1b5e20] px-5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-white shadow-md">
+                    Shop Now
+                  </span>
+                </div>
+              </div>
+              <p className="mt-2.5 px-0.5 text-left text-sm font-medium text-secondary transition duration-300 group-hover:bg-white group-hover:shadow-md">
+                {item.name}
+              </p>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function ShopShowcase() {
@@ -108,50 +174,6 @@ export function ShopShowcase() {
       });
     }
     return map;
-  }, [apiProducts]);
-
-  const topSellers = useMemo(() => {
-    if (apiProducts.length) {
-      const bySlug = new Map(apiProducts.map((p) => [p.slug, p]));
-      const picked: CatalogProduct[] = [];
-      const used = new Set<string>();
-
-      const push = (slug: string) => {
-        const p = bySlug.get(slug);
-        if (p && !used.has(p.slug)) {
-          used.add(p.slug);
-          picked.push(p);
-        }
-      };
-
-      TOP_SELLER_ORDER.forEach(push);
-      FEATURED_GRID_ORDER.forEach(push);
-
-      // Fill remaining slots: Featured badge, then any active products
-      for (const p of apiProducts) {
-        if (picked.length >= HOMEPAGE_GRID_COUNT) break;
-        if (p.badge === "Featured" && !used.has(p.slug)) {
-          used.add(p.slug);
-          picked.push(p);
-        }
-      }
-      for (const p of apiProducts) {
-        if (picked.length >= HOMEPAGE_GRID_COUNT) break;
-        if (!used.has(p.slug)) {
-          used.add(p.slug);
-          picked.push(p);
-        }
-      }
-
-      return picked.slice(0, HOMEPAGE_GRID_COUNT).map(mapCard);
-    }
-    return localProducts.slice(0, HOMEPAGE_GRID_COUNT).map((p) => ({
-      name: p.name,
-      slug: p.slug,
-      image: p.image,
-      imageUrl: p.imageUrl,
-      price: p.price,
-    }));
   }, [apiProducts]);
 
   return (
@@ -329,51 +351,14 @@ export function ShopShowcase() {
             </nav>
           </aside>
 
-          <div className="min-w-0">
-            <div className="mb-4 flex items-center justify-between gap-4">
-              <h2 className="text-lg font-bold text-secondary">Top Sellers</h2>
-              <Link
-                href="/products"
-                className="text-sm font-semibold text-primary hover:underline"
-              >
-                View all
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 sm:gap-4">
-              {topSellers.map((item) => (
-                <Link
-                  key={item.slug}
-                  href={`/products/${item.slug}`}
-                  className="group focus-ring"
-                >
-                  <div className="relative overflow-hidden border border-border bg-[#f3f4f6]">
-                    <div className="transition-[filter,transform] duration-300 ease-out group-hover:scale-[1.03] group-hover:blur-[2.5px]">
-                      <ProductMedia
-                        imageUrl={item.imageUrl ?? undefined}
-                        fallbackVariant={item.image}
-                        className="aspect-square"
-                        label={item.name}
-                      />
-                    </div>
-                    <div
-                      className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-                      aria-hidden
-                    >
-                      <span className="rounded-sm bg-[#1b5e20] px-5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-white shadow-md">
-                        Shop Now
-                      </span>
-                    </div>
-                  </div>
-                  <p className="mt-2.5 bg-transparent px-1 py-1 text-center text-sm font-semibold text-secondary transition duration-300 group-hover:bg-white group-hover:shadow-md">
-                    {item.name}
-                  </p>
-                  <p className="text-center text-xs font-medium text-text-secondary">
-                    From {formatCurrency(item.price)}
-                  </p>
-                </Link>
-              ))}
-            </div>
+          <div className="min-w-0 space-y-8">
+            {HOMEPAGE_SHOWCASE_ROWS.map((row) => (
+              <ShowcaseRowCarousel
+                key={row.title}
+                title={row.title}
+                items={row.items}
+              />
+            ))}
           </div>
         </div>
       </Container>
