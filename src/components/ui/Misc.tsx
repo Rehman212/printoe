@@ -157,27 +157,47 @@ export function StarRating({
 }) {
   return (
     <div className="flex items-center gap-1.5">
-      <div className="flex items-center gap-0.5" aria-label={`${rating} out of 5 stars`}>
-        {Array.from({ length: 5 }).map((_, i) => (
-          <svg
-            key={i}
-            viewBox="0 0 20 20"
-            className={cn(
-              size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4",
-              i < Math.round(rating) ? "fill-warning text-warning" : "fill-border text-border",
-            )}
-            aria-hidden
-          >
-            <path d="M10 1.5l2.47 5.01 5.53.8-4 3.9.94 5.5L10 14.9l-4.94 2.6.94-5.5-4-3.9 5.53-.8L10 1.5z" />
-          </svg>
-        ))}
+      <div
+        className="flex items-center gap-0.5"
+        aria-label={`${rating} out of 5 stars`}
+      >
+        {Array.from({ length: 5 }).map((_, i) => {
+          const filled = i < Math.round(rating);
+          return (
+            <svg
+              key={i}
+              viewBox="0 0 20 20"
+              className={cn(
+                size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4",
+                filled
+                  ? "fill-warning text-warning"
+                  : "fill-none stroke-warning text-warning",
+              )}
+              strokeWidth={filled ? 0 : 1.5}
+              aria-hidden
+            >
+              <path d="M10 1.5l2.47 5.01 5.53.8-4 3.9.94 5.5L10 14.9l-4.94 2.6.94-5.5-4-3.9 5.53-.8L10 1.5z" />
+            </svg>
+          );
+        })}
       </div>
-      <span className="text-xs font-semibold text-text-primary">{rating.toFixed(1)}</span>
       {typeof reviews === "number" ? (
-        <span className="text-xs font-medium text-text-secondary">
-          ({reviews.toLocaleString()})
+        <span
+          className={cn(
+            "font-medium text-text-secondary",
+            size === "md" ? "text-sm" : "text-xs",
+          )}
+        >
+          <span className="font-semibold text-secondary">
+            {rating.toFixed(1)}
+          </span>{" "}
+          ({reviews.toLocaleString()} {reviews === 1 ? "Review" : "Reviews"})
         </span>
-      ) : null}
+      ) : (
+        <span className="text-xs font-semibold text-text-primary">
+          {rating.toFixed(1)}
+        </span>
+      )}
     </div>
   );
 }

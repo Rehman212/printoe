@@ -3,19 +3,20 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  Check,
   ChevronLeft,
   ChevronRight,
   Bookmark,
   BookmarkCheck,
   Heart,
+  Package,
   Pencil,
   Share2,
   Upload,
 } from "lucide-react";
 import { useProductsOptional } from "@/lib/product-store";
+import { DEFAULT_PRODUCT_FAQS } from "@/lib/product-faqs";
 import { cn, formatCurrency } from "@/lib/utils";
-import type { Product, ProductOptionGroup } from "@/types";
+import type { Product, ProductOptionGroup, ProductTab } from "@/types";
 import { ProductMedia } from "@/components/shared/ProductMedia";
 import { ProductConfigurator } from "@/components/products/ProductConfigurator";
 import {
@@ -26,9 +27,14 @@ import {
   EmptyState,
   Section,
   StarRating,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
   useToast,
 } from "@/components/ui";
 import { Breadcrumbs } from "@/components/ui/Misc";
+import { RichTextContent } from "@/components/ui/RichTextEditor";
 import {
   calcConfiguredPrice,
   defaultSelections,
@@ -65,26 +71,22 @@ function buildOptionsSummary(
     .join(" · ");
 }
 
-const faqs = [
-  {
-    id: "faq-1",
-    title: "What file formats do you accept?",
-    content:
-      "PDF, AI, EPS, and high-res PNG/JPG. PDF with bleed and embedded fonts is preferred.",
-  },
-  {
-    id: "faq-2",
-    title: "Do you check my artwork for free?",
-    content:
-      "Yes. Every order includes a complimentary preflight review before production.",
-  },
-  {
-    id: "faq-3",
-    title: "Can I change options after calculating?",
-    content:
-      "Absolutely. Update any option and the printing cost updates instantly.",
-  },
-];
+const DEFAULT_FAQS = DEFAULT_PRODUCT_FAQS.map((f, i) => ({
+  id: `faq-${i}`,
+  title: f.question,
+  content: f.answer,
+}));
+
+/** Parse "Label" or "Label | 12.50" option lines. */
+function parseTabOption(raw: string): { label: string; priceAdd: number } {
+  const parts = raw.split("|").map((p) => p.trim());
+  const label = parts[0] || raw;
+  const priceAdd = parts[1] != null && parts[1] !== "" ? Number(parts[1]) : 0;
+  return {
+    label,
+    priceAdd: Number.isFinite(priceAdd) ? priceAdd : 0,
+  };
+}
 
 /** Convert legacy local product fields into option groups (fallback). */
 function legacyToOptions(product: Product): ProductOptionGroup[] {
@@ -237,6 +239,13 @@ export function ProductDetail({ slug }: { slug: string }) {
   );
   const [name, setName] = useState(localProduct?.name ?? "");
   const [description, setDescription] = useState(localProduct?.description ?? "");
+  const [shortDescription, setShortDescription] = useState("");
+  const [productFaqs, setProductFaqs] = useState(DEFAULT_FAQS);
+  const [productTabs, setProductTabs] = useState<ProductTab[]>([]);
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  const [tabFieldValues, setTabFieldValues] = useState<Record<string, string>>(
+    {},
+  );
   const [basePrice, setBasePrice] = useState(localProduct?.price ?? 0);
   const [rating, setRating] = useState(localProduct?.rating ?? 0);
   const [reviews, setReviews] = useState(localProduct?.reviews ?? 0);
@@ -260,7 +269,6 @@ export function ProductDetail({ slug }: { slug: string }) {
   );
   const [activeImage, setActiveImage] = useState(0);
   const [notFound, setNotFound] = useState(false);
-  const [fromApi, setFromApi] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -271,10 +279,42 @@ export function ProductDetail({ slug }: { slug: string }) {
         const res = await fetchProductBySlug(slug);
         if (cancelled) return;
         const { product, options: apiOptions } = res.data;
-        setFromApi(true);
         setProductId(product.id);
         setName(product.name);
         setDescription(product.description);
+        setShortDescription(product.shortDescription ?? "");
+        setProductFaqs(
+          (() => {
+            const valid =
+              product.faqs?.filter(
+                (f) =>
+                  (f?.question ?? "").trim() && (f?.answer ?? "").trim(),
+              ) ?? [];
+            return valid.length
+              ? valid.map((f, i) => ({
+                  id: `faq-${i}`,
+                  title: f.question,
+                  content: f.answer,
+                }))
+              : DEFAULT_FAQS;
+          })(),
+        );
+        const tabs = Array.isArray(product.productTabs)
+          ? product.productTabs
+          : [];
+        setProductTabs(tabs);
+        const firstTab = tabs[0];
+        setActiveTabId(firstTab?.id ?? null);
+        if (firstTab) {
+          const defaults: Record<string, string> = {};
+          for (const field of firstTab.fields ?? []) {
+            defaults[field.id] =
+              field.type === "select" ? (field.options?.[0] ?? "") : "";
+          }
+          setTabFieldValues(defaults);
+        } else {
+          setTabFieldValues({});
+        }
         setBasePrice(product.basePrice);
         setRating(product.rating);
         setReviews(product.reviews);
@@ -296,11 +336,15 @@ export function ProductDetail({ slug }: { slug: string }) {
       } catch {
         if (cancelled) return;
         if (localProduct) {
-          setFromApi(false);
           const opts = legacyToOptions(localProduct);
           setProductId(localProduct.id);
           setName(localProduct.name);
           setDescription(localProduct.description);
+          setShortDescription("");
+          setProductFaqs(DEFAULT_FAQS);
+          setProductTabs([]);
+          setActiveTabId(null);
+          setTabFieldValues({});
           setBasePrice(localProduct.price);
           setRating(localProduct.rating);
           setReviews(localProduct.reviews);
@@ -339,9 +383,42 @@ export function ProductDetail({ slug }: { slug: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
+  const activeTab =
+    productTabs.find((t) => t.id === activeTabId) ?? productTabs[0] ?? null;
+  const hasCustomTabs = productTabs.length > 0;
+
+  const tabExtraPrice = useMemo(() => {
+    if (!activeTab?.fields?.length) return 0;
+    let extra = 0;
+    for (const field of activeTab.fields) {
+      if (field.type !== "select") continue;
+      const selected = tabFieldValues[field.id];
+      if (!selected) continue;
+      const match = (field.options ?? []).find((o) => {
+        const { label } = parseTabOption(o);
+        return o === selected || label === selected;
+      });
+      if (match) extra += parseTabOption(match).priceAdd;
+    }
+    return extra;
+  }, [activeTab, tabFieldValues]);
+
+  const effectiveBasePrice = useMemo(() => {
+    if (hasCustomTabs && activeTab && typeof activeTab.price === "number") {
+      return activeTab.price + tabExtraPrice;
+    }
+    if (hasCustomTabs) return basePrice + tabExtraPrice;
+    return basePrice;
+  }, [hasCustomTabs, activeTab, basePrice, tabExtraPrice]);
+
   const pricing = useMemo(
-    () => calcConfiguredPrice(basePrice, options, selections),
-    [basePrice, options, selections],
+    () =>
+      calcConfiguredPrice(
+        effectiveBasePrice,
+        hasCustomTabs ? [] : options,
+        hasCustomTabs ? {} : selections,
+      ),
+    [effectiveBasePrice, hasCustomTabs, options, selections],
   );
 
   const optionsKey = useMemo(() => buildOptionsKey(selections), [selections]);
@@ -528,6 +605,22 @@ export function ProductDetail({ slug }: { slug: string }) {
     ...selections,
   });
 
+  const plainDescription = description
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const teaserText = (shortDescription || plainDescription).trim();
+
+  function selectProductTab(tab: ProductTab) {
+    setActiveTabId(tab.id);
+    const defaults: Record<string, string> = {};
+    for (const field of tab.fields ?? []) {
+      defaults[field.id] =
+        field.type === "select" ? (field.options?.[0] ?? "") : "";
+    }
+    setTabFieldValues(defaults);
+  }
+
   return (
     <>
       <Section className="bg-white pb-16 pt-6">
@@ -544,7 +637,7 @@ export function ProductDetail({ slug }: { slug: string }) {
           />
 
           <div className="mt-4 grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10">
-            <div>
+            <div className="min-w-0">
               <div className="relative overflow-hidden border border-border bg-[#f3f4f6]">
                 <ProductMedia
                   imageUrl={gallery[activeImage] ?? imageUrl}
@@ -599,33 +692,24 @@ export function ProductDetail({ slug }: { slug: string }) {
                   ))}
                 </div>
               )}
-
-              <ul className="mt-6 space-y-2.5">
-                <li className="flex items-start gap-2.5 text-sm text-text-secondary">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
-                  Options are product-specific and update pricing live
-                </li>
-                {fromApi ? (
-                  <li className="flex items-start gap-2.5 text-sm text-text-secondary">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
-                    Loaded from Printoe product options API
-                  </li>
-                ) : null}
-              </ul>
             </div>
 
-            <div className="lg:sticky lg:top-24 lg:self-start">
+            <div className="min-w-0 lg:sticky lg:top-24 lg:self-start">
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   <h1 className="text-2xl font-extrabold tracking-tight text-secondary md:text-3xl">
                     {name}
                   </h1>
-                  <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <div className="mt-2">
                     <StarRating rating={rating} reviews={reviews} size="md" />
-                    {badge ? <Badge variant="primary">{badge}</Badge> : null}
                   </div>
+                  {badge ? (
+                    <div className="mt-2">
+                      <Badge variant="primary">{badge}</Badge>
+                    </div>
+                  ) : null}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex shrink-0 items-center gap-2">
                   <button
                     type="button"
                     onClick={() => void toggleWishlist()}
@@ -655,16 +739,123 @@ export function ProductDetail({ slug }: { slug: string }) {
                 </div>
               </div>
 
-              <p className="mt-3 text-sm leading-relaxed text-text-secondary">
-                {description}
-              </p>
+              {productTabs.length > 0 ? (
+                <div className="mt-4 border-t border-border pt-3">
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {productTabs.map((tab) => {
+                      const active = tab.id === (activeTab?.id ?? "");
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => selectProductTab(tab)}
+                          className={cn(
+                            "flex min-w-[108px] flex-col items-center gap-1.5 rounded-md px-3 py-2.5 text-center transition",
+                            active
+                              ? "border-2 border-success bg-white"
+                              : "border-2 border-transparent hover:bg-[#f7f8fa]",
+                          )}
+                        >
+                          <span className="flex h-10 w-10 items-center justify-center overflow-hidden">
+                            {tab.iconUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={tab.iconUrl}
+                                alt=""
+                                className="h-9 w-9 object-contain"
+                              />
+                            ) : (
+                              <Package className="h-7 w-7 text-secondary" />
+                            )}
+                          </span>
+                          <span
+                            className={cn(
+                              "text-xs font-semibold leading-tight",
+                              active ? "text-secondary" : "text-accent",
+                            )}
+                          >
+                            {tab.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-2 h-1.5 w-full bg-success" />
+                </div>
+              ) : null}
+
+              {teaserText && !hasCustomTabs ? (
+                <p className="mt-3 line-clamp-3 break-all text-sm leading-relaxed text-text-secondary">
+                  {teaserText}
+                </p>
+              ) : null}
 
               <div className="mt-5 border border-border bg-[#fafafa] p-4 sm:p-5">
-                <ProductConfigurator
-                  options={options}
-                  selections={selections}
-                  onChange={onOptionChange}
-                />
+                {hasCustomTabs ? (
+                  activeTab && (activeTab.fields?.length ?? 0) > 0 ? (
+                    <div className="space-y-3">
+                      {activeTab.fields.map((field) => (
+                        <div key={field.id} className="space-y-1.5">
+                          <label className="block text-sm font-semibold text-secondary">
+                            {field.label}
+                          </label>
+                          {field.type === "select" ? (
+                            <select
+                              value={tabFieldValues[field.id] ?? ""}
+                              onChange={(e) =>
+                                setTabFieldValues((prev) => ({
+                                  ...prev,
+                                  [field.id]: e.target.value,
+                                }))
+                              }
+                              className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm font-medium focus-ring"
+                            >
+                              {(field.options ?? []).map((opt) => {
+                                const { label, priceAdd } = parseTabOption(opt);
+                                return (
+                                  <option key={opt} value={opt}>
+                                    {priceAdd > 0
+                                      ? `${label} (+$${priceAdd.toFixed(2)})`
+                                      : label}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                          ) : (
+                            <input
+                              type={
+                                field.type === "number" ? "number" : "text"
+                              }
+                              value={tabFieldValues[field.id] ?? ""}
+                              onChange={(e) =>
+                                setTabFieldValues((prev) => ({
+                                  ...prev,
+                                  [field.id]: e.target.value,
+                                }))
+                              }
+                              className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm font-medium focus-ring"
+                            />
+                          )}
+                          {field.helpText ? (
+                            <p className="text-xs text-text-secondary">
+                              {field.helpText}
+                            </p>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-text-secondary">
+                      No custom fields on this tab yet.
+                    </p>
+                  )
+                ) : (
+                  <ProductConfigurator
+                    options={options}
+                    selections={selections}
+                    onChange={onOptionChange}
+                  />
+                )}
               </div>
 
               <div className="mt-4 border border-border bg-white p-4">
@@ -675,9 +866,24 @@ export function ProductDetail({ slug }: { slug: string }) {
                   </span>
                 </p>
                 <p className="mt-1 text-sm text-text-secondary">
-                  ({formatCurrency(pricing.unit)} for each · qty {pricing.quantity})
+                  {hasCustomTabs && activeTab ? (
+                    <>
+                      {activeTab.label}
+                      {typeof activeTab.price === "number"
+                        ? ` · tab ${formatCurrency(activeTab.price)}`
+                        : null}
+                      {tabExtraPrice > 0
+                        ? ` + options ${formatCurrency(tabExtraPrice)}`
+                        : null}
+                    </>
+                  ) : (
+                    <>
+                      ({formatCurrency(pricing.unit)} for each · qty{" "}
+                      {pricing.quantity})
+                    </>
+                  )}
                 </p>
-                {pricing.lines.length > 0 ? (
+                {!hasCustomTabs && pricing.lines.length > 0 ? (
                   <details className="mt-3 group">
                     <summary className="cursor-pointer text-xs font-semibold text-primary hover:underline">
                       How price is calculated
@@ -796,24 +1002,58 @@ export function ProductDetail({ slug }: { slug: string }) {
         </Container>
       </Section>
 
-      <Section className="bg-white py-4">
+      <Section className="border-t border-border bg-white py-10">
         <Container size="wide">
-          <ProductReviews
-            slug={slug}
-            rating={rating}
-            reviewsCount={reviews}
-            onStatsChange={({ rating: r, reviews: c }) => {
-              setRating(r);
-              setReviews(c);
-            }}
-          />
-        </Container>
-      </Section>
+          <Tabs defaultValue="overview">
+            <TabsList className="w-full justify-start gap-0 rounded-none border-0 border-b border-border bg-transparent p-0">
+              {(
+                [
+                  ["overview", "Overview"],
+                  ["reviews", "Reviews"],
+                  ["faqs", "FAQs"],
+                ] as const
+              ).map(([value, label]) => (
+                <TabsTrigger
+                  key={value}
+                  value={value}
+                  className="rounded-none border-b-2 border-transparent bg-transparent px-5 py-3 text-[15px] shadow-none data-[state=active]:border-success data-[state=active]:bg-transparent data-[state=active]:text-secondary data-[state=active]:shadow-none"
+                >
+                  {label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
 
-      <Section className="border-t border-border bg-background py-12">
-        <Container size="narrow">
-          <h2 className="mb-6 text-xl font-bold text-secondary">FAQs</h2>
-          <Accordion items={faqs} />
+            <TabsContent value="overview" className="mt-8">
+              {description.trim() ? (
+                <div className="mx-auto max-w-4xl">
+                  <RichTextContent html={description} />
+                </div>
+              ) : (
+                <p className="text-center text-sm text-text-secondary">
+                  No product overview yet. Add a full description from Admin →
+                  Products.
+                </p>
+              )}
+            </TabsContent>
+
+            <TabsContent value="reviews" className="mt-8">
+              <ProductReviews
+                slug={slug}
+                rating={rating}
+                reviewsCount={reviews}
+                onStatsChange={({ rating: r, reviews: c }) => {
+                  setRating(r);
+                  setReviews(c);
+                }}
+              />
+            </TabsContent>
+
+            <TabsContent value="faqs" className="mt-8">
+              <div className="mx-auto max-w-3xl">
+                <Accordion items={productFaqs} />
+              </div>
+            </TabsContent>
+          </Tabs>
         </Container>
       </Section>
 

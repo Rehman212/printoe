@@ -31,11 +31,36 @@ export type ProductOptionGroup = {
   values: ProductOptionValue[];
 };
 
+export type ProductFaq = {
+  question: string;
+  answer: string;
+};
+
+export type ProductTabField = {
+  id: string;
+  label: string;
+  type: "select" | "text" | "number";
+  options?: string[];
+  helpText?: string;
+};
+
+export type ProductTab = {
+  id: string;
+  label: string;
+  iconUrl?: string;
+  /** Starting / base price when this tab is selected */
+  price?: number;
+  fields: ProductTabField[];
+};
+
 export type CatalogProduct = {
   id: string;
   name: string;
   slug: string;
   description: string;
+  shortDescription?: string | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
   basePrice: number;
   compareAt?: number | null;
   rating: number;
@@ -44,6 +69,8 @@ export type CatalogProduct = {
   badge?: string | null;
   imageUrl?: string | null;
   galleryUrls?: string[];
+  faqs?: ProductFaq[];
+  productTabs?: ProductTab[];
   featured?: boolean;
   active?: boolean;
   category: { id: string; name: string; slug: string };

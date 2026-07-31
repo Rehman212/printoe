@@ -145,12 +145,12 @@ const TURNAROUND = [
 ].map((label) => ({ label, value: label }));
 
 export const BUILDER_FEATURES = [
-  "Set any custom size by entering your width × height",
-  "Multiple paper and cardstock options for different use cases",
-  "4 finish options: gloss, matte, uncoated, and UV coating",
-  "Optional folding and scoring for brochures, flyers, and handouts",
+  "Free professional artwork check before we print",
+  "Print in any custom size — set your exact width × height",
+  "Multiple paper, cardstock, coating, and finish options",
+  "Optional folding, scoring, perforation, and hole drilling",
+  "Fast turnaround with reliable on-time delivery",
 ];
-
 export const BUILDER_FIELDS: BuilderField[] = [
   {
     key: "width",

@@ -4,6 +4,7 @@ import type {
   CatalogProduct,
   ProductDetailPayload,
   ProductOptionGroup,
+  ProductTab,
 } from "@/types";
 
 function applyShowcaseImage<T extends {
@@ -142,12 +143,17 @@ export async function createAdminProduct(payload: {
   name: string;
   slug: string;
   description: string;
+  shortDescription?: string;
+  seoTitle?: string;
+  seoDescription?: string;
   basePrice: number;
   categoryId: string;
   deliveryDays?: number;
   badge?: string;
   imageUrl?: string;
   galleryUrls?: string[];
+  faqs?: Array<{ question: string; answer: string }>;
+  productTabs?: ProductTab[];
   featured?: boolean;
   active?: boolean;
   options?: Array<{
@@ -177,12 +183,17 @@ export async function updateAdminProduct(
     name?: string;
     slug?: string;
     description?: string;
+    shortDescription?: string;
+    seoTitle?: string;
+    seoDescription?: string;
     basePrice?: number;
     categoryId?: string;
     deliveryDays?: number;
     badge?: string;
     imageUrl?: string;
     galleryUrls?: string[];
+    faqs?: Array<{ question: string; answer: string }>;
+    productTabs?: ProductTab[];
     featured?: boolean;
     active?: boolean;
     options?: Array<{

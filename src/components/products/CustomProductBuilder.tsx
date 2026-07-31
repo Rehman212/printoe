@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Check, HelpCircle, Pencil, Play, Upload } from "lucide-react";
+import { Check, HelpCircle, Pencil, Upload } from "lucide-react";
 import {
   BUILDER_FEATURES,
   BUILDER_FIELDS,
@@ -15,12 +15,10 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { Breadcrumbs, Container, Section, StarRating } from "@/components/ui";
 import { Tooltip } from "@/components/ui/Misc";
 
-const HERO =
-  "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1200&q=80";
-const THUMBS = [
-  "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?auto=format&fit=crop&w=400&q=80",
-  HERO,
-  "https://images.unsplash.com/photo-1561070791-2526d30994b5?auto=format&fit=crop&w=400&q=80",
+/** Official Custom Product Builder gallery (provided CDN heroes). */
+const GALLERY = [
+  "https://staticecp.uprinting.com/291/700x700/Custom_Product_Builder_A.jpg",
+  "https://staticecp.uprinting.com/292/700x700/Custom%20Product%20Page_1400x1400.jpg",
 ];
 
 export function CustomProductBuilder() {
@@ -41,6 +39,8 @@ export function CustomProductBuilder() {
   );
 
   const price = estimateBuilderPrice(mode, selections);
+  const unitPrice =
+    Math.round((price / (Number(selections.quantity) || 250)) * 100) / 100;
 
   const setModeAndDefaults = (next: BuilderMode) => {
     setMode(next);
@@ -52,6 +52,8 @@ export function CustomProductBuilder() {
     mode,
     ...selections,
   }).toString();
+
+  const activeImage = GALLERY[activeThumb] ?? GALLERY[0]!;
 
   return (
     <Section className="bg-white py-6 md:py-10">
@@ -67,22 +69,22 @@ export function CustomProductBuilder() {
           {/* Left: media + features */}
           <div>
             <div className="relative overflow-hidden border border-border bg-[#f3f4f6]">
-              <div className="relative aspect-[4/3] w-full">
+              <div className="relative aspect-square w-full max-w-xl">
                 <Image
-                  src={THUMBS[activeThumb] ?? HERO}
-                  alt="Custom printing samples"
+                  src={activeImage}
+                  alt="Custom Product Builder — sample prints"
                   fill
                   priority
-                  className="object-cover"
-                  sizes="(max-width: 1024px) 100vw, 60vw"
+                  className="object-contain bg-[#f7f7f7]"
+                  sizes="(max-width: 1024px) 100vw, 50vw"
                 />
               </div>
             </div>
 
             <div className="mt-3 flex gap-2">
-              {THUMBS.map((url, i) => (
+              {GALLERY.map((url, i) => (
                 <button
-                  key={url + i}
+                  key={url}
                   type="button"
                   onClick={() => setActiveThumb(i)}
                   className={cn(
@@ -91,7 +93,7 @@ export function CustomProductBuilder() {
                       ? "border-primary"
                       : "border-border opacity-80 hover:opacity-100",
                   )}
-                  aria-label={i === 1 ? "Product video" : `View image ${i + 1}`}
+                  aria-label={`View image ${i + 1}`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -99,11 +101,6 @@ export function CustomProductBuilder() {
                     alt=""
                     className="h-full w-full object-cover"
                   />
-                  {i === 1 ? (
-                    <span className="absolute inset-0 flex items-center justify-center bg-black/35">
-                      <Play className="h-6 w-6 fill-white text-white" />
-                    </span>
-                  ) : null}
                 </button>
               ))}
             </div>
@@ -126,8 +123,11 @@ export function CustomProductBuilder() {
             <h1 className="text-2xl font-extrabold tracking-tight text-secondary md:text-3xl">
               Custom Product Builder
             </h1>
-            <div className="mt-2">
-              <StarRating rating={4.3} reviews={581} size="md" />
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <StarRating rating={4.8} reviews={291} size="md" />
+              <span className="text-sm font-semibold text-secondary">
+                From $0.15 each
+              </span>
             </div>
 
             <div className="mt-5 border border-border bg-white p-4 shadow-soft sm:p-5">
@@ -201,18 +201,22 @@ export function CustomProductBuilder() {
                 <p className="text-xs font-medium uppercase tracking-wide text-text-secondary">
                   Estimated printing cost
                 </p>
-                <p className="mt-1 text-2xl font-extrabold text-secondary">
+                <p className="mt-1 text-2xl font-extrabold text-[#1b5e20]">
                   {formatCurrency(price)}
+                </p>
+                <p className="mt-0.5 text-xs font-medium text-text-secondary">
+                  {formatCurrency(unitPrice)} each · qty{" "}
+                  {Number(selections.quantity || 250).toLocaleString()}
                 </p>
               </div>
 
               <div className="mt-4 flex flex-col gap-2.5">
                 <Link
                   href={`/upload?${query}`}
-                  className="inline-flex h-12 items-center justify-center gap-2 bg-primary text-sm font-bold uppercase tracking-wider text-white transition hover:bg-primary-hover focus-ring"
+                  className="inline-flex h-12 items-center justify-center gap-2 bg-[#1b5e20] text-sm font-bold uppercase tracking-wider text-white transition hover:bg-[#164e1a] focus-ring"
                 >
                   <Upload className="h-4 w-4" />
-                  Upload Your File
+                  Add to Cart
                 </Link>
                 <Link
                   href={`/editor?${query}`}

@@ -48,9 +48,11 @@ export function TabsList({
 export function TabsTrigger({
   value,
   children,
+  className,
 }: {
   value: string;
   children: ReactNode;
+  className?: string;
 }) {
   const ctx = useContext(TabsCtx);
   if (!ctx) return null;
@@ -60,12 +62,13 @@ export function TabsTrigger({
       type="button"
       role="tab"
       aria-selected={active}
+      data-state={active ? "active" : "inactive"}
       onClick={() => ctx.setValue(value)}
       className={cn(
         "rounded-xl px-4 py-2 text-sm font-semibold transition-all focus-ring",
-        active
-          ? "bg-card text-primary shadow-soft"
-          : "text-text-secondary hover:text-text-primary",
+        "data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-soft",
+        "data-[state=inactive]:text-text-secondary data-[state=inactive]:hover:text-text-primary",
+        className,
       )}
     >
       {children}
