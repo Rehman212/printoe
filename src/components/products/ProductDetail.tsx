@@ -71,7 +71,9 @@ function buildOptionsSummary(
     .join(" · ");
 }
 
-const DEFAULT_FAQS = DEFAULT_PRODUCT_FAQS.map((f, i) => ({
+type FaqItem = { id: string; title: string; content: string };
+
+const DEFAULT_FAQS: FaqItem[] = DEFAULT_PRODUCT_FAQS.map((f, i) => ({
   id: `faq-${i}`,
   title: f.question,
   content: f.answer,
@@ -240,7 +242,7 @@ export function ProductDetail({ slug }: { slug: string }) {
   const [name, setName] = useState(localProduct?.name ?? "");
   const [description, setDescription] = useState(localProduct?.description ?? "");
   const [shortDescription, setShortDescription] = useState("");
-  const [productFaqs, setProductFaqs] = useState(DEFAULT_FAQS);
+  const [productFaqs, setProductFaqs] = useState<FaqItem[]>(DEFAULT_FAQS);
   const [productTabs, setProductTabs] = useState<ProductTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [tabFieldValues, setTabFieldValues] = useState<Record<string, string>>(
