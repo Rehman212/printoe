@@ -3,15 +3,14 @@
 import { FormEvent, useCallback, useEffect, useId, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  ExternalLink,
   ImagePlus,
   MapPin,
-  Pencil,
   Plus,
   RefreshCw,
   Search,
   Trash2,
   X,
+  ExternalLink,
 } from "lucide-react";
 import {
   createAdminProduct,
@@ -39,6 +38,7 @@ import { Modal } from "@/components/ui/Modal";
 import { RichTextEditor } from "@/components/ui/RichTextEditor";
 import { useToast } from "@/components/ui/Toast";
 import { AdminProductOptionsPanel } from "@/components/admin/AdminProductOptionsPanel";
+import { AdminProductsTable } from "@/components/admin/AdminProductsTable";
 
 type ApiCategory = {
   id: string;
@@ -203,6 +203,7 @@ export function AdminProducts() {
   const [items, setItems] = useState<ProductDetailPayload[]>([]);
   const [apiCategories, setApiCategories] = useState<ApiCategory[]>([]);
   const [optionsRefreshKey, setOptionsRefreshKey] = useState(0);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -253,18 +254,6 @@ export function AdminProducts() {
     () => getStorefrontPlacement(form.categorySlug),
     [form.categorySlug],
   );
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter(({ product }) => {
-      return (
-        product.name.toLowerCase().includes(q) ||
-        product.category.slug.toLowerCase().includes(q) ||
-        product.slug.toLowerCase().includes(q)
-      );
-    });
-  }, [items, query]);
 
   function openCreate() {
     setEditing(null);
@@ -555,6 +544,35 @@ export function AdminProducts() {
     }
   }
 
+  async function onBulkDelete(rows: ProductDetailPayload[]) {
+    if (!rows.length) return;
+    setBulkDeleting(true);
+    let ok = 0;
+    let failed = 0;
+    try {
+      for (const row of rows) {
+        try {
+          await deleteAdminProduct(row.product.id);
+          ok += 1;
+        } catch {
+          failed += 1;
+        }
+      }
+      toast({
+        title: failed ? "Bulk delete finished with errors" : "Deleted from database",
+        description:
+          failed > 0
+            ? `${ok} deleted, ${failed} failed.`
+            : `${ok} product${ok === 1 ? "" : "s"} deleted.`,
+        tone: failed > 0 ? "warning" : "info",
+      });
+      setOptionsRefreshKey((k) => k + 1);
+      await load();
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -632,116 +650,21 @@ export function AdminProducts() {
                 .
               </p>
             </div>
-          ) : (
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead>
-                <tr className="border-y border-border bg-secondary/[0.02] text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                  <th className="px-6 py-3">Product</th>
-                  <th className="px-6 py-3">Category</th>
-                  <th className="px-6 py-3">Price</th>
-                  <th className="px-6 py-3">Options</th>
-                  <th className="px-6 py-3">Status</th>
-                  <th className="px-6 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((row) => {
-                  const p = row.product;
-                  const img = p.imageUrl || p.galleryUrls?.[0];
-                  return (
-                    <tr
-                      key={p.id}
-                      className="border-b border-border/60 last:border-0"
-                    >
-                      <td className="px-6 py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="relative h-12 w-12 overflow-hidden rounded-lg bg-[#eceef2]">
-                            {img ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={img}
-                                alt=""
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center text-[10px] font-bold uppercase text-text-secondary">
-                                DB
-                              </div>
-                            )}
-                          </div>
-                          <div>
-                            <p className="font-semibold text-text-primary">
-                              {p.name}
-                            </p>
-                            <Link
-                              href={`/products/${p.slug}`}
-                              className="text-xs text-primary hover:underline"
-                            >
-                              /products/{p.slug}
-                            </Link>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-3 capitalize text-text-secondary">
-                        {p.category.name}
-                      </td>
-                      <td className="px-6 py-3 font-semibold">
-                        {formatCurrency(p.basePrice)}
-                      </td>
-                      <td className="px-6 py-3 text-text-secondary">
-                        {row.options.length} fields
-                      </td>
-                      <td className="px-6 py-3">
-                        {p.active === false ? (
-                          <Badge variant="outline">Inactive</Badge>
-                        ) : p.featured ? (
-                          <Badge variant="primary">Featured</Badge>
-                        ) : (
-                          <Badge>Live</Badge>
-                        )}
-                      </td>
-                      <td className="px-6 py-3">
-                        <div className="flex flex-wrap justify-end gap-1">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openEdit(row)}
-                            className="gap-1.5"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                            Edit
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => void onDelete(row)}
-                            className="gap-1.5 text-danger hover:text-danger"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            Delete
-                          </Button>
-                          <Link
-                            href={`/products/${p.slug}`}
-                            target="_blank"
-                            className="inline-flex h-9 items-center gap-1 rounded-xl px-3 text-xs font-semibold text-primary hover:underline"
-                          >
-                            View
-                            <ExternalLink className="h-3 w-3" />
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-          {!loading && !error && filtered.length === 0 ? (
+          ) : items.length === 0 ? (
             <p className="px-6 py-10 text-center text-sm text-text-secondary">
               No products in the database yet. Upload one to store it in
               PostgreSQL.
             </p>
-          ) : null}
+          ) : (
+            <AdminProductsTable
+              data={items}
+              globalFilter={query}
+              onEdit={openEdit}
+              onDelete={(row) => void onDelete(row)}
+              onBulkDelete={onBulkDelete}
+              bulkDeleting={bulkDeleting}
+            />
+          )}
         </CardContent>
       </Card>
 
