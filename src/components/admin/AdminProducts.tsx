@@ -82,6 +82,8 @@ type FormState = {
   active: boolean;
   imageUrl: string;
   previewDataUrl: string | null;
+  /** Extra photos (besides primary feature image) */
+  galleryUrls: string[];
   faqs: FormFaq[];
   tabs: FormTab[];
 };
@@ -182,6 +184,7 @@ const emptyForm = (cats: ApiCategory[] = []): FormState => ({
   active: true,
   imageUrl: "",
   previewDataUrl: null,
+  galleryUrls: [],
   faqs: DEFAULT_PRODUCT_FAQS.map((f) => ({
     question: f.question,
     answer: f.answer,
@@ -192,6 +195,7 @@ const emptyForm = (cats: ApiCategory[] = []): FormState => ({
 export function AdminProducts() {
   const { toast } = useToast();
   const fileId = useId();
+  const galleryFileId = useId();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ProductDetailPayload | null>(null);
@@ -288,6 +292,13 @@ export function AdminProducts() {
       active: row.product.active !== false,
       imageUrl: row.product.imageUrl ?? "",
       previewDataUrl: row.product.imageUrl ?? null,
+      galleryUrls: (() => {
+        const imgs = (row.product.galleryUrls ?? []).filter(Boolean);
+        const primary = row.product.imageUrl ?? "";
+        // Prefer extras only; fall back to full list minus primary when stored as full gallery
+        const extras = imgs.filter((u) => u !== primary);
+        return extras.length ? extras : imgs.filter((u) => u !== primary);
+      })(),
       faqs: loadedFaqs.length
         ? loadedFaqs
         : DEFAULT_PRODUCT_FAQS.map((f) => ({
@@ -338,9 +349,13 @@ export function AdminProducts() {
 
       // If editing an existing product, persist image to DB immediately
       if (editing?.product?.id) {
+        const gallery = [
+          url,
+          ...form.galleryUrls.filter((u) => u && u !== url),
+        ];
         await updateAdminProduct(editing.product.id, {
           imageUrl: url,
-          galleryUrls: [url],
+          galleryUrls: gallery,
         });
         await load();
         toast({
@@ -369,6 +384,80 @@ export function AdminProducts() {
     } finally {
       setUploading(false);
     }
+  }
+
+  async function onPickGalleryFiles(files: FileList | null) {
+    if (!files?.length) return;
+    const images = Array.from(files).filter((f) => f.type.startsWith("image/"));
+    if (!images.length) {
+      toast({
+        title: "Invalid file",
+        description: "Please choose image files (PNG, JPG, WebP).",
+        tone: "warning",
+      });
+      return;
+    }
+
+    setUploading(true);
+    const added: string[] = [];
+    try {
+      for (const file of images) {
+        const res = await uploadAdminImage(file);
+        added.push(res.data.url);
+      }
+      setForm((f) => {
+        const next = [...f.galleryUrls];
+        for (const url of added) {
+          if (url && !next.includes(url) && url !== f.imageUrl) next.push(url);
+        }
+        return { ...f, galleryUrls: next };
+      });
+
+      if (editing?.product?.id) {
+        const primary = form.imageUrl.trim();
+        const gallery = [
+          ...(primary ? [primary] : []),
+          ...form.galleryUrls,
+          ...added,
+        ].filter((u, i, arr) => u && arr.indexOf(u) === i);
+        await updateAdminProduct(editing.product.id, {
+          imageUrl: primary || gallery[0] || undefined,
+          galleryUrls: gallery,
+        });
+        await load();
+      }
+
+      toast({
+        title: added.length === 1 ? "Gallery image added" : "Gallery images added",
+        description: `${added.length} image${added.length === 1 ? "" : "s"} uploaded.`,
+        tone: "success",
+      });
+    } catch (err) {
+      toast({
+        title: "Gallery upload failed",
+        description:
+          err instanceof Error ? err.message : "Could not upload images.",
+        tone: "danger",
+      });
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function removeGalleryUrl(url: string) {
+    setForm((f) => ({
+      ...f,
+      galleryUrls: f.galleryUrls.filter((u) => u !== url),
+    }));
+  }
+
+  function addGalleryUrlFromInput(raw: string) {
+    const url = raw.trim();
+    if (!url) return;
+    setForm((f) => {
+      if (f.galleryUrls.includes(url) || url === f.imageUrl) return f;
+      return { ...f, galleryUrls: [...f.galleryUrls, url] };
+    });
   }
 
   function buildOptionsPayload() {
@@ -444,6 +533,13 @@ export function AdminProducts() {
         .filter((f) => f.question && f.answer);
       const productTabs = tabsToPayload(form.tabs ?? []);
       const isPublished = form.status === "published";
+      const galleryFromForm = form.galleryUrls
+        .map((u) => u.trim())
+        .filter((u) => u && !u.startsWith("data:") && !u.startsWith("blob:"));
+      const galleryUrls = [
+        ...(imageUrl ? [imageUrl] : []),
+        ...galleryFromForm.filter((u) => u !== imageUrl),
+      ].filter((u, i, arr) => arr.indexOf(u) === i);
 
       if (editing) {
         await updateAdminProduct(editing.product.id, {
@@ -461,7 +557,7 @@ export function AdminProducts() {
           featured: form.featured,
           active: isPublished,
           imageUrl,
-          galleryUrls: imageUrl ? [imageUrl] : [],
+          galleryUrls,
           faqs,
           productTabs,
           options: buildOptionsPayload(),
@@ -486,7 +582,7 @@ export function AdminProducts() {
           deliveryDays: Number(form.deliveryDays) || 3,
           badge: form.badge.trim() || undefined,
           imageUrl: imageUrl || undefined,
-          galleryUrls: imageUrl ? [imageUrl] : undefined,
+          galleryUrls: galleryUrls.length ? galleryUrls : undefined,
           faqs,
           productTabs,
           featured: form.featured,
@@ -792,11 +888,9 @@ export function AdminProducts() {
           {/* Form panels */}
           <div className="space-y-4">
             <div className="rounded-2xl border border-border bg-card p-4 shadow-soft sm:p-5">
-              <h4 className="text-sm font-bold text-secondary">Product image</h4>
+              <h4 className="text-sm font-bold text-secondary">Featured image</h4>
               <p className="mt-1 text-xs text-text-secondary">
-                Drop a file into{" "}
-                <code className="rounded bg-[#f5f6f8] px-1">public/uploads</code>{" "}
-                or paste a public URL.
+                Main product photo shown on cards and the product page hero.
               </p>
               <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-stretch">
                 <label
@@ -808,7 +902,7 @@ export function AdminProducts() {
                 >
                   <ImagePlus className="h-8 w-8 text-primary" />
                   <span className="text-sm font-bold text-secondary">
-                    {uploading ? "Uploading…" : "Upload image"}
+                    {uploading ? "Uploading…" : "Upload featured image"}
                   </span>
                   <span className="text-[11px] text-text-secondary">
                     PNG, JPG, WebP · recommended square
@@ -827,7 +921,7 @@ export function AdminProducts() {
                 />
                 <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
                   <Input
-                    label="Image URL (stored in DB)"
+                    label="Featured image URL"
                     value={form.imageUrl.startsWith("data:") ? "" : form.imageUrl}
                     onChange={(e) =>
                       setForm((f) => ({
@@ -850,11 +944,117 @@ export function AdminProducts() {
                       }
                       className="inline-flex w-fit items-center gap-1 text-xs font-semibold text-danger"
                     >
-                      <X className="h-3.5 w-3.5" /> Remove image
+                      <X className="h-3.5 w-3.5" /> Remove featured image
                     </button>
                   ) : null}
                 </div>
               </div>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-card p-4 shadow-soft sm:p-5">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h4 className="text-sm font-bold text-secondary">
+                    Gallery images
+                  </h4>
+                  <p className="mt-1 text-xs text-text-secondary">
+                    Extra photos on the product page. Upload multiple at once or
+                    paste URLs.
+                  </p>
+                </div>
+                <label
+                  htmlFor={galleryFileId}
+                  className={cn(
+                    "inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-secondary transition hover:border-primary/40 hover:bg-primary/5",
+                    uploading && "pointer-events-none opacity-60",
+                  )}
+                >
+                  <ImagePlus className="h-3.5 w-3.5 text-primary" />
+                  {uploading ? "Uploading…" : "Add images"}
+                </label>
+                <input
+                  id={galleryFileId}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  disabled={uploading || saving}
+                  onChange={(e) => {
+                    void onPickGalleryFiles(e.target.files);
+                    e.target.value = "";
+                  }}
+                />
+              </div>
+
+              {form.galleryUrls.length > 0 ? (
+                <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
+                  {form.galleryUrls.map((url) => (
+                    <div
+                      key={url}
+                      className="group relative aspect-square overflow-hidden rounded-xl border border-border bg-[#f3f4f6]"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={url}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeGalleryUrl(url)}
+                        className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-card/95 text-danger shadow-soft opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                        aria-label="Remove gallery image"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-4 rounded-xl border border-dashed border-border bg-[#f8f9fb] px-3 py-6 text-center text-xs text-text-secondary">
+                  No gallery images yet. Use <strong>Add images</strong> or paste a
+                  URL below.
+                </p>
+              )}
+
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
+                <div className="min-w-0 flex-1">
+                  <Input
+                    label="Or paste gallery image URL"
+                    id="gallery-url-input"
+                    placeholder="https://…"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const el = e.currentTarget;
+                        addGalleryUrlFromInput(el.value);
+                        el.value = "";
+                      }
+                    }}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => {
+                    const el = document.getElementById(
+                      "gallery-url-input",
+                    ) as HTMLInputElement | null;
+                    if (!el) return;
+                    addGalleryUrlFromInput(el.value);
+                    el.value = "";
+                  }}
+                >
+                  Add URL
+                </Button>
+              </div>
+              <p className="mt-2 text-[11px] text-text-secondary">
+                {form.galleryUrls.length} gallery image
+                {form.galleryUrls.length === 1 ? "" : "s"}
+                {form.imageUrl ? " · featured image kept separate" : ""}
+              </p>
             </div>
 
             <div className="rounded-2xl border border-border bg-card p-4 shadow-soft sm:p-5">
