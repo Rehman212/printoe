@@ -322,7 +322,9 @@ export function ShopShowcase() {
                             href={item.href}
                             className="mt-1 block border-t border-border px-4 py-2 text-xs font-semibold text-primary hover:underline"
                           >
-                            View all {item.name}
+                            {isBcFlyout
+                              ? "See All Business Cards ›"
+                              : `View all ${item.name}`}
                           </Link>
                         </div>
                       )}

@@ -7,11 +7,199 @@ import { SHOP_FLYOUTS } from "./shop-catalog";
 
 export type NavLink = { label: string; href: string };
 
+/** Link inside a mega-menu column; `all` renders as the trailing "All …" row. */
+export type MegaLink = NavLink & {
+  badge?: "Best Seller" | "New";
+  all?: boolean;
+};
+
+export type MegaColumn = {
+  title: string;
+  href: string;
+  image: string;
+  links: MegaLink[];
+};
+
 export type NavGroup = {
   label: string;
   href: string;
   children: NavLink[];
+  /** Full-width panel shown instead of the plain dropdown list. */
+  mega?: MegaColumn[];
 };
+
+/** Real product shots from the catalogue so each column matches its section. */
+const MEGA_IMG = {
+  businessCards:
+    "https://staticecp.uprinting.com/16666/530x530/Standard_Business_Cards_Marketing_Material_A_Compress.jpg",
+  brochures:
+    "https://staticecp.uprinting.com/5028/700x700/Brochures_Marketing_Materials_A.jpg",
+  booklets:
+    "https://staticecp.uprinting.com/15872/700x700/UP_Laminated_Dine-in_Menus.jpg",
+  postcards:
+    "https://staticecp.uprinting.com/11181/530x530/UP_B33-Postcards.png",
+  cards:
+    "https://s2.uprinting.com/SmsImages/UP/product-page/112064/active/jpeg/event-postcards_1400x1400.jpg",
+  forms: "https://staticecp.uprinting.com/215/700x700/Notepads_Personal_A.jpg",
+  promotion:
+    "https://staticecp.uprinting.com/253/700x700/Poster_Signs_Marketing_Materials_A.jpg",
+  office:
+    "https://staticecp.uprinting.com/894/700x700/Wall_Calendar_Marketing_Materials_A.webp",
+};
+
+const MARKETING_MEGA: MegaColumn[] = [
+  {
+    title: "Business Cards",
+    href: "/products?category=business-cards",
+    image: MEGA_IMG.businessCards,
+    links: [
+      {
+        label: "Standard Business Cards",
+        href: "/products/business-cards/standard",
+        badge: "Best Seller",
+      },
+      { label: "Die-Cut Business Cards", href: "/products/business-cards/die-cut" },
+      { label: "Plastic Business Cards", href: "/products/business-cards/plastic" },
+      { label: "Folded Business Cards", href: "/products/business-cards/folded" },
+      {
+        label: "All Business Cards",
+        href: "/products?category=business-cards",
+        all: true,
+      },
+    ],
+  },
+  {
+    title: "Brochures & Flyers",
+    href: "/products?category=brochures",
+    image: MEGA_IMG.brochures,
+    links: [
+      { label: "Brochures", href: "/products?category=brochures" },
+      {
+        label: "Flyers",
+        href: "/products?category=flyers",
+        badge: "Best Seller",
+      },
+      { label: "Business Flyers", href: "/products/flyers/business-flyers" },
+      { label: "Rack Cards", href: "/products/marketing/rack-cards" },
+      { label: "Leaflets", href: "/products/marketing/leaflets" },
+    ],
+  },
+  {
+    title: "Booklets and Catalogs",
+    href: "/products?category=brochures",
+    image: MEGA_IMG.booklets,
+    links: [
+      {
+        label: "Booklets",
+        href: "/products/brochures/booklets",
+        badge: "Best Seller",
+      },
+      { label: "Catalogs", href: "/products/marketing/catalogs" },
+      { label: "Newsletters", href: "/products/marketing/newsletters" },
+      { label: "Magazines", href: "/products/marketing/magazines" },
+      {
+        label: "All Booklets & Catalogs",
+        href: "/products?category=brochures",
+        all: true,
+      },
+    ],
+  },
+  {
+    title: "Postcards",
+    href: "/products?category=postcards",
+    image: MEGA_IMG.postcards,
+    links: [
+      {
+        label: "Standard Postcards",
+        href: "/products/postcards/standard-postcards",
+        badge: "Best Seller",
+      },
+      { label: "Die Cut Postcards", href: "/products/postcards/die-cut-postcards" },
+      {
+        label: "EDDM Postcards",
+        href: "/products/postcards/every-door-direct-mail",
+        badge: "New",
+      },
+      { label: "Foil Postcards", href: "/products/postcards/foil-postcards" },
+      {
+        label: "All Postcards",
+        href: "/products?category=postcards",
+        all: true,
+      },
+    ],
+  },
+  {
+    title: "Cards & Events",
+    href: "/products?category=postcards",
+    image: MEGA_IMG.cards,
+    links: [
+      { label: "Invitations", href: "/products/marketing/invitations" },
+      {
+        label: "Event Tickets",
+        href: "/products/marketing/event-tickets",
+        badge: "Best Seller",
+      },
+      { label: "Thank you Cards", href: "/products/marketing/thank-you-cards" },
+      { label: "Greeting Cards", href: "/products/marketing/greeting-cards" },
+      {
+        label: "All Cards & Events",
+        href: "/products?category=postcards",
+        all: true,
+      },
+    ],
+  },
+  {
+    title: "Forms & Stationery",
+    href: "/products?category=marketing-materials",
+    image: MEGA_IMG.forms,
+    links: [
+      {
+        label: "Carbonless Forms",
+        href: "/products/marketing/carbonless-forms",
+        badge: "Best Seller",
+      },
+      { label: "Letterhead", href: "/products/marketing/letterhead" },
+      { label: "Envelopes", href: "/products/marketing/envelopes" },
+      { label: "Notepads", href: "/products/promotional-products/notepads" },
+      { label: "Bookmarks", href: "/products/promotional-products/bookmarks" },
+    ],
+  },
+  {
+    title: "Marketing & Promotion",
+    href: "/products?category=marketing-materials",
+    image: MEGA_IMG.promotion,
+    links: [
+      { label: "Posters", href: "/products/signs/poster-signs" },
+      { label: "Hang Tags", href: "/products/marketing/hang-tags" },
+      { label: "Door Hangers", href: "/products/marketing/door-hangers" },
+      { label: "Magnets", href: "/products/promotional-products/magnets" },
+      {
+        label: "All Marketing",
+        href: "/products?category=marketing-materials",
+        all: true,
+      },
+    ],
+  },
+  {
+    title: "Branded Office Supplies",
+    href: "/products?category=marketing-materials",
+    image: MEGA_IMG.office,
+    links: [
+      { label: "Folders", href: "/products/marketing/folders" },
+      {
+        label: "Appointment Cards",
+        href: "/products/marketing/appointment-cards",
+      },
+      { label: "Notebooks", href: "/products/marketing/notebooks" },
+      { label: "Rubber Stamps", href: "/products/marketing/rubber-stamps" },
+      {
+        label: "All Office Supplies",
+        href: "/products?category=marketing-materials",
+        all: true,
+      },
+    ],
+  },
+];
 
 /** Sidebar Popular Products (UPrinting order; excludes Marketing Materials / Posters). */
 export const POPULAR_PRODUCT_CATEGORIES = [
@@ -52,6 +240,7 @@ export const HEADER_NAV_GROUPS: NavGroup[] = [
   {
     label: "Marketing Materials",
     href: "/products?category=marketing-materials",
+    mega: MARKETING_MEGA,
     children: [
       { label: "Standard Business Cards", href: "/products/business-cards/standard" },
       { label: "Square Business Cards", href: "/products/business-cards/square" },
@@ -120,6 +309,7 @@ export const HEADER_NAV_GROUPS: NavGroup[] = [
       { label: "Tension Fabric Banners", href: "/products/banners/tension-fabric-banners" },
       { label: "Backdrops", href: "/products/banners/backdrops" },
       { label: "Curved Pop-Up Display", href: "/products/banners/curved-pop-up-display" },
+      { label: "Awesome X-Banner Stand", href: "/products/banners/awesome-x-banner-stand" },
       { label: "All Banners", href: "/products?category=banners" },
       { label: "All Signs", href: "/products?category=signs" },
     ],
@@ -184,6 +374,7 @@ export const CATEGORY_SUBMENUS: Record<string, NavLink[]> = {
     { label: "Tension Fabric Banners", href: "/products/banners/tension-fabric-banners" },
     { label: "Backdrops", href: "/products/banners/backdrops" },
     { label: "Curved Pop-Up Display", href: "/products/banners/curved-pop-up-display" },
+    { label: "Awesome X-Banner Stand", href: "/products/banners/awesome-x-banner-stand" },
   ],
   boxes: [
     { label: "Mailer Boxes", href: "/products/boxes/mailer-boxes" },
@@ -212,6 +403,10 @@ export const CATEGORY_SUBMENUS: Record<string, NavLink[]> = {
     { label: "Leaf", href: "/products/business-cards/leaf" },
     { label: "Slim Rounded Corner", href: "/products/business-cards/slim-rounded-corner" },
     { label: "Circle", href: "/products/business-cards/circle" },
+    { label: "Half-Circle", href: "/products/business-cards/half-circle" },
+    { label: "Oval", href: "/products/business-cards/oval" },
+    { label: "Single Rounded Corner", href: "/products/business-cards/single-rounded-corner" },
+    { label: "Die-Cut", href: "/products/business-cards/die-cut" },
   ],
   flyers: [],
   brochures: [],

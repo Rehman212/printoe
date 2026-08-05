@@ -319,11 +319,76 @@ export function calcConfiguredPrice(
   options: ProductOptionGroup[],
   selections: Record<string, string>,
 ) {
+  let configuredBasePrice = basePrice;
   let mod = 1;
   let quantity = 1;
+  let unitAdd = 0;
   const lines: PriceBreakdownLine[] = [];
 
+  const selectedValue = (key: string) => {
+    const group = options.find((option) => option.key === key);
+    const selected = selections[key] ?? group?.values[0]?.value;
+    return group?.values.find((value) => value.value === selected);
+  };
+
+  const hiddenGroups = new Set(
+    options.flatMap(
+      (group) => selectedValue(group.key)?.meta?.hideGroups ?? [],
+    ),
+  );
+
+  const areaConfig = options
+    .flatMap((group) => group.values)
+    .map((value) => value.meta?.pricingConfig)
+    .find((config) => config?.type === "area");
+
+  let usesAreaPricing = false;
+  if (areaConfig) {
+    const dimension = (key: string) => {
+      const value = selectedValue(key);
+      const explicit = value?.meta?.dimension ?? value?.meta?.dimensionInches;
+      if (typeof explicit === "number" && Number.isFinite(explicit)) {
+        return explicit;
+      }
+      const parsed = Number.parseFloat(
+        (value?.value ?? "").replace(/[^\d.-]/g, ""),
+      );
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+    const width = dimension(areaConfig.widthKey);
+    const height = dimension(areaConfig.heightKey);
+    configuredBasePrice = Math.max(
+      areaConfig.minimumPrice,
+      areaConfig.setupCost + width * height * areaConfig.rate,
+    );
+    usesAreaPricing = true;
+  } else {
+    // Backwards compatibility with products synced before the Pricing step
+    // existed (for example Custom Wall Decals).
+    const size = selectedValue("size");
+    if (
+      typeof size?.meta?.absoluteBasePrice === "number" &&
+      Number.isFinite(size.meta.absoluteBasePrice)
+    ) {
+      configuredBasePrice = size.meta.absoluteBasePrice;
+    } else if (size?.meta?.areaPricing) {
+      const width =
+        selectedValue("width")?.meta?.dimensionInches ??
+        Number.parseFloat(selectedValue("width")?.value ?? "0");
+      const height =
+        selectedValue("height")?.meta?.dimensionInches ??
+        Number.parseFloat(selectedValue("height")?.value ?? "0");
+      if (Number.isFinite(width) && Number.isFinite(height)) {
+        configuredBasePrice =
+          size.meta.areaPricing.fixed +
+          size.meta.areaPricing.perSquareInch * width * height;
+        usesAreaPricing = true;
+      }
+    }
+  }
+
   for (const group of options) {
+    if (hiddenGroups.has(group.key)) continue;
     const selected = selections[group.key];
     if (!selected) continue;
     const value = group.values.find((v) => v.value === selected);
@@ -340,20 +405,59 @@ export function calcConfiguredPrice(
       const qty = Number(selected);
       if (!Number.isNaN(qty) && qty > 0) quantity = qty;
       mod *= value.priceMod;
+      continue;
+    }
+
+    // Width and height determine the area; their option multipliers must not
+    // also change the price a second time.
+    if (
+      areaConfig &&
+      (group.key === areaConfig.widthKey ||
+        group.key === areaConfig.heightKey)
+    ) {
+      continue;
+    }
+
+    if (
+      typeof value.meta?.absoluteBasePrice === "number" &&
+      Number.isFinite(value.meta.absoluteBasePrice)
+    ) {
+      configuredBasePrice = value.meta.absoluteBasePrice;
+    }
+    if (
+      typeof value.meta?.priceAdd === "number" &&
+      Number.isFinite(value.meta.priceAdd)
+    ) {
+      unitAdd += value.meta.priceAdd;
     } else {
       mod *= value.priceMod;
     }
   }
 
-  // Per-unit (stickers): base ≈ unit cost; qty multiplies after mods
-  const isPerUnit = basePrice < 5;
-  if (isPerUnit) {
-    const unit = basePrice * mod;
+  configuredBasePrice += unitAdd;
+
+  if (usesAreaPricing) {
+    const unit = configuredBasePrice * mod;
     return {
       unit,
       total: unit * quantity,
       quantity,
-      basePrice,
+      basePrice: configuredBasePrice,
+      mod,
+      isPerUnit: true,
+      lines,
+    };
+  }
+
+  // Per-unit (stickers): base ≈ unit cost; qty multiplies after mods
+  const isPerUnit = configuredBasePrice < 5;
+  if (isPerUnit) {
+    const unit = configuredBasePrice * mod;
+    return {
+      unit,
+      total: unit * quantity,
+      quantity,
+      basePrice: configuredBasePrice,
       mod,
       isPerUnit,
       lines,
@@ -362,12 +466,23 @@ export function calcConfiguredPrice(
 
   // Pack-style (banners/cards): base is pack price; qty + turnaround use priceMod
   const packQty = quantity;
-  const total = basePrice * mod * (packQty > 1 ? packQty : 1);
+  const size = selectedValue("size");
+  const setupCost =
+    size?.meta?.quantitySetupCost ?? size?.meta?.areaPricing?.fixed;
+  const quantityBase =
+    packQty > 1 &&
+    setupCost != null &&
+    Number.isFinite(setupCost) &&
+    setupCost >= 0 &&
+    setupCost < configuredBasePrice
+      ? setupCost + (configuredBasePrice - setupCost) * packQty
+      : configuredBasePrice * (packQty > 1 ? packQty : 1);
+  const total = quantityBase * mod;
   return {
     unit: packQty > 0 ? total / packQty : total,
     total,
     quantity: packQty,
-    basePrice,
+    basePrice: configuredBasePrice,
     mod,
     isPerUnit,
     lines,

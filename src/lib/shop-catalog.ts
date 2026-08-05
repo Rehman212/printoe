@@ -57,7 +57,7 @@ const IMGS = [
   "https://images.unsplash.com/photo-1586281380349-632531db7ed4?auto=format&fit=crop&w=1200&q=80",
   "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=1200&q=80",
   "https://images.unsplash.com/photo-1561070791-2526d30994b5?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1542744094-24638efffd90?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1524578271613-d550eacf6090?auto=format&fit=crop&w=1200&q=80",
   "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=80",
   "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=1200&q=80",
   "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1200&q=80",
@@ -175,7 +175,21 @@ export const SHOP_FLYOUTS: Record<string, FlyoutSection[]> = {
     },
     {
       title: "Shop by Popular Use",
-      items: items("labels", ["Address Labels"]),
+      items: items("labels", [
+        "Address Labels",
+        "Beer Labels",
+        "Candle Labels",
+        "Food Labels",
+        "Jar Labels",
+        "Lip Balm Labels",
+        "QR Code Stickers",
+        "Return Address Labels",
+        "Name Labels",
+        "Shipping and Mailing Labels",
+        "Warning Labels",
+        "Water Bottle Labels",
+        "Wine Labels",
+      ]),
     },
   ],
   packaging: [
@@ -196,6 +210,7 @@ export const SHOP_FLYOUTS: Record<string, FlyoutSection[]> = {
         "Rigid Mailers",
         "Pouches",
         "Tissue Paper",
+        "Wrapping Paper",
       ]),
     },
   ],
@@ -204,7 +219,7 @@ export const SHOP_FLYOUTS: Record<string, FlyoutSection[]> = {
       items: items("postcards", [
         "Standard Postcards",
         "Folded Postcards",
-        "Every Door Direct Mail",
+        "Every Door Direct Mail®",
         "Foil Postcards",
         "Spot UV Postcard",
         "Metallic Postcard",
@@ -278,6 +293,19 @@ export const SHOP_FLYOUTS: Record<string, FlyoutSection[]> = {
         "Foil Stickers",
         "Metallic Stickers",
         "Rainbow Holographic Stickers",
+      ]),
+    },
+    {
+      title: "Shop by Popular Use",
+      items: items("stickers", [
+        "Bulk Stickers",
+        "Bumper Stickers",
+        "Campaign & Political Stickers",
+        "Name Stickers",
+        "Envelope Seals",
+        "QR Code Stickers",
+        "Safety Stickers",
+        "Sealing Stickers",
       ]),
     },
   ],
@@ -367,6 +395,18 @@ function buildProducts(): Record<string, ShopProduct> {
     "Kraft Labels",
     "Waterproof Labels",
     "Address Labels",
+    "Beer Labels",
+    "Candle Labels",
+    "Food Labels",
+    "Jar Labels",
+    "Lip Balm Labels",
+    "QR Code Stickers",
+    "Return Address Labels",
+    "Name Labels",
+    "Shipping and Mailing Labels",
+    "Warning Labels",
+    "Water Bottle Labels",
+    "Wine Labels",
   ];
   labelNames.forEach((n, i) =>
     add(
@@ -424,6 +464,7 @@ function buildProducts(): Record<string, ShopProduct> {
     ["Rigid Mailers", "rigid-mailers"],
     ["Pouches", "pouches"],
     ["Tissue Paper", "tissue-paper"],
+    ["Wrapping Paper", "wrapping-paper"],
   ] as const;
 
   // Fix packaging flyout Labels href
@@ -471,7 +512,7 @@ function buildProducts(): Record<string, ShopProduct> {
   [
     "Standard Postcards",
     "Folded Postcards",
-    "Every Door Direct Mail",
+    "Every Door Direct Mail®",
     "Foil Postcards",
     "Spot UV Postcard",
     "Metallic Postcard",
@@ -682,6 +723,14 @@ function buildProducts(): Record<string, ShopProduct> {
     "Foil Stickers",
     "Metallic Stickers",
     "Rainbow Holographic Stickers",
+    "Bulk Stickers",
+    "Bumper Stickers",
+    "Campaign & Political Stickers",
+    "Name Stickers",
+    "Envelope Seals",
+    "QR Code Stickers",
+    "Safety Stickers",
+    "Sealing Stickers",
   ];
   stickerNames.forEach((n, i) =>
     add(
@@ -717,6 +766,53 @@ function buildProducts(): Record<string, ShopProduct> {
             options: opts("Kiss-Cut", "Die-Cut", "Sheet"),
           },
         ],
+        i,
+      ),
+    ),
+  );
+
+  // Marketing Materials mega-menu products that have no home in the
+  // subtype-specific categories above.
+  const marketingNames = [
+    "Rack Cards",
+    "Leaflets",
+    "Catalogs",
+    "Newsletters",
+    "Magazines",
+    "Invitations",
+    "Event Tickets",
+    "Thank You Cards",
+    "Greeting Cards",
+    "Carbonless Forms",
+    "Letterhead",
+    "Envelopes",
+    "Hang Tags",
+    "Door Hangers",
+    "Folders",
+    "Appointment Cards",
+    "Notebooks",
+    "Rubber Stamps",
+  ];
+  marketingNames.forEach((n, i) =>
+    add(
+      product(
+        "marketing",
+        n,
+        24.99 + i * 5,
+        [
+          "Full-color offset and digital printing",
+          "Premium paper stocks and finishes",
+          "Fast turnaround options",
+        ],
+        printFields(
+          ['8.5" x 11"', '5.5" x 8.5"', '4" x 9"', '6" x 9"'],
+          [
+            "100 lb. Gloss Cover",
+            "100 lb. Matte Cover",
+            "14 pt. Cardstock Gloss",
+            "70 lb. Uncoated Text",
+          ],
+        ),
         i,
       ),
     ),

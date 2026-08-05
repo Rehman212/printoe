@@ -67,6 +67,7 @@ export const BANNERS_FLYOUT: { label: string; href: string }[] = [
   { label: "Tension Fabric Banners", href: "/products/banners/tension-fabric-banners" },
   { label: "Backdrops", href: "/products/banners/backdrops" },
   { label: "Curved Pop-Up Display", href: "/products/banners/curved-pop-up-display" },
+  { label: "Awesome X-Banner Stand", href: "/products/banners/awesome-x-banner-stand" },
 ];
 
 const VINYL_SIZES = opts(
@@ -400,6 +401,18 @@ export const BANNER_PRODUCTS: Record<string, BannerProduct> = {
     ],
     false,
     3,
+  ),
+  "awesome-x-banner-stand": retractableLike(
+    "awesome-x-banner-stand",
+    "Awesome X-Banner Stand",
+    47.02,
+    [
+      "Economical, lightweight X-frame display",
+      'Includes one single-sided 24" × 63" banner',
+      "Quick setup for indoor promotions and events",
+    ],
+    false,
+    4,
   ),
 };
 

@@ -185,7 +185,7 @@ export const products: Product[] = [
       "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1200&q=80",
       "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?auto=format&fit=crop&w=1200&q=80",
       "https://images.unsplash.com/photo-1561070791-2526d30994b5?auto=format&fit=crop&w=1200&q=80",
-      "https://images.unsplash.com/photo-1542744094-24638efffd90?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1524578271613-d550eacf6090?auto=format&fit=crop&w=1200&q=80",
     ],
     materials: ["16pt Soft Touch", "14pt Matte", "18pt Spot UV", "100 lb. Gloss Cover"],
     sizes: ['3.5" × 2"', '3.5" × 2" Rounded', 'Square 2.5"', "Slim"],
@@ -256,9 +256,9 @@ export const products: Product[] = [
       "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?auto=format&fit=crop&w=1200&q=80",
     galleryUrls: [
       "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?auto=format&fit=crop&w=1200&q=80",
-      "https://images.unsplash.com/photo-1626785774573-4b7993143486?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1516383607781-913a19294fd1?auto=format&fit=crop&w=1200&q=80",
       "https://images.unsplash.com/photo-1607346256330-dee7af15f7c5?auto=format&fit=crop&w=1200&q=80",
-      "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1503694978374-8a2fa686963a?auto=format&fit=crop&w=1200&q=80",
     ],
     productTypes: [
       { label: "Die-Cut Singles", value: "die-cut" },
@@ -362,9 +362,9 @@ export const products: Product[] = [
     image: "posters",
     images: ["posters"],
     imageUrl:
-      "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1503694978374-8a2fa686963a?auto=format&fit=crop&w=1200&q=80",
     galleryUrls: [
-      "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1503694978374-8a2fa686963a?auto=format&fit=crop&w=1200&q=80",
       "https://images.unsplash.com/photo-1561070791-2526d30994b5?auto=format&fit=crop&w=1200&q=80",
     ],
     materials: ["100lb Gloss", "12pt Cardstock", "Canvas"],
@@ -395,7 +395,7 @@ export const products: Product[] = [
       "https://images.unsplash.com/photo-1607346256330-dee7af15f7c5?auto=format&fit=crop&w=1200&q=80",
     galleryUrls: [
       "https://images.unsplash.com/photo-1607346256330-dee7af15f7c5?auto=format&fit=crop&w=1200&q=80",
-      "https://images.unsplash.com/photo-1626785774573-4b7993143486?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1516383607781-913a19294fd1?auto=format&fit=crop&w=1200&q=80",
     ],
     materials: ["White Vinyl", "Clear", "Metallic", "Kraft"],
     sizes: ['2" × 2"', '3" × 2"', '4" × 3"', "Custom"],
@@ -453,9 +453,9 @@ export const products: Product[] = [
     image: "stickers",
     images: ["stickers", "stickers-2"],
     imageUrl:
-      "https://images.unsplash.com/photo-1626785774573-4b7993143486?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1516383607781-913a19294fd1?auto=format&fit=crop&w=1200&q=80",
     galleryUrls: [
-      "https://images.unsplash.com/photo-1626785774573-4b7993143486?auto=format&fit=crop&w=1200&q=80",
+      "https://images.unsplash.com/photo-1516383607781-913a19294fd1?auto=format&fit=crop&w=1200&q=80",
       "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?auto=format&fit=crop&w=1200&q=80",
     ],
     materials: ["Vinyl", "Clear Vinyl", "Holographic"],

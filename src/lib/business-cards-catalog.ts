@@ -25,7 +25,7 @@ const BC_IMGS = [
   "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1200&q=80",
   "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?auto=format&fit=crop&w=1200&q=80",
   "https://images.unsplash.com/photo-1561070791-2526d30994b5?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1542744094-24638efffd90?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1524578271613-d550eacf6090?auto=format&fit=crop&w=1200&q=80",
   "https://images.unsplash.com/photo-1586281380349-632531db7ed4?auto=format&fit=crop&w=1200&q=80",
   "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=1200&q=80",
 ];
@@ -131,6 +131,22 @@ export const BUSINESS_CARDS_FLYOUT_SECTIONS: {
         slug: "slim-rounded-corner",
       },
       { label: "Circle", href: "/products/business-cards/circle", slug: "circle" },
+      {
+        label: "Half-Circle",
+        href: "/products/business-cards/half-circle",
+        slug: "half-circle",
+      },
+      { label: "Oval", href: "/products/business-cards/oval", slug: "oval" },
+      {
+        label: "Single Rounded Corner",
+        href: "/products/business-cards/single-rounded-corner",
+        slug: "single-rounded-corner",
+      },
+      {
+        label: "Die-Cut",
+        href: "/products/business-cards/die-cut",
+        slug: "die-cut",
+      },
     ],
   },
 ];
@@ -432,6 +448,46 @@ export const BUSINESS_CARD_PRODUCTS: Record<string, BcProduct> = {
     "Unique and memorable shape",
     "Thick premium stocks",
   ], { size: '2.5" Diameter (Circle)', img: 5, rating: 4.2, reviews: 83 }),
+  "half-circle": card(
+    "half-circle",
+    "Half-Circle Business Cards",
+    "shape",
+    46.5,
+    [
+      "Distinctive half-circle die-cut",
+      "Memorable silhouette for networking",
+      "Full-color printing on premium stock",
+    ],
+    { size: '3.5" x 2" (Half-Circle)', img: 0, rating: 4.1, reviews: 37 },
+  ),
+  oval: card("oval", "Oval Business Cards", "shape", 45.0, [
+    "Smooth oval die-cut profile",
+    "Soft, modern look that stands out",
+    "Thick premium cardstock options",
+  ], { size: '3.5" x 2" (Oval)', img: 1, rating: 4.2, reviews: 52 }),
+  "single-rounded-corner": card(
+    "single-rounded-corner",
+    "Single Rounded Corner Business Cards",
+    "shape",
+    38.5,
+    [
+      "One rounded corner for a subtle twist",
+      "Standard wallet-friendly size",
+      "Premium cardstock printing",
+    ],
+    {
+      size: '2" x 3.5" (U.S. Standard)',
+      roundedDefault: "Yes",
+      img: 2,
+      rating: 4.0,
+      reviews: 29,
+    },
+  ),
+  "die-cut": card("die-cut", "Die-Cut Business Cards", "shape", 54.0, [
+    "Custom contour die-cut to your artwork",
+    "Unique shapes beyond standard rectangles",
+    "Vibrant full-color printing",
+  ], { size: "Custom Die-Cut", img: 3, rating: 4.4, reviews: 118 }),
 };
 
 export function getBusinessCardProduct(slug: string): BcProduct | null {

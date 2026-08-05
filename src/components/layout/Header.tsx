@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
@@ -19,7 +20,7 @@ import {
   User,
   X,
 } from "lucide-react";
-import { SITE, categories } from "@/lib/data";
+import { SITE } from "@/lib/data";
 import { HEADER_NAV_GROUPS } from "@/lib/uprinting-nav";
 import { cn } from "@/lib/utils";
 import { Container } from "@/components/ui/Section";
@@ -42,7 +43,6 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
   const cartCount = cart?.itemCount ?? 0;
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [productsOpen, setProductsOpen] = useState(false);
   const [navOpen, setNavOpen] = useState<string | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState<string | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -55,6 +55,9 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
     .slice(0, 2)
     .toUpperCase();
   const firstName = user?.name?.split(/\s+/)[0] ?? "there";
+  const activeMega = HEADER_NAV_GROUPS.find(
+    (group) => group.label === navOpen,
+  )?.mega;
 
   useEffect(() => {
     if (announcementOnly) return;
@@ -287,90 +290,41 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
       </div>
 
       {/* Category navigation */}
-      <div className="relative z-[110] hidden border-b border-border bg-card lg:block">
+      <div
+        className="relative z-[110] hidden border-b border-border bg-card lg:block"
+        onMouseLeave={() => setNavOpen(null)}
+      >
         <Container size="wide">
           <nav
-            className="relative flex items-center gap-1 py-0"
+            className="relative flex items-center justify-center gap-2 py-0 xl:gap-6"
             aria-label="Product categories"
           >
-            <div
-              className={cn("relative", productsOpen && "z-[120]")}
-              onMouseEnter={() => {
-                setProductsOpen(true);
-                setNavOpen(null);
-              }}
-              onMouseLeave={() => setProductsOpen(false)}
-            >
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 whitespace-nowrap px-3 py-3.5 text-sm font-semibold text-secondary hover:text-primary"
-              >
-                All Products
-                <ChevronDown className="h-3.5 w-3.5" />
-              </button>
-              <AnimatePresence>
-                {productsOpen ? (
-                  <motion.div
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 6 }}
-                    className="absolute left-0 top-full z-[120] w-72 border border-border bg-card py-2 shadow-card"
-                  >
-                    <Link
-                      href="/custom-printing"
-                      className="flex items-center justify-between px-4 py-2.5 text-sm font-medium text-secondary hover:bg-[#e8f4fc] hover:text-primary"
-                      onClick={() => setProductsOpen(false)}
-                    >
-                      Custom Product Builder
-                      <ChevronRight className="h-3.5 w-3.5 text-text-secondary" />
-                    </Link>
-                    {categories.map((cat) => (
-                      <Link
-                        key={cat.id}
-                        href={`/products?category=${cat.slug}`}
-                        className="flex items-center justify-between px-4 py-2.5 text-sm font-medium text-secondary hover:bg-[#e8f4fc] hover:text-primary"
-                        onClick={() => setProductsOpen(false)}
-                      >
-                        {cat.name}
-                        <ChevronRight className="h-3.5 w-3.5 text-text-secondary" />
-                      </Link>
-                    ))}
-                  </motion.div>
-                ) : null}
-              </AnimatePresence>
-            </div>
-
             {HEADER_NAV_GROUPS.map((group) => {
               const isOpen = navOpen === group.label;
               return (
                 <div
                   key={group.label}
                   className={cn("relative", isOpen && "z-[120]")}
-                  onMouseEnter={() => {
-                    setNavOpen(group.label);
-                    setProductsOpen(false);
-                  }}
-                  onMouseLeave={() => setNavOpen(null)}
+                  onMouseEnter={() => setNavOpen(group.label)}
                 >
                   <Link
                     href={group.href}
                     className={cn(
-                      "inline-flex items-center gap-1 whitespace-nowrap px-3 py-3.5 text-sm font-semibold transition",
+                      "inline-flex items-center whitespace-nowrap px-2 py-3.5 text-sm font-semibold transition",
                       isOpen
                         ? "text-primary"
-                        : "text-secondary hover:text-primary",
+                        : "text-[#1b4f9c] hover:text-primary",
                     )}
                   >
                     {group.label}
-                    <ChevronDown className="h-3.5 w-3.5" />
                   </Link>
                   <AnimatePresence>
-                    {isOpen ? (
+                    {isOpen && !group.mega ? (
                       <motion.div
                         initial={{ opacity: 0, y: 6 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 6 }}
-                        className="absolute left-0 top-full z-[120] min-w-[240px] border border-border bg-card py-2 shadow-card"
+                        className="absolute left-1/2 top-full z-[120] min-w-[240px] -translate-x-1/2 border border-border bg-card py-2 shadow-card"
                       >
                         {group.children.map((child) => (
                           <Link
@@ -390,6 +344,81 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
             })}
           </nav>
         </Container>
+
+        {/* Full-width mega panel — a DOM child of the nav bar so hovering it
+            does not fire the bar's mouseleave. */}
+        <AnimatePresence>
+          {activeMega ? (
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 4 }}
+              className="absolute left-0 right-0 top-full z-[120] max-h-[80vh] overflow-y-auto border-b border-border bg-card shadow-card"
+            >
+              <Container size="wide">
+                <div className="grid grid-cols-2 gap-x-8 gap-y-7 py-7 md:grid-cols-3 xl:grid-cols-4">
+                  {activeMega.map((col) => (
+                    <div key={col.title}>
+                      <Link
+                        href={col.href}
+                        onClick={() => setNavOpen(null)}
+                        className="block"
+                      >
+                        <span className="relative block h-[110px] w-full overflow-hidden bg-background">
+                          <Image
+                            src={col.image}
+                            alt={col.title}
+                            fill
+                            sizes="280px"
+                            className="object-cover"
+                          />
+                        </span>
+                        <span className="mt-2.5 block text-[15px] font-bold text-secondary">
+                          {col.title}
+                        </span>
+                      </Link>
+                      <ul className="mt-1.5 space-y-1">
+                        {col.links.map((link) => (
+                          <li key={link.href + link.label}>
+                            <Link
+                              href={link.href}
+                              onClick={() => setNavOpen(null)}
+                              className={cn(
+                                "flex items-center gap-2 text-sm transition hover:text-primary",
+                                link.all
+                                  ? "justify-between font-medium text-secondary"
+                                  : "text-text-secondary",
+                              )}
+                            >
+                              <span className="inline-flex items-center gap-1.5">
+                                {link.label}
+                                {link.badge ? (
+                                  <span
+                                    className={cn(
+                                      "rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white",
+                                      link.badge === "New"
+                                        ? "bg-primary"
+                                        : "bg-success",
+                                    )}
+                                  >
+                                    {link.badge}
+                                  </span>
+                                ) : null}
+                              </span>
+                              {link.all ? (
+                                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-text-secondary" />
+                              ) : null}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </Container>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </div>
 
       <AnimatePresence>

@@ -8,6 +8,8 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "img.magnific.com" },
       { protocol: "https", hostname: "**.magnific.com" },
       { protocol: "https", hostname: "staticecp.uprinting.com" },
+      { protocol: "https", hostname: "**.uprinting.com" },
+      { protocol: "https", hostname: "printoe.com" },
     ],
   },
 };

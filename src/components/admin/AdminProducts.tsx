@@ -12,6 +12,7 @@ import Link from "next/link";
 import {
   ChevronLeft,
   ChevronRight,
+  DollarSign,
   FileText,
   Globe,
   HelpCircle,
@@ -60,6 +61,7 @@ import {
   optionGroupsToPayload,
   type FormOptionGroup,
 } from "@/components/admin/AdminProductOptionEditor";
+import { AdminProductPricingEditor } from "@/components/admin/AdminProductPricingEditor";
 
 type ApiCategory = {
   id: string;
@@ -219,7 +221,14 @@ const emptyForm = (cats: ApiCategory[] = []): FormState => {
 };
 
 type FormSection =
-  "basics" | "media" | "content" | "options" | "tabs" | "faqs" | "seo";
+  | "basics"
+  | "media"
+  | "content"
+  | "options"
+  | "pricing"
+  | "tabs"
+  | "faqs"
+  | "seo";
 
 const FORM_SECTIONS: Array<{
   id: FormSection;
@@ -247,9 +256,15 @@ const FORM_SECTIONS: Array<{
   },
   {
     id: "options",
-    label: "Storefront options",
-    hint: "Size / material / quantity fields customers pick from.",
+    label: "Customer fields",
+    hint: "Width / height / material / quantity questions customers answer.",
     icon: SlidersHorizontal,
+  },
+  {
+    id: "pricing",
+    label: "Pricing",
+    hint: "Choose fixed option pricing or a Width × Height formula.",
+    icon: DollarSign,
   },
   {
     id: "tabs",
@@ -351,6 +366,11 @@ export function AdminProducts() {
         ? `${descChars} characters written`
         : "No description yet",
       options: `${form.optionGroups.length} field${form.optionGroups.length === 1 ? "" : "s"}`,
+      pricing: form.optionGroups.some((group) =>
+        group.values.some((value) => value.meta?.pricingConfig?.type === "area"),
+      )
+        ? "Width × Height"
+        : `Starts at ${formatCurrency(Number(form.price) || 0)}`,
       tabs: form.tabs.length
         ? `${form.tabs.length} tab${form.tabs.length === 1 ? "" : "s"}`
         : "None",
@@ -365,6 +385,8 @@ export function AdminProducts() {
     form.galleryUrls.length,
     form.description,
     form.optionGroups.length,
+    form.optionGroups,
+    form.price,
     form.tabs.length,
     form.faqs,
     form.seoTitle,
@@ -2026,6 +2048,19 @@ export function AdminProducts() {
                 categoryName={
                   categoryOptions.find((c) => c.slug === form.categorySlug)
                     ?.name
+                }
+              />
+            ) : null}
+
+            {section === "pricing" ? (
+              <AdminProductPricingEditor
+                basePrice={form.price}
+                onBasePriceChange={(price) =>
+                  setForm((current) => ({ ...current, price }))
+                }
+                groups={form.optionGroups}
+                onChange={(optionGroups) =>
+                  setForm((current) => ({ ...current, optionGroups }))
                 }
               />
             ) : null}

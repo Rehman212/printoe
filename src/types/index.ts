@@ -17,7 +17,32 @@ export type ProductOptionValue = {
   value: string;
   priceMod: number;
   sortOrder: number;
-  meta?: { icon?: string; image?: string } | null;
+  meta?: {
+    icon?: string;
+    image?: string;
+    /** Replaces the base price when this choice is selected. */
+    absoluteBasePrice?: number;
+    /** Flat amount added per unit when this choice is selected. */
+    priceAdd?: number;
+    /** Numeric width/height used by area pricing. Falls back to the value. */
+    dimension?: number;
+    /** Legacy custom-size metadata kept for already-synced products. */
+    dimensionInches?: number;
+    areaPricing?: { fixed: number; perSquareInch: number };
+    quantitySetupCost?: number;
+    /** Product-level pricing settings, stored on one option value. */
+    pricingConfig?: {
+      type: "area";
+      widthKey: string;
+      heightKey: string;
+      setupCost: number;
+      rate: number;
+      minimumPrice: number;
+    };
+    hideGroups?: string[];
+    labelWhen?: Array<{ key: string; value: string; label: string }>;
+    [key: string]: unknown;
+  } | null;
 };
 
 export type ProductOptionGroup = {
