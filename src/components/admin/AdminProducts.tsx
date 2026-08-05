@@ -1,13 +1,28 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useId, useMemo, useState } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useState,
+} from "react";
 import Link from "next/link";
 import {
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Globe,
+  HelpCircle,
   ImagePlus,
+  Info,
+  Layers,
   MapPin,
   Plus,
   RefreshCw,
   Search,
+  SlidersHorizontal,
   Trash2,
   X,
   ExternalLink,
@@ -21,7 +36,6 @@ import {
   uploadAdminImage,
 } from "@/lib/products-api";
 import {
-  getOptionTemplateForCategory,
   POPULAR_PRODUCT_SECTIONS,
   slugifyProductName,
 } from "@/lib/option-templates";
@@ -39,6 +53,13 @@ import { RichTextEditor } from "@/components/ui/RichTextEditor";
 import { useToast } from "@/components/ui/Toast";
 import { AdminProductOptionsPanel } from "@/components/admin/AdminProductOptionsPanel";
 import { AdminProductsTable } from "@/components/admin/AdminProductsTable";
+import {
+  AdminProductOptionEditor,
+  optionGroupsFromApi,
+  optionGroupsFromCategory,
+  optionGroupsToPayload,
+  type FormOptionGroup,
+} from "@/components/admin/AdminProductOptionEditor";
 
 type ApiCategory = {
   id: string;
@@ -86,6 +107,7 @@ type FormState = {
   galleryUrls: string[];
   faqs: FormFaq[];
   tabs: FormTab[];
+  optionGroups: FormOptionGroup[];
 };
 
 function newId(prefix: string) {
@@ -166,31 +188,88 @@ function tabsToPayload(tabs: FormTab[]): ProductTab[] {
     .filter((tab) => tab.label);
 }
 
-const emptyForm = (cats: ApiCategory[] = []): FormState => ({
-  name: "",
-  slug: "",
-  slugLocked: false,
-  categorySlug: cats[0]?.slug ?? "stickers",
-  categoryId: cats[0]?.id ?? "",
-  description: "",
-  shortDescription: "",
-  seoTitle: "",
-  seoDescription: "",
-  price: "",
-  deliveryDays: "3",
-  badge: "",
-  status: "published",
-  featured: false,
-  active: true,
-  imageUrl: "",
-  previewDataUrl: null,
-  galleryUrls: [],
-  faqs: DEFAULT_PRODUCT_FAQS.map((f) => ({
-    question: f.question,
-    answer: f.answer,
-  })),
-  tabs: [],
-});
+const emptyForm = (cats: ApiCategory[] = []): FormState => {
+  const categorySlug = cats[0]?.slug ?? "stickers";
+  return {
+    name: "",
+    slug: "",
+    slugLocked: false,
+    categorySlug,
+    categoryId: cats[0]?.id ?? "",
+    description: "",
+    shortDescription: "",
+    seoTitle: "",
+    seoDescription: "",
+    price: "",
+    deliveryDays: "3",
+    badge: "",
+    status: "published",
+    featured: false,
+    active: true,
+    imageUrl: "",
+    previewDataUrl: null,
+    galleryUrls: [],
+    faqs: DEFAULT_PRODUCT_FAQS.map((f) => ({
+      question: f.question,
+      answer: f.answer,
+    })),
+    tabs: [],
+    optionGroups: optionGroupsFromCategory(categorySlug),
+  };
+};
+
+type FormSection =
+  "basics" | "media" | "content" | "options" | "tabs" | "faqs" | "seo";
+
+const FORM_SECTIONS: Array<{
+  id: FormSection;
+  label: string;
+  hint: string;
+  icon: typeof Info;
+}> = [
+  {
+    id: "basics",
+    label: "Basics",
+    hint: "Name, URL, category, price and publish status.",
+    icon: Info,
+  },
+  {
+    id: "media",
+    label: "Images",
+    hint: "Featured photo plus the product page gallery.",
+    icon: ImagePlus,
+  },
+  {
+    id: "content",
+    label: "Descriptions",
+    hint: "Short blurb and the full rich-text description.",
+    icon: FileText,
+  },
+  {
+    id: "options",
+    label: "Storefront options",
+    hint: "Size / material / quantity fields customers pick from.",
+    icon: SlidersHorizontal,
+  },
+  {
+    id: "tabs",
+    label: "Product tabs",
+    hint: "Optional tab switchers with their own custom fields.",
+    icon: Layers,
+  },
+  {
+    id: "faqs",
+    label: "FAQs",
+    hint: "Questions shown in the FAQs tab on the product page.",
+    icon: HelpCircle,
+  },
+  {
+    id: "seo",
+    label: "SEO & placement",
+    hint: "Search title, meta description and where this appears.",
+    icon: Globe,
+  },
+];
 
 export function AdminProducts() {
   const { toast } = useToast();
@@ -208,6 +287,7 @@ export function AdminProducts() {
   const [apiCategories, setApiCategories] = useState<ApiCategory[]>([]);
   const [optionsRefreshKey, setOptionsRefreshKey] = useState(0);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [section, setSection] = useState<FormSection>("basics");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -249,19 +329,60 @@ export function AdminProducts() {
     }).filter((c) => c.inDb || apiCategories.length === 0);
   }, [apiCategories]);
 
-  const optionPreview = useMemo(
-    () => getOptionTemplateForCategory(form.categorySlug),
-    [form.categorySlug],
-  );
-
   const placement = useMemo(
     () => getStorefrontPlacement(form.categorySlug),
     [form.categorySlug],
   );
 
+  const sectionIndex = FORM_SECTIONS.findIndex((s) => s.id === section);
+  const activeSection = FORM_SECTIONS[sectionIndex] ?? FORM_SECTIONS[0]!;
+
+  const sectionSummary = useMemo<Record<FormSection, string>>(() => {
+    const filledFaqs = form.faqs.filter(
+      (f) => f.question.trim() && f.answer.trim(),
+    ).length;
+    const descChars = form.description.replace(/<[^>]+>/g, "").trim().length;
+    return {
+      basics: form.name.trim() || "Untitled product",
+      media: form.imageUrl
+        ? `Featured set · ${form.galleryUrls.length} gallery`
+        : "No featured image yet",
+      content: descChars
+        ? `${descChars} characters written`
+        : "No description yet",
+      options: `${form.optionGroups.length} field${form.optionGroups.length === 1 ? "" : "s"}`,
+      tabs: form.tabs.length
+        ? `${form.tabs.length} tab${form.tabs.length === 1 ? "" : "s"}`
+        : "None",
+      faqs: `${filledFaqs} question${filledFaqs === 1 ? "" : "s"}`,
+      seo: form.seoTitle.trim()
+        ? `${form.seoTitle.length}/60 title`
+        : "Not set",
+    };
+  }, [
+    form.name,
+    form.imageUrl,
+    form.galleryUrls.length,
+    form.description,
+    form.optionGroups.length,
+    form.tabs.length,
+    form.faqs,
+    form.seoTitle,
+  ]);
+
+  /** Sections that still need attention before the product can be saved. */
+  const incompleteSections = useMemo<Partial<Record<FormSection, boolean>>>(
+    () => ({
+      basics: !form.name.trim() || !form.price || !form.categoryId,
+      media: !form.imageUrl,
+    }),
+    [form.name, form.price, form.categoryId, form.imageUrl],
+  );
+
   function openCreate() {
     setEditing(null);
     setForm(emptyForm(apiCategories));
+    setSection("basics");
     setOpen(true);
   }
 
@@ -306,7 +427,9 @@ export function AdminProducts() {
             answer: f.answer,
           })),
       tabs: tabsFromProduct(row.product.productTabs),
+      optionGroups: optionGroupsFromApi(row.options),
     });
+    setSection("basics");
     setOpen(true);
   }
 
@@ -316,6 +439,8 @@ export function AdminProducts() {
       ...f,
       categorySlug: slug,
       categoryId: cat?.id ?? "",
+      // On create, refresh template options for the new category
+      optionGroups: editing ? f.optionGroups : optionGroupsFromCategory(slug),
     }));
   }
 
@@ -366,7 +491,8 @@ export function AdminProducts() {
       } else {
         toast({
           title: "Image uploaded",
-          description: "Saved to uploads — click Save to attach to the new product.",
+          description:
+            "Saved to uploads — click Save to attach to the new product.",
           tone: "success",
         });
       }
@@ -428,7 +554,8 @@ export function AdminProducts() {
       }
 
       toast({
-        title: added.length === 1 ? "Gallery image added" : "Gallery images added",
+        title:
+          added.length === 1 ? "Gallery image added" : "Gallery images added",
         description: `${added.length} image${added.length === 1 ? "" : "s"} uploaded.`,
         tone: "success",
       });
@@ -461,25 +588,13 @@ export function AdminProducts() {
   }
 
   function buildOptionsPayload() {
-    const templates = getOptionTemplateForCategory(form.categorySlug);
-    return templates.map((g, i) => ({
-      key: g.key,
-      label: g.label,
-      uiType: g.uiType,
-      helpText: g.helpText,
-      sortOrder: i,
-      values: g.values.map((v) => ({
-        label: v.label,
-        value: v.value,
-        priceMod: v.priceMod ?? 1,
-        meta: v.meta,
-      })),
-    }));
+    return optionGroupsToPayload(form.optionGroups);
   }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!form.name.trim() || !form.price) {
+      setSection("basics");
       toast({
         title: "Missing fields",
         description: "Name and price are required.",
@@ -491,6 +606,7 @@ export function AdminProducts() {
       slugifyProductName(form.slug || form.name) ||
       `product-${Date.now().toString(36).slice(-4)}`;
     if (!slug) {
+      setSection("basics");
       toast({
         title: "Slug required",
         description: "Enter a valid URL slug (letters, numbers, hyphens).",
@@ -499,6 +615,7 @@ export function AdminProducts() {
       return;
     }
     if (!form.categoryId) {
+      setSection("basics");
       toast({
         title: "Category required",
         description: "Select a DB category (backend must be running).",
@@ -516,6 +633,7 @@ export function AdminProducts() {
 
     if (form.previewDataUrl?.startsWith("blob:") && !imageUrl) {
       setSaving(false);
+      setSection("media");
       toast({
         title: "Image not uploaded",
         description: "Wait for upload to finish, or paste a public image URL.",
@@ -545,8 +663,7 @@ export function AdminProducts() {
         await updateAdminProduct(editing.product.id, {
           name: form.name.trim(),
           slug,
-          description:
-            form.description.trim() || "Custom print product.",
+          description: form.description.trim() || "Custom print product.",
           shortDescription: form.shortDescription.trim() || undefined,
           seoTitle: form.seoTitle.trim() || undefined,
           seoDescription: form.seoDescription.trim() || undefined,
@@ -655,7 +772,9 @@ export function AdminProducts() {
         }
       }
       toast({
-        title: failed ? "Bulk delete finished with errors" : "Deleted from database",
+        title: failed
+          ? "Bulk delete finished with errors"
+          : "Deleted from database",
         description:
           failed > 0
             ? `${ok} deleted, ${failed} failed.`
@@ -789,7 +908,36 @@ export function AdminProducts() {
               />
               Feature on homepage
             </label>
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={sectionIndex <= 0}
+                onClick={() =>
+                  setSection(FORM_SECTIONS[Math.max(0, sectionIndex - 1)]!.id)
+                }
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Back
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={sectionIndex >= FORM_SECTIONS.length - 1}
+                onClick={() =>
+                  setSection(
+                    FORM_SECTIONS[
+                      Math.min(FORM_SECTIONS.length - 1, sectionIndex + 1)
+                    ]!.id,
+                  )
+                }
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <span className="mx-1 hidden h-6 w-px bg-border sm:block" />
               <Button
                 type="button"
                 variant="outline"
@@ -820,10 +968,10 @@ export function AdminProducts() {
         <form
           id="admin-product-form"
           onSubmit={onSubmit}
-          className="grid gap-5 lg:grid-cols-[320px_1fr] xl:grid-cols-[360px_1fr]"
+          className="grid items-start gap-5 lg:grid-cols-[300px_1fr] xl:grid-cols-[340px_1fr]"
         >
-          {/* Live storefront preview */}
-          <aside className="lg:sticky lg:top-0 lg:self-start">
+          {/* Live storefront preview + section navigation */}
+          <aside className="space-y-4 lg:sticky lg:top-0 lg:self-start">
             <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
               <div className="relative aspect-square bg-[#f3f4f6]">
                 {form.previewDataUrl ? (
@@ -847,8 +995,8 @@ export function AdminProducts() {
               </div>
               <div className="space-y-2 p-4">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
-                  {categoryOptions.find((c) => c.slug === form.categorySlug)?.name ??
-                    "Category"}
+                  {categoryOptions.find((c) => c.slug === form.categorySlug)
+                    ?.name ?? "Category"}
                 </p>
                 <h4 className="text-base font-bold leading-snug text-secondary">
                   {form.name.trim() || "Product name"}
@@ -876,879 +1024,1011 @@ export function AdminProducts() {
                     <Badge variant="primary">Homepage featured</Badge>
                   ) : null}
                   <Badge
-                    variant={form.status === "published" ? "success" : "outline"}
+                    variant={
+                      form.status === "published" ? "success" : "outline"
+                    }
                   >
                     {form.status === "published" ? "Published" : "Draft"}
                   </Badge>
                 </div>
               </div>
             </div>
-          </aside>
 
-          {/* Form panels */}
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-border bg-card p-4 shadow-soft sm:p-5">
-              <h4 className="text-sm font-bold text-secondary">Featured image</h4>
-              <p className="mt-1 text-xs text-text-secondary">
-                Main product photo shown on cards and the product page hero.
+            <nav className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+              <p className="border-b border-border px-4 py-3 text-[11px] font-bold uppercase tracking-wide text-text-secondary">
+                Sections
               </p>
-              <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-stretch">
-                <label
-                  htmlFor={fileId}
-                  className={cn(
-                    "relative flex min-h-[140px] flex-1 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border bg-[#f5f6f8] px-4 py-6 text-center transition hover:border-primary/50 hover:bg-primary/5",
-                    uploading && "pointer-events-none opacity-70",
-                  )}
-                >
-                  <ImagePlus className="h-8 w-8 text-primary" />
-                  <span className="text-sm font-bold text-secondary">
-                    {uploading ? "Uploading…" : "Upload featured image"}
-                  </span>
-                  <span className="text-[11px] text-text-secondary">
-                    PNG, JPG, WebP · recommended square
-                  </span>
-                </label>
-                <input
-                  id={fileId}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  disabled={uploading || saving}
-                  onChange={(e) => {
-                    void onPickImage(e.target.files?.[0] ?? null);
-                    e.target.value = "";
-                  }}
-                />
-                <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
-                  <Input
-                    label="Featured image URL"
-                    value={form.imageUrl.startsWith("data:") ? "" : form.imageUrl}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        imageUrl: e.target.value,
-                        previewDataUrl: e.target.value || f.previewDataUrl,
-                      }))
-                    }
-                    placeholder="https://… or pick a file to upload"
-                  />
-                  {form.previewDataUrl ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setForm((f) => ({
-                          ...f,
-                          imageUrl: "",
-                          previewDataUrl: null,
-                        }))
-                      }
-                      className="inline-flex w-fit items-center gap-1 text-xs font-semibold text-danger"
-                    >
-                      <X className="h-3.5 w-3.5" /> Remove featured image
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-card p-4 shadow-soft sm:p-5">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <h4 className="text-sm font-bold text-secondary">
-                    Gallery images
-                  </h4>
-                  <p className="mt-1 text-xs text-text-secondary">
-                    Extra photos on the product page. Upload multiple at once or
-                    paste URLs.
-                  </p>
-                </div>
-                <label
-                  htmlFor={galleryFileId}
-                  className={cn(
-                    "inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-secondary transition hover:border-primary/40 hover:bg-primary/5",
-                    uploading && "pointer-events-none opacity-60",
-                  )}
-                >
-                  <ImagePlus className="h-3.5 w-3.5 text-primary" />
-                  {uploading ? "Uploading…" : "Add images"}
-                </label>
-                <input
-                  id={galleryFileId}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  disabled={uploading || saving}
-                  onChange={(e) => {
-                    void onPickGalleryFiles(e.target.files);
-                    e.target.value = "";
-                  }}
-                />
-              </div>
-
-              {form.galleryUrls.length > 0 ? (
-                <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
-                  {form.galleryUrls.map((url) => (
-                    <div
-                      key={url}
-                      className="group relative aspect-square overflow-hidden rounded-xl border border-border bg-[#f3f4f6]"
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={url}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
+              <ol className="space-y-1 p-2">
+                {FORM_SECTIONS.map((s, i) => {
+                  const isActive = s.id === section;
+                  const needsAttention = incompleteSections[s.id];
+                  return (
+                    <li key={s.id}>
                       <button
                         type="button"
-                        onClick={() => removeGalleryUrl(url)}
-                        className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-card/95 text-danger shadow-soft opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-                        aria-label="Remove gallery image"
+                        onClick={() => setSection(s.id)}
+                        className={cn(
+                          "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition focus-ring",
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "text-secondary hover:bg-[#f3f4f6]",
+                        )}
                       >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-4 rounded-xl border border-dashed border-border bg-[#f8f9fb] px-3 py-6 text-center text-xs text-text-secondary">
-                  No gallery images yet. Use <strong>Add images</strong> or paste a
-                  URL below.
-                </p>
-              )}
-
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
-                <div className="min-w-0 flex-1">
-                  <Input
-                    label="Or paste gallery image URL"
-                    id="gallery-url-input"
-                    placeholder="https://…"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        const el = e.currentTarget;
-                        addGalleryUrlFromInput(el.value);
-                        el.value = "";
-                      }
-                    }}
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0"
-                  onClick={() => {
-                    const el = document.getElementById(
-                      "gallery-url-input",
-                    ) as HTMLInputElement | null;
-                    if (!el) return;
-                    addGalleryUrlFromInput(el.value);
-                    el.value = "";
-                  }}
-                >
-                  Add URL
-                </Button>
-              </div>
-              <p className="mt-2 text-[11px] text-text-secondary">
-                {form.galleryUrls.length} gallery image
-                {form.galleryUrls.length === 1 ? "" : "s"}
-                {form.imageUrl ? " · featured image kept separate" : ""}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-card p-4 shadow-soft sm:p-5">
-              <h4 className="text-sm font-bold text-secondary">
-                Product information
-              </h4>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <Input
-                    label="Product name"
-                    value={form.name}
-                    onChange={(e) => {
-                      const name = e.target.value;
-                      setForm((f) => ({
-                        ...f,
-                        name,
-                        slug: f.slugLocked
-                          ? f.slug
-                          : slugifyProductName(name),
-                      }));
-                    }}
-                    required
-                  />
-                </div>
-
-                <div className="sm:col-span-2 space-y-1.5">
-                  <Input
-                    label="URL slug (custom URL)"
-                    value={form.slug}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        slug: slugifyProductName(e.target.value) || e.target.value,
-                        slugLocked: true,
-                      }))
-                    }
-                    placeholder="custom-product-boxes"
-                    required
-                  />
-                  <p className="text-xs text-text-secondary">
-                    Storefront URL:{" "}
-                    <span className="font-semibold text-secondary">
-                      /products/{form.slug || "…"}
-                    </span>
-                  </p>
-                </div>
-
-                <div className="sm:col-span-2 space-y-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <label className="block text-sm font-semibold text-text-primary">
-                      SEO title
-                    </label>
-                    <span
-                      className={cn(
-                        "text-[11px] font-semibold",
-                        form.seoTitle.length >= 60
-                          ? "text-danger"
-                          : "text-text-secondary",
-                      )}
-                    >
-                      {form.seoTitle.length}/60
-                    </span>
-                  </div>
-                  <input
-                    value={form.seoTitle}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        seoTitle: e.target.value.slice(0, 60),
-                      }))
-                    }
-                    maxLength={60}
-                    className="w-full rounded-2xl border border-border bg-card px-4 py-3 text-sm font-medium focus-ring"
-                    placeholder={form.name.trim() || "Browser tab / Google title"}
-                  />
-                </div>
-
-                <div className="sm:col-span-2 space-y-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <label className="block text-sm font-semibold text-text-primary">
-                      Meta description
-                    </label>
-                    <span
-                      className={cn(
-                        "text-[11px] font-semibold",
-                        form.seoDescription.length >= 150
-                          ? "text-danger"
-                          : "text-text-secondary",
-                      )}
-                    >
-                      {form.seoDescription.length}/150
-                    </span>
-                  </div>
-                  <textarea
-                    value={form.seoDescription}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        seoDescription: e.target.value.slice(0, 150),
-                      }))
-                    }
-                    maxLength={150}
-                    rows={2}
-                    className="w-full rounded-2xl border border-border bg-card px-4 py-3 text-sm font-medium focus-ring"
-                    placeholder="Short SEO blurb for search results…"
-                  />
-                </div>
-
-                <div className="sm:col-span-2 space-y-2">
-                  <label className="block text-sm font-semibold text-text-primary">
-                    Popular Products section
-                  </label>
-                  <p className="text-xs text-text-secondary">
-                    Same list as homepage sidebar — pick where this product goes.
-                  </p>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                    {categoryOptions.map((c) => {
-                      const active = form.categorySlug === c.slug;
-                      return (
-                        <button
-                          key={c.slug}
-                          type="button"
-                          onClick={() => onCategoryChange(c.slug)}
+                        <span
                           className={cn(
-                            "flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition focus-ring",
-                            active
-                              ? "border-primary bg-primary/5 text-primary shadow-soft"
-                              : "border-border bg-card text-secondary hover:border-primary/40 hover:bg-[#e8f4fc]",
+                            "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold",
+                            isActive
+                              ? "bg-primary text-white"
+                              : "bg-[#f3f4f6] text-text-secondary",
                           )}
                         >
+                          {i + 1}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold">
+                            {s.label}
+                          </span>
+                          <span className="block truncate text-[11px] font-medium text-text-secondary">
+                            {sectionSummary[s.id]}
+                          </span>
+                        </span>
+                        {needsAttention ? (
                           <span
-                            className={cn(
-                              "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-                              active ? "bg-primary/10" : "bg-[#f3f4f6]",
-                            )}
-                          >
-                            <DynamicIcon name={c.icon} className="h-4 w-4" />
-                          </span>
-                          <span className="text-xs font-semibold leading-tight">
-                            {c.name}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                            className="h-2 w-2 shrink-0 rounded-full bg-warning"
+                            title="Still needs input"
+                          />
+                        ) : null}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            </nav>
+          </aside>
 
-                <Input
-                  label="Starting from ($)"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.price}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, price: e.target.value }))
-                  }
-                  required
-                  hint="Shown on storefront as “From $…”"
-                />
-                <Input
-                  label="Delivery days"
-                  type="number"
-                  min="1"
-                  value={form.deliveryDays}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, deliveryDays: e.target.value }))
-                  }
-                />
-                <div className="space-y-1.5">
-                  <label className="block text-sm font-semibold text-text-primary">
-                    Publish status
-                  </label>
-                  <select
-                    value={form.status}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        status: e.target.value as "published" | "draft",
-                        active: e.target.value === "published",
-                      }))
-                    }
-                    className="h-12 w-full rounded-2xl border border-border bg-card px-4 text-sm font-medium text-text-primary shadow-soft focus-ring focus:border-primary/50"
-                  >
-                    <option value="published">Published (live in store)</option>
-                    <option value="draft">Draft (hidden from store)</option>
-                  </select>
-                </div>
-                <div className="sm:col-span-1">
-                  <Input
-                    label="Badge (optional)"
-                    value={form.badge}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, badge: e.target.value }))
-                    }
-                    placeholder="Best Seller"
-                  />
-                </div>
-
-                <div className="sm:col-span-2 space-y-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <label className="block text-sm font-semibold text-text-primary">
-                      Product short description
-                    </label>
-                    <span
-                      className={cn(
-                        "text-[11px] font-semibold",
-                        form.shortDescription.length >= 200
-                          ? "text-danger"
-                          : "text-text-secondary",
-                      )}
-                    >
-                      {form.shortDescription.length}/200
-                    </span>
-                  </div>
-                  <textarea
-                    value={form.shortDescription}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        shortDescription: e.target.value.slice(0, 200),
-                      }))
-                    }
-                    maxLength={200}
-                    rows={2}
-                    className="w-full rounded-2xl border border-border bg-card px-4 py-3 text-sm font-medium focus-ring"
-                    placeholder="One or two lines under the product title…"
-                  />
-                </div>
-
-                <div className="sm:col-span-2 space-y-1.5">
-                  <label className="block text-sm font-semibold text-text-primary">
-                    Full description
-                  </label>
-                  <RichTextEditor
-                    value={form.description}
-                    onChange={(html) =>
-                      setForm((f) => ({ ...f, description: html }))
-                    }
-                    placeholder="Write headings, bold text, lists, links…"
-                  />
-                </div>
+          {/* Active section only — keeps each group of fields clearly separated */}
+          <div className="min-w-0 space-y-4">
+            <header className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4 shadow-soft sm:p-5">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <activeSection.icon className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-text-secondary">
+                  Step {sectionIndex + 1} of {FORM_SECTIONS.length}
+                </p>
+                <h4 className="text-base font-bold text-secondary">
+                  {activeSection.label}
+                </h4>
+                <p className="mt-0.5 text-xs text-text-secondary">
+                  {activeSection.hint}
+                </p>
               </div>
-            </div>
+            </header>
 
-            <div className="rounded-2xl border border-border bg-card p-4 shadow-soft sm:p-5">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
+            {section === "media" ? (
+              <>
+                <div className="rounded-2xl border border-border bg-card p-4 shadow-soft sm:p-5">
                   <h4 className="text-sm font-bold text-secondary">
-                    Custom FAQs
+                    Featured image
                   </h4>
                   <p className="mt-1 text-xs text-text-secondary">
-                    Same FAQs as the storefront FAQs tab. Edit or add your own —
-                    empty rows are ignored on save.
+                    Main product photo shown on cards and the product page hero.
                   </p>
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() =>
-                    setForm((f) => ({
-                      ...f,
-                      faqs: [...f.faqs, { question: "", answer: "" }],
-                    }))
-                  }
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  Add FAQ
-                </Button>
-              </div>
-              <div className="mt-4 space-y-3">
-                {form.faqs.map((faq, index) => (
-                  <div
-                    key={index}
-                    className="rounded-xl border border-border bg-[#f7f8fa] p-3 sm:p-4"
-                  >
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <span className="text-xs font-bold text-text-secondary">
-                        FAQ {index + 1}
+                  <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-stretch">
+                    <label
+                      htmlFor={fileId}
+                      className={cn(
+                        "relative flex min-h-[140px] flex-1 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border bg-[#f5f6f8] px-4 py-6 text-center transition hover:border-primary/50 hover:bg-primary/5",
+                        uploading && "pointer-events-none opacity-70",
+                      )}
+                    >
+                      <ImagePlus className="h-8 w-8 text-primary" />
+                      <span className="text-sm font-bold text-secondary">
+                        {uploading ? "Uploading…" : "Upload featured image"}
                       </span>
-                      {form.faqs.length > 1 ? (
+                      <span className="text-[11px] text-text-secondary">
+                        PNG, JPG, WebP · recommended square
+                      </span>
+                    </label>
+                    <input
+                      id={fileId}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={uploading || saving}
+                      onChange={(e) => {
+                        void onPickImage(e.target.files?.[0] ?? null);
+                        e.target.value = "";
+                      }}
+                    />
+                    <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
+                      <Input
+                        label="Featured image URL"
+                        value={
+                          form.imageUrl.startsWith("data:") ? "" : form.imageUrl
+                        }
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            imageUrl: e.target.value,
+                            previewDataUrl: e.target.value || f.previewDataUrl,
+                          }))
+                        }
+                        placeholder="https://… or pick a file to upload"
+                      />
+                      {form.previewDataUrl ? (
                         <button
                           type="button"
                           onClick={() =>
                             setForm((f) => ({
                               ...f,
-                              faqs: f.faqs.filter((_, i) => i !== index),
+                              imageUrl: "",
+                              previewDataUrl: null,
                             }))
                           }
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-danger"
+                          className="inline-flex w-fit items-center gap-1 text-xs font-semibold text-danger"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          Remove
+                          <X className="h-3.5 w-3.5" /> Remove featured image
                         </button>
                       ) : null}
                     </div>
-                    <div className="space-y-2">
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-card p-4 shadow-soft sm:p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <h4 className="text-sm font-bold text-secondary">
+                        Gallery images
+                      </h4>
+                      <p className="mt-1 text-xs text-text-secondary">
+                        Extra photos on the product page. Upload multiple at
+                        once or paste URLs.
+                      </p>
+                    </div>
+                    <label
+                      htmlFor={galleryFileId}
+                      className={cn(
+                        "inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-secondary transition hover:border-primary/40 hover:bg-primary/5",
+                        uploading && "pointer-events-none opacity-60",
+                      )}
+                    >
+                      <ImagePlus className="h-3.5 w-3.5 text-primary" />
+                      {uploading ? "Uploading…" : "Add images"}
+                    </label>
+                    <input
+                      id={galleryFileId}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      disabled={uploading || saving}
+                      onChange={(e) => {
+                        void onPickGalleryFiles(e.target.files);
+                        e.target.value = "";
+                      }}
+                    />
+                  </div>
+
+                  {form.galleryUrls.length > 0 ? (
+                    <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
+                      {form.galleryUrls.map((url) => (
+                        <div
+                          key={url}
+                          className="group relative aspect-square overflow-hidden rounded-xl border border-border bg-[#f3f4f6]"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={url}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeGalleryUrl(url)}
+                            className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-card/95 text-danger shadow-soft opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                            aria-label="Remove gallery image"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-4 rounded-xl border border-dashed border-border bg-[#f8f9fb] px-3 py-6 text-center text-xs text-text-secondary">
+                      No gallery images yet. Use <strong>Add images</strong> or
+                      paste a URL below.
+                    </p>
+                  )}
+
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
+                    <div className="min-w-0 flex-1">
                       <Input
-                        label="Question"
-                        value={faq.question}
+                        label="Or paste gallery image URL"
+                        id="gallery-url-input"
+                        placeholder="https://…"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            const el = e.currentTarget;
+                            addGalleryUrlFromInput(el.value);
+                            el.value = "";
+                          }
+                        }}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => {
+                        const el = document.getElementById(
+                          "gallery-url-input",
+                        ) as HTMLInputElement | null;
+                        if (!el) return;
+                        addGalleryUrlFromInput(el.value);
+                        el.value = "";
+                      }}
+                    >
+                      Add URL
+                    </Button>
+                  </div>
+                  <p className="mt-2 text-[11px] text-text-secondary">
+                    {form.galleryUrls.length} gallery image
+                    {form.galleryUrls.length === 1 ? "" : "s"}
+                    {form.imageUrl ? " · featured image kept separate" : ""}
+                  </p>
+                </div>
+              </>
+            ) : null}
+
+            {section === "basics" ||
+            section === "content" ||
+            section === "seo" ? (
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-soft sm:p-5">
+                <h4 className="text-sm font-bold text-secondary">
+                  {section === "basics"
+                    ? "Product information"
+                    : section === "content"
+                      ? "Descriptions"
+                      : "Search engine listing"}
+                </h4>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  {section === "basics" ? (
+                    <>
+                      <div className="sm:col-span-2">
+                        <Input
+                          label="Product name"
+                          value={form.name}
+                          onChange={(e) => {
+                            const name = e.target.value;
+                            setForm((f) => ({
+                              ...f,
+                              name,
+                              slug: f.slugLocked
+                                ? f.slug
+                                : slugifyProductName(name),
+                            }));
+                          }}
+                          required
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2 space-y-1.5">
+                        <Input
+                          label="URL slug (custom URL)"
+                          value={form.slug}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              slug:
+                                slugifyProductName(e.target.value) ||
+                                e.target.value,
+                              slugLocked: true,
+                            }))
+                          }
+                          placeholder="custom-product-boxes"
+                          required
+                        />
+                        <p className="text-xs text-text-secondary">
+                          Storefront URL:{" "}
+                          <span className="font-semibold text-secondary">
+                            /products/{form.slug || "…"}
+                          </span>
+                        </p>
+                      </div>
+                    </>
+                  ) : null}
+
+                  {section === "seo" ? (
+                    <>
+                      <div className="sm:col-span-2 space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <label className="block text-sm font-semibold text-text-primary">
+                            SEO title
+                          </label>
+                          <span
+                            className={cn(
+                              "text-[11px] font-semibold",
+                              form.seoTitle.length >= 60
+                                ? "text-danger"
+                                : "text-text-secondary",
+                            )}
+                          >
+                            {form.seoTitle.length}/60
+                          </span>
+                        </div>
+                        <input
+                          value={form.seoTitle}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              seoTitle: e.target.value.slice(0, 60),
+                            }))
+                          }
+                          maxLength={60}
+                          className="w-full rounded-2xl border border-border bg-card px-4 py-3 text-sm font-medium focus-ring"
+                          placeholder={
+                            form.name.trim() || "Browser tab / Google title"
+                          }
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2 space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <label className="block text-sm font-semibold text-text-primary">
+                            Meta description
+                          </label>
+                          <span
+                            className={cn(
+                              "text-[11px] font-semibold",
+                              form.seoDescription.length >= 150
+                                ? "text-danger"
+                                : "text-text-secondary",
+                            )}
+                          >
+                            {form.seoDescription.length}/150
+                          </span>
+                        </div>
+                        <textarea
+                          value={form.seoDescription}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              seoDescription: e.target.value.slice(0, 150),
+                            }))
+                          }
+                          maxLength={150}
+                          rows={2}
+                          className="w-full rounded-2xl border border-border bg-card px-4 py-3 text-sm font-medium focus-ring"
+                          placeholder="Short SEO blurb for search results…"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2 rounded-xl border border-border bg-[#f7f8fa] p-4">
+                        <p className="text-[11px] font-bold uppercase tracking-wide text-text-secondary">
+                          Google preview
+                        </p>
+                        <p className="mt-2 truncate text-base font-medium text-[#1a0dab]">
+                          {form.seoTitle.trim() ||
+                            form.name.trim() ||
+                            "Product title"}
+                        </p>
+                        <p className="truncate text-xs text-[#006621]">
+                          printoe.com/products/{form.slug || "…"}
+                        </p>
+                        <p className="mt-1 line-clamp-2 text-xs text-text-secondary">
+                          {form.seoDescription.trim() ||
+                            form.shortDescription.trim() ||
+                            "Your meta description will appear here in search results."}
+                        </p>
+                      </div>
+                    </>
+                  ) : null}
+
+                  {section === "basics" ? (
+                    <>
+                      <div className="sm:col-span-2 space-y-2">
+                        <label className="block text-sm font-semibold text-text-primary">
+                          Popular Products section
+                        </label>
+                        <p className="text-xs text-text-secondary">
+                          Same list as homepage sidebar — pick where this
+                          product goes.
+                        </p>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                          {categoryOptions.map((c) => {
+                            const active = form.categorySlug === c.slug;
+                            return (
+                              <button
+                                key={c.slug}
+                                type="button"
+                                onClick={() => onCategoryChange(c.slug)}
+                                className={cn(
+                                  "flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition focus-ring",
+                                  active
+                                    ? "border-primary bg-primary/5 text-primary shadow-soft"
+                                    : "border-border bg-card text-secondary hover:border-primary/40 hover:bg-[#e8f4fc]",
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                                    active ? "bg-primary/10" : "bg-[#f3f4f6]",
+                                  )}
+                                >
+                                  <DynamicIcon
+                                    name={c.icon}
+                                    className="h-4 w-4"
+                                  />
+                                </span>
+                                <span className="text-xs font-semibold leading-tight">
+                                  {c.name}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <Input
+                        label="Starting from ($)"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={form.price}
                         onChange={(e) =>
-                          setForm((f) => {
-                            const faqs = [...f.faqs];
-                            faqs[index] = {
-                              ...faqs[index]!,
-                              question: e.target.value,
-                            };
-                            return { ...f, faqs };
-                          })
+                          setForm((f) => ({ ...f, price: e.target.value }))
                         }
-                        placeholder="What file formats do you accept?"
+                        required
+                        hint="Shown on storefront as “From $…”"
+                      />
+                      <Input
+                        label="Delivery days"
+                        type="number"
+                        min="1"
+                        value={form.deliveryDays}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            deliveryDays: e.target.value,
+                          }))
+                        }
                       />
                       <div className="space-y-1.5">
                         <label className="block text-sm font-semibold text-text-primary">
-                          Answer
+                          Publish status
                         </label>
+                        <select
+                          value={form.status}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              status: e.target.value as "published" | "draft",
+                              active: e.target.value === "published",
+                            }))
+                          }
+                          className="h-12 w-full rounded-2xl border border-border bg-card px-4 text-sm font-medium text-text-primary shadow-soft focus-ring focus:border-primary/50"
+                        >
+                          <option value="published">
+                            Published (live in store)
+                          </option>
+                          <option value="draft">
+                            Draft (hidden from store)
+                          </option>
+                        </select>
+                      </div>
+                      <div className="sm:col-span-1">
+                        <Input
+                          label="Badge (optional)"
+                          value={form.badge}
+                          onChange={(e) =>
+                            setForm((f) => ({ ...f, badge: e.target.value }))
+                          }
+                          placeholder="Best Seller"
+                        />
+                      </div>
+                    </>
+                  ) : null}
+
+                  {section === "content" ? (
+                    <>
+                      <div className="sm:col-span-2 space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <label className="block text-sm font-semibold text-text-primary">
+                            Product short description
+                          </label>
+                          <span
+                            className={cn(
+                              "text-[11px] font-semibold",
+                              form.shortDescription.length >= 200
+                                ? "text-danger"
+                                : "text-text-secondary",
+                            )}
+                          >
+                            {form.shortDescription.length}/200
+                          </span>
+                        </div>
                         <textarea
-                          value={faq.answer}
+                          value={form.shortDescription}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              shortDescription: e.target.value.slice(0, 200),
+                            }))
+                          }
+                          maxLength={200}
+                          rows={2}
+                          className="w-full rounded-2xl border border-border bg-card px-4 py-3 text-sm font-medium focus-ring"
+                          placeholder="One or two lines under the product title…"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2 space-y-1.5">
+                        <label className="block text-sm font-semibold text-text-primary">
+                          Full description
+                        </label>
+                        <RichTextEditor
+                          value={form.description}
+                          onChange={(html) =>
+                            setForm((f) => ({ ...f, description: html }))
+                          }
+                          placeholder="Write headings, bold text, lists, links…"
+                        />
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
+            {section === "faqs" ? (
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-soft sm:p-5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h4 className="text-sm font-bold text-secondary">
+                      Custom FAQs
+                    </h4>
+                    <p className="mt-1 text-xs text-text-secondary">
+                      Same FAQs as the storefront FAQs tab. Edit or add your own
+                      — empty rows are ignored on save.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        faqs: [...f.faqs, { question: "", answer: "" }],
+                      }))
+                    }
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add FAQ
+                  </Button>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {form.faqs.map((faq, index) => (
+                    <div
+                      key={index}
+                      className="rounded-xl border border-border bg-[#f7f8fa] p-3 sm:p-4"
+                    >
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold text-text-secondary">
+                          FAQ {index + 1}
+                        </span>
+                        {form.faqs.length > 1 ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setForm((f) => ({
+                                ...f,
+                                faqs: f.faqs.filter((_, i) => i !== index),
+                              }))
+                            }
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-danger"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Remove
+                          </button>
+                        ) : null}
+                      </div>
+                      <div className="space-y-2">
+                        <Input
+                          label="Question"
+                          value={faq.question}
                           onChange={(e) =>
                             setForm((f) => {
                               const faqs = [...f.faqs];
                               faqs[index] = {
                                 ...faqs[index]!,
-                                answer: e.target.value,
+                                question: e.target.value,
                               };
                               return { ...f, faqs };
                             })
                           }
-                          rows={2}
-                          className="w-full rounded-2xl border border-border bg-card px-4 py-3 text-sm font-medium focus-ring"
-                          placeholder="PDF, AI, EPS, and high-res PNG/JPG…"
+                          placeholder="What file formats do you accept?"
                         />
+                        <div className="space-y-1.5">
+                          <label className="block text-sm font-semibold text-text-primary">
+                            Answer
+                          </label>
+                          <textarea
+                            value={faq.answer}
+                            onChange={(e) =>
+                              setForm((f) => {
+                                const faqs = [...f.faqs];
+                                faqs[index] = {
+                                  ...faqs[index]!,
+                                  answer: e.target.value,
+                                };
+                                return { ...f, faqs };
+                              })
+                            }
+                            rows={2}
+                            className="w-full rounded-2xl border border-border bg-card px-4 py-3 text-sm font-medium focus-ring"
+                            placeholder="PDF, AI, EPS, and high-res PNG/JPG…"
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-card p-4 shadow-soft sm:p-5">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h4 className="text-sm font-bold text-secondary">
-                    Product tabs
-                  </h4>
-                  <p className="mt-1 text-xs text-text-secondary">
-                    Optional UPrinting-style tabs under the product title. Each
-                    tab has its own label and custom fields.
-                  </p>
+                  ))}
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() =>
-                    setForm((f) => ({
-                      ...f,
-                      tabs: [...f.tabs, emptyTab()],
-                    }))
-                  }
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  Add Tab
-                </Button>
               </div>
+            ) : null}
 
-              {form.tabs.length === 0 ? (
-                <p className="mt-4 rounded-xl border border-dashed border-border bg-[#f7f8fa] px-4 py-6 text-center text-xs text-text-secondary">
-                  No tabs yet. Click <strong>Add Tab</strong> if this product
-                  needs Mailer / Product / Shipping style switchers.
-                </p>
-              ) : (
-                <div className="mt-4 space-y-4">
-                  {form.tabs.map((tab, tabIndex) => (
-                    <div
-                      key={tab.id}
-                      className="rounded-xl border border-border bg-[#f7f8fa] p-3 sm:p-4"
-                    >
-                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                        <span className="text-xs font-bold text-text-secondary">
-                          Tab {tabIndex + 1}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setForm((f) => ({
-                              ...f,
-                              tabs: f.tabs.filter((_, i) => i !== tabIndex),
-                            }))
-                          }
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-danger"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          Remove tab
-                        </button>
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <Input
-                          label="Tab label"
-                          value={tab.label}
-                          onChange={(e) =>
-                            setForm((f) => {
-                              const tabs = [...f.tabs];
-                              tabs[tabIndex] = {
-                                ...tabs[tabIndex]!,
-                                label: e.target.value,
-                              };
-                              return { ...f, tabs };
-                            })
-                          }
-                          placeholder="Product Boxes"
-                        />
-                        <Input
-                          label="Tab price ($)"
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          value={tab.price}
-                          onChange={(e) =>
-                            setForm((f) => {
-                              const tabs = [...f.tabs];
-                              tabs[tabIndex] = {
-                                ...tabs[tabIndex]!,
-                                price: e.target.value,
-                              };
-                              return { ...f, tabs };
-                            })
-                          }
-                          placeholder="e.g. 29.99"
-                        />
-                        <div className="sm:col-span-2">
+            {section === "tabs" ? (
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-soft sm:p-5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h4 className="text-sm font-bold text-secondary">
+                      Product tabs
+                    </h4>
+                    <p className="mt-1 text-xs text-text-secondary">
+                      Optional UPrinting-style tabs under the product title.
+                      Each tab has its own label and custom fields.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        tabs: [...f.tabs, emptyTab()],
+                      }))
+                    }
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add Tab
+                  </Button>
+                </div>
+
+                {form.tabs.length === 0 ? (
+                  <p className="mt-4 rounded-xl border border-dashed border-border bg-[#f7f8fa] px-4 py-6 text-center text-xs text-text-secondary">
+                    No tabs yet. Click <strong>Add Tab</strong> if this product
+                    needs Mailer / Product / Shipping style switchers.
+                  </p>
+                ) : (
+                  <div className="mt-4 space-y-4">
+                    {form.tabs.map((tab, tabIndex) => (
+                      <div
+                        key={tab.id}
+                        className="rounded-xl border border-border bg-[#f7f8fa] p-3 sm:p-4"
+                      >
+                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-text-secondary">
+                            Tab {tabIndex + 1}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setForm((f) => ({
+                                ...f,
+                                tabs: f.tabs.filter((_, i) => i !== tabIndex),
+                              }))
+                            }
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-danger"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Remove tab
+                          </button>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
                           <Input
-                            label="Icon URL (optional)"
-                            value={tab.iconUrl}
+                            label="Tab label"
+                            value={tab.label}
                             onChange={(e) =>
                               setForm((f) => {
                                 const tabs = [...f.tabs];
                                 tabs[tabIndex] = {
                                   ...tabs[tabIndex]!,
-                                  iconUrl: e.target.value,
+                                  label: e.target.value,
                                 };
                                 return { ...f, tabs };
                               })
                             }
-                            placeholder="https://… or /uploads/…"
+                            placeholder="Product Boxes"
                           />
-                        </div>
-                      </div>
-                      <p className="mt-2 text-[11px] text-text-secondary">
-                        Tab price shows on the storefront when this tab is
-                        selected. Dropdown options can add extra with{" "}
-                        <code className="rounded bg-white px-1">Label | 5</code>{" "}
-                        (adds $5).
-                      </p>
-
-                      <div className="mt-4 space-y-3 border-t border-border pt-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="text-xs font-bold text-secondary">
-                            Custom fields for this tab
-                          </p>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
+                          <Input
+                            label="Tab price ($)"
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={tab.price}
+                            onChange={(e) =>
                               setForm((f) => {
                                 const tabs = [...f.tabs];
-                                const current = tabs[tabIndex]!;
                                 tabs[tabIndex] = {
-                                  ...current,
-                                  fields: [...current.fields, emptyField()],
+                                  ...tabs[tabIndex]!,
+                                  price: e.target.value,
                                 };
                                 return { ...f, tabs };
                               })
                             }
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                            Add field
-                          </Button>
-                        </div>
-                        {tab.fields.map((field, fieldIndex) => (
-                          <div
-                            key={field.id}
-                            className="rounded-lg border border-border bg-card p-3"
-                          >
-                            <div className="mb-2 flex items-center justify-between gap-2">
-                              <span className="text-[11px] font-semibold text-text-secondary">
-                                Field {fieldIndex + 1}
-                              </span>
-                              {tab.fields.length > 1 ? (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setForm((f) => {
-                                      const tabs = [...f.tabs];
-                                      const current = tabs[tabIndex]!;
-                                      tabs[tabIndex] = {
-                                        ...current,
-                                        fields: current.fields.filter(
-                                          (_, i) => i !== fieldIndex,
-                                        ),
-                                      };
-                                      return { ...f, tabs };
-                                    })
-                                  }
-                                  className="text-[11px] font-semibold text-danger"
-                                >
-                                  Remove
-                                </button>
-                              ) : null}
-                            </div>
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              <Input
-                                label="Field label"
-                                value={field.label}
-                                onChange={(e) =>
-                                  setForm((f) => {
-                                    const tabs = [...f.tabs];
-                                    const current = tabs[tabIndex]!;
-                                    const fields = [...current.fields];
-                                    fields[fieldIndex] = {
-                                      ...fields[fieldIndex]!,
-                                      label: e.target.value,
-                                    };
-                                    tabs[tabIndex] = { ...current, fields };
-                                    return { ...f, tabs };
-                                  })
-                                }
-                                placeholder="Box size"
-                              />
-                              <div className="space-y-1.5">
-                                <label className="block text-sm font-semibold text-text-primary">
-                                  Field type
-                                </label>
-                                <select
-                                  value={field.type}
-                                  onChange={(e) =>
-                                    setForm((f) => {
-                                      const tabs = [...f.tabs];
-                                      const current = tabs[tabIndex]!;
-                                      const fields = [...current.fields];
-                                      fields[fieldIndex] = {
-                                        ...fields[fieldIndex]!,
-                                        type: e.target.value as FormTabField["type"],
-                                      };
-                                      tabs[tabIndex] = { ...current, fields };
-                                      return { ...f, tabs };
-                                    })
-                                  }
-                                  className="w-full rounded-2xl border border-border bg-card px-4 py-3 text-sm font-medium focus-ring"
-                                >
-                                  <option value="select">Dropdown</option>
-                                  <option value="text">Text</option>
-                                  <option value="number">Number</option>
-                                </select>
-                              </div>
-                            </div>
-                            {field.type === "select" ? (
-                              <div className="mt-2 space-y-1.5">
-                                <label className="block text-sm font-semibold text-text-primary">
-                                  Options (one per line)
-                                </label>
-                                <textarea
-                                  value={field.optionsText}
-                                  onChange={(e) =>
-                                    setForm((f) => {
-                                      const tabs = [...f.tabs];
-                                      const current = tabs[tabIndex]!;
-                                      const fields = [...current.fields];
-                                      fields[fieldIndex] = {
-                                        ...fields[fieldIndex]!,
-                                        optionsText: e.target.value,
-                                      };
-                                      tabs[tabIndex] = { ...current, fields };
-                                      return { ...f, tabs };
-                                    })
-                                  }
-                                  rows={3}
-                                  className="w-full rounded-2xl border border-border bg-card px-4 py-3 text-sm font-medium focus-ring"
-                                  placeholder={"Small\nMedium | 5\nLarge | 12"}
-                                />
-                                <p className="text-[11px] text-text-secondary">
-                                  Optional price addon:{" "}
-                                  <code className="rounded bg-[#f7f8fa] px-1">
-                                    Large | 12
-                                  </code>
-                                </p>
-                              </div>
-                            ) : null}
-                            <div className="mt-2">
-                              <Input
-                                label="Help text (optional)"
-                                value={field.helpText}
-                                onChange={(e) =>
-                                  setForm((f) => {
-                                    const tabs = [...f.tabs];
-                                    const current = tabs[tabIndex]!;
-                                    const fields = [...current.fields];
-                                    fields[fieldIndex] = {
-                                      ...fields[fieldIndex]!,
-                                      helpText: e.target.value,
-                                    };
-                                    tabs[tabIndex] = { ...current, fields };
-                                    return { ...f, tabs };
-                                  })
-                                }
-                                placeholder="Shown under the field"
-                              />
-                            </div>
+                            placeholder="e.g. 29.99"
+                          />
+                          <div className="sm:col-span-2">
+                            <Input
+                              label="Icon URL (optional)"
+                              value={tab.iconUrl}
+                              onChange={(e) =>
+                                setForm((f) => {
+                                  const tabs = [...f.tabs];
+                                  tabs[tabIndex] = {
+                                    ...tabs[tabIndex]!,
+                                    iconUrl: e.target.value,
+                                  };
+                                  return { ...f, tabs };
+                                })
+                              }
+                              placeholder="https://… or /uploads/…"
+                            />
                           </div>
-                        ))}
+                        </div>
+                        <p className="mt-2 text-[11px] text-text-secondary">
+                          Tab price shows on the storefront when this tab is
+                          selected. Dropdown options can add extra with{" "}
+                          <code className="rounded bg-white px-1">
+                            Label | 5
+                          </code>{" "}
+                          (adds $5).
+                        </p>
+
+                        <div className="mt-4 space-y-3 border-t border-border pt-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-xs font-bold text-secondary">
+                              Custom fields for this tab
+                            </p>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                setForm((f) => {
+                                  const tabs = [...f.tabs];
+                                  const current = tabs[tabIndex]!;
+                                  tabs[tabIndex] = {
+                                    ...current,
+                                    fields: [...current.fields, emptyField()],
+                                  };
+                                  return { ...f, tabs };
+                                })
+                              }
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                              Add field
+                            </Button>
+                          </div>
+                          {tab.fields.map((field, fieldIndex) => (
+                            <div
+                              key={field.id}
+                              className="rounded-lg border border-border bg-card p-3"
+                            >
+                              <div className="mb-2 flex items-center justify-between gap-2">
+                                <span className="text-[11px] font-semibold text-text-secondary">
+                                  Field {fieldIndex + 1}
+                                </span>
+                                {tab.fields.length > 1 ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setForm((f) => {
+                                        const tabs = [...f.tabs];
+                                        const current = tabs[tabIndex]!;
+                                        tabs[tabIndex] = {
+                                          ...current,
+                                          fields: current.fields.filter(
+                                            (_, i) => i !== fieldIndex,
+                                          ),
+                                        };
+                                        return { ...f, tabs };
+                                      })
+                                    }
+                                    className="text-[11px] font-semibold text-danger"
+                                  >
+                                    Remove
+                                  </button>
+                                ) : null}
+                              </div>
+                              <div className="grid gap-3 sm:grid-cols-2">
+                                <Input
+                                  label="Field label"
+                                  value={field.label}
+                                  onChange={(e) =>
+                                    setForm((f) => {
+                                      const tabs = [...f.tabs];
+                                      const current = tabs[tabIndex]!;
+                                      const fields = [...current.fields];
+                                      fields[fieldIndex] = {
+                                        ...fields[fieldIndex]!,
+                                        label: e.target.value,
+                                      };
+                                      tabs[tabIndex] = { ...current, fields };
+                                      return { ...f, tabs };
+                                    })
+                                  }
+                                  placeholder="Box size"
+                                />
+                                <div className="space-y-1.5">
+                                  <label className="block text-sm font-semibold text-text-primary">
+                                    Field type
+                                  </label>
+                                  <select
+                                    value={field.type}
+                                    onChange={(e) =>
+                                      setForm((f) => {
+                                        const tabs = [...f.tabs];
+                                        const current = tabs[tabIndex]!;
+                                        const fields = [...current.fields];
+                                        fields[fieldIndex] = {
+                                          ...fields[fieldIndex]!,
+                                          type: e.target
+                                            .value as FormTabField["type"],
+                                        };
+                                        tabs[tabIndex] = { ...current, fields };
+                                        return { ...f, tabs };
+                                      })
+                                    }
+                                    className="w-full rounded-2xl border border-border bg-card px-4 py-3 text-sm font-medium focus-ring"
+                                  >
+                                    <option value="select">Dropdown</option>
+                                    <option value="text">Text</option>
+                                    <option value="number">Number</option>
+                                  </select>
+                                </div>
+                              </div>
+                              {field.type === "select" ? (
+                                <div className="mt-2 space-y-1.5">
+                                  <label className="block text-sm font-semibold text-text-primary">
+                                    Options (one per line)
+                                  </label>
+                                  <textarea
+                                    value={field.optionsText}
+                                    onChange={(e) =>
+                                      setForm((f) => {
+                                        const tabs = [...f.tabs];
+                                        const current = tabs[tabIndex]!;
+                                        const fields = [...current.fields];
+                                        fields[fieldIndex] = {
+                                          ...fields[fieldIndex]!,
+                                          optionsText: e.target.value,
+                                        };
+                                        tabs[tabIndex] = { ...current, fields };
+                                        return { ...f, tabs };
+                                      })
+                                    }
+                                    rows={3}
+                                    className="w-full rounded-2xl border border-border bg-card px-4 py-3 text-sm font-medium focus-ring"
+                                    placeholder={
+                                      "Small\nMedium | 5\nLarge | 12"
+                                    }
+                                  />
+                                  <p className="text-[11px] text-text-secondary">
+                                    Optional price addon:{" "}
+                                    <code className="rounded bg-[#f7f8fa] px-1">
+                                      Large | 12
+                                    </code>
+                                  </p>
+                                </div>
+                              ) : null}
+                              <div className="mt-2">
+                                <Input
+                                  label="Help text (optional)"
+                                  value={field.helpText}
+                                  onChange={(e) =>
+                                    setForm((f) => {
+                                      const tabs = [...f.tabs];
+                                      const current = tabs[tabIndex]!;
+                                      const fields = [...current.fields];
+                                      fields[fieldIndex] = {
+                                        ...fields[fieldIndex]!,
+                                        helpText: e.target.value,
+                                      };
+                                      tabs[tabIndex] = { ...current, fields };
+                                      return { ...f, tabs };
+                                    })
+                                  }
+                                  placeholder="Shown under the field"
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : null}
 
-            <div className="rounded-2xl border border-accent/30 bg-accent/5 p-4 sm:p-5">
-              <p className="flex items-center gap-2 text-sm font-bold text-secondary">
-                <MapPin className="h-4 w-4 text-accent" />
-                Yeh product yahan show hoga
-              </p>
-              <ul className="mt-3 grid gap-2 text-sm text-text-secondary sm:grid-cols-2">
-                <li>
-                  <span className="font-semibold text-secondary">
-                    Popular Products →
-                  </span>{" "}
-                  {placement.popularName} (sidebar flyout)
-                </li>
-                <li>
-                  <span className="font-semibold text-secondary">Top nav →</span>{" "}
-                  {placement.navLabel}
-                </li>
-                <li>
-                  <span className="font-semibold text-secondary">
-                    Catalog page →
-                  </span>{" "}
-                  <Link
-                    href={placement.catalogPath}
-                    target="_blank"
-                    className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
-                  >
-                    {placement.catalogLabel}
-                    <ExternalLink className="h-3 w-3" />
-                  </Link>
-                </li>
-                <li>
-                  <span className="font-semibold text-secondary">
-                    Featured Products →
-                  </span>{" "}
-                  {form.featured
-                    ? "Haan — homepage Featured section"
-                    : "Nahi (footer mein “Feature on homepage” check karo)"}
-                </li>
-                <li className="sm:col-span-2">
-                  <span className="font-semibold text-secondary">
-                    Top Sellers →
-                  </span>{" "}
-                  Homepage Top Sellers grid (DB products)
-                </li>
-              </ul>
-            </div>
-
-            <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
-              <p className="text-sm font-bold text-secondary">
-                Storefront fields → DB option groups (
-                {categoryOptions.find((c) => c.slug === form.categorySlug)?.name ??
-                  form.categorySlug}
-                )
-              </p>
-              <p className="mt-1 text-xs text-text-secondary">
-                These are saved on the product in Postgres and shown on{" "}
-                <code className="rounded bg-white px-1">/products/…</code>.
-              </p>
-              <ul className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                {optionPreview.map((g) => (
-                  <li
-                    key={g.key}
-                    className="rounded-lg border border-border bg-card px-3 py-2"
-                  >
-                    <p className="text-xs font-bold text-secondary">
-                      {g.label}{" "}
-                      <span className="font-medium text-text-secondary">
-                        ({g.uiType})
-                      </span>
-                    </p>
-                    <p className="mt-0.5 truncate text-[11px] text-text-secondary">
-                      {g.values.map((v) => v.label).join(" · ")}
-                    </p>
+            {section === "seo" ? (
+              <div className="rounded-2xl border border-accent/30 bg-accent/5 p-4 sm:p-5">
+                <p className="flex items-center gap-2 text-sm font-bold text-secondary">
+                  <MapPin className="h-4 w-4 text-accent" />
+                  Yeh product yahan show hoga
+                </p>
+                <ul className="mt-3 grid gap-2 text-sm text-text-secondary sm:grid-cols-2">
+                  <li>
+                    <span className="font-semibold text-secondary">
+                      Popular Products →
+                    </span>{" "}
+                    {placement.popularName} (sidebar flyout)
                   </li>
-                ))}
-              </ul>
-            </div>
+                  <li>
+                    <span className="font-semibold text-secondary">
+                      Top nav →
+                    </span>{" "}
+                    {placement.navLabel}
+                  </li>
+                  <li>
+                    <span className="font-semibold text-secondary">
+                      Catalog page →
+                    </span>{" "}
+                    <Link
+                      href={placement.catalogPath}
+                      target="_blank"
+                      className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+                    >
+                      {placement.catalogLabel}
+                      <ExternalLink className="h-3 w-3" />
+                    </Link>
+                  </li>
+                  <li>
+                    <span className="font-semibold text-secondary">
+                      Featured Products →
+                    </span>{" "}
+                    {form.featured
+                      ? "Haan — homepage Featured section"
+                      : "Nahi (footer mein “Feature on homepage” check karo)"}
+                  </li>
+                  <li className="sm:col-span-2">
+                    <span className="font-semibold text-secondary">
+                      Top Sellers →
+                    </span>{" "}
+                    Homepage Top Sellers grid (DB products)
+                  </li>
+                </ul>
+              </div>
+            ) : null}
+
+            {section === "options" ? (
+              <AdminProductOptionEditor
+                groups={form.optionGroups}
+                onChange={(optionGroups) =>
+                  setForm((f) => ({ ...f, optionGroups }))
+                }
+                categorySlug={form.categorySlug}
+                categoryName={
+                  categoryOptions.find((c) => c.slug === form.categorySlug)
+                    ?.name
+                }
+              />
+            ) : null}
           </div>
         </form>
       </Modal>
