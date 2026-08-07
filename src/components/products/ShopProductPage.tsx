@@ -80,13 +80,13 @@ export function ShopProductPage({ product }: { product: ShopProduct }) {
         <div className="grid gap-8 lg:grid-cols-[1fr_minmax(480px,46%)] xl:grid-cols-[1fr_minmax(540px,48%)] lg:items-start lg:gap-10">
           <div>
             <div className="relative overflow-hidden border border-border bg-[#f3f4f6]">
-              <div className="relative aspect-[4/3] w-full">
+              <div className="relative aspect-square w-full sm:aspect-[5/4]">
                 <Image
                   src={product.images[activeImage]!}
                   alt={product.name}
                   fill
                   priority
-                  className="object-cover"
+                  className="object-contain"
                   sizes="(max-width: 1024px) 100vw, 55vw"
                 />
               </div>

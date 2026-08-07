@@ -257,13 +257,13 @@ const FORM_SECTIONS: Array<{
   {
     id: "options",
     label: "Customer fields",
-    hint: "Width / height / material / quantity questions customers answer.",
+    hint: "Dropdowns + Price $ / Extra $ on each choice.",
     icon: SlidersHorizontal,
   },
   {
     id: "pricing",
     label: "Pricing",
-    hint: "Choose fixed option pricing or a Width × Height formula.",
+    hint: "Starting price and Width × Height (if needed).",
     icon: DollarSign,
   },
   {
@@ -351,46 +351,6 @@ export function AdminProducts() {
 
   const sectionIndex = FORM_SECTIONS.findIndex((s) => s.id === section);
   const activeSection = FORM_SECTIONS[sectionIndex] ?? FORM_SECTIONS[0]!;
-
-  const sectionSummary = useMemo<Record<FormSection, string>>(() => {
-    const filledFaqs = form.faqs.filter(
-      (f) => f.question.trim() && f.answer.trim(),
-    ).length;
-    const descChars = form.description.replace(/<[^>]+>/g, "").trim().length;
-    return {
-      basics: form.name.trim() || "Untitled product",
-      media: form.imageUrl
-        ? `Featured set · ${form.galleryUrls.length} gallery`
-        : "No featured image yet",
-      content: descChars
-        ? `${descChars} characters written`
-        : "No description yet",
-      options: `${form.optionGroups.length} field${form.optionGroups.length === 1 ? "" : "s"}`,
-      pricing: form.optionGroups.some((group) =>
-        group.values.some((value) => value.meta?.pricingConfig?.type === "area"),
-      )
-        ? "Width × Height"
-        : `Starts at ${formatCurrency(Number(form.price) || 0)}`,
-      tabs: form.tabs.length
-        ? `${form.tabs.length} tab${form.tabs.length === 1 ? "" : "s"}`
-        : "None",
-      faqs: `${filledFaqs} question${filledFaqs === 1 ? "" : "s"}`,
-      seo: form.seoTitle.trim()
-        ? `${form.seoTitle.length}/60 title`
-        : "Not set",
-    };
-  }, [
-    form.name,
-    form.imageUrl,
-    form.galleryUrls.length,
-    form.description,
-    form.optionGroups.length,
-    form.optionGroups,
-    form.price,
-    form.tabs.length,
-    form.faqs,
-    form.seoTitle,
-  ]);
 
   /** Sections that still need attention before the product can be saved. */
   const incompleteSections = useMemo<Partial<Record<FormSection, boolean>>>(
@@ -913,13 +873,14 @@ export function AdminProducts() {
           setOpen(false);
           setEditing(null);
         }}
-        title={editing ? "Edit product (DB)" : "Upload product (DB)"}
-        description="Saved to PostgreSQL with category option templates for the storefront."
+        title={editing ? "Edit product" : "Add product"}
+        description="Simple setup — fields, prices, then save."
         size="full"
-        bodyClassName="bg-[#f7f8fa] p-4 sm:p-5"
+        variant="dark"
+        bodyClassName="bg-[#0f1117] p-4 sm:p-5"
         footer={
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <label className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+            <label className="flex items-center gap-2 text-sm font-semibold text-zinc-200">
               <input
                 type="checkbox"
                 checked={form.featured}
@@ -936,6 +897,7 @@ export function AdminProducts() {
                 variant="ghost"
                 size="sm"
                 disabled={sectionIndex <= 0}
+                className="text-zinc-300 hover:bg-zinc-800 hover:text-white"
                 onClick={() =>
                   setSection(FORM_SECTIONS[Math.max(0, sectionIndex - 1)]!.id)
                 }
@@ -948,6 +910,7 @@ export function AdminProducts() {
                 variant="ghost"
                 size="sm"
                 disabled={sectionIndex >= FORM_SECTIONS.length - 1}
+                className="text-zinc-300 hover:bg-zinc-800 hover:text-white"
                 onClick={() =>
                   setSection(
                     FORM_SECTIONS[
@@ -959,10 +922,11 @@ export function AdminProducts() {
                 Next
                 <ChevronRight className="h-4 w-4" />
               </Button>
-              <span className="mx-1 hidden h-6 w-px bg-border sm:block" />
+              <span className="mx-1 hidden h-6 w-px bg-zinc-700 sm:block" />
               <Button
                 type="button"
                 variant="outline"
+                className="border-zinc-600 bg-transparent text-zinc-200 hover:bg-zinc-800"
                 onClick={() => {
                   setOpen(false);
                   setEditing(null);
@@ -976,12 +940,12 @@ export function AdminProducts() {
                 disabled={saving || uploading}
               >
                 {saving
-                  ? "Saving to DB…"
+                  ? "Saving…"
                   : uploading
-                    ? "Uploading image…"
+                    ? "Uploading…"
                     : editing
-                      ? "Update in database"
-                      : "Save to database"}
+                      ? "Update"
+                      : "Save"}
               </Button>
             </div>
           </div>
@@ -990,12 +954,12 @@ export function AdminProducts() {
         <form
           id="admin-product-form"
           onSubmit={onSubmit}
-          className="grid items-start gap-5 lg:grid-cols-[300px_1fr] xl:grid-cols-[340px_1fr]"
+          className="grid items-start gap-4 lg:grid-cols-[240px_1fr] xl:grid-cols-[260px_1fr]"
         >
-          {/* Live storefront preview + section navigation */}
-          <aside className="space-y-4 lg:sticky lg:top-0 lg:self-start">
-            <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
-              <div className="relative aspect-square bg-[#f3f4f6]">
+          {/* Compact preview + steps */}
+          <aside className="space-y-3 lg:sticky lg:top-0 lg:self-start">
+            <div className="overflow-hidden rounded-xl border border-border bg-card">
+              <div className="relative aspect-[4/3] bg-background">
                 {form.previewDataUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -1004,63 +968,39 @@ export function AdminProducts() {
                     className="absolute inset-0 h-full w-full object-cover"
                   />
                 ) : (
-                  <div className="flex h-full flex-col items-center justify-center gap-2 text-text-secondary">
-                    <ImagePlus className="h-10 w-10 opacity-50" />
-                    <span className="text-xs font-semibold">No image yet</span>
+                  <div className="flex h-full flex-col items-center justify-center gap-1 text-text-secondary">
+                    <ImagePlus className="h-8 w-8 opacity-40" />
+                    <span className="text-[11px] font-semibold">No image</span>
                   </div>
                 )}
-                {form.badge ? (
-                  <span className="absolute left-3 top-3 rounded-full bg-primary px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow-soft">
-                    {form.badge}
-                  </span>
-                ) : null}
               </div>
-              <div className="space-y-2 p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
+              <div className="space-y-1 p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-text-secondary">
                   {categoryOptions.find((c) => c.slug === form.categorySlug)
                     ?.name ?? "Category"}
                 </p>
-                <h4 className="text-base font-bold leading-snug text-secondary">
+                <h4 className="truncate text-sm font-bold text-text-primary">
                   {form.name.trim() || "Product name"}
                 </h4>
-                <p className="line-clamp-2 text-xs text-text-secondary">
-                  {form.shortDescription.trim() ||
-                    form.description
-                      .replace(/<[^>]+>/g, " ")
-                      .replace(/\s+/g, " ")
-                      .trim() ||
-                    "Short description will appear on the storefront."}
-                </p>
-                <div className="flex items-baseline justify-between gap-2 pt-1">
-                  <span className="text-lg font-extrabold text-secondary">
+                <div className="flex items-center justify-between gap-2 pt-0.5">
+                  <span className="text-base font-extrabold text-primary">
                     {form.price
                       ? `From ${formatCurrency(Number(form.price) || 0)}`
                       : "From $—"}
                   </span>
-                  <span className="text-[11px] font-medium text-text-secondary">
-                    {form.deliveryDays || "3"}-day delivery
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {form.featured ? (
-                    <Badge variant="primary">Homepage featured</Badge>
-                  ) : null}
                   <Badge
                     variant={
                       form.status === "published" ? "success" : "outline"
                     }
                   >
-                    {form.status === "published" ? "Published" : "Draft"}
+                    {form.status === "published" ? "Live" : "Draft"}
                   </Badge>
                 </div>
               </div>
             </div>
 
-            <nav className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
-              <p className="border-b border-border px-4 py-3 text-[11px] font-bold uppercase tracking-wide text-text-secondary">
-                Sections
-              </p>
-              <ol className="space-y-1 p-2">
+            <nav className="overflow-hidden rounded-xl border border-border bg-card">
+              <ol className="p-1.5">
                 {FORM_SECTIONS.map((s, i) => {
                   const isActive = s.id === section;
                   const needsAttention = incompleteSections[s.id];
@@ -1070,33 +1010,31 @@ export function AdminProducts() {
                         type="button"
                         onClick={() => setSection(s.id)}
                         className={cn(
-                          "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition focus-ring",
+                          "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition focus-ring",
                           isActive
-                            ? "bg-primary/10 text-primary"
-                            : "text-secondary hover:bg-[#f3f4f6]",
+                            ? "bg-primary text-white"
+                            : "text-text-secondary hover:bg-background hover:text-text-primary",
                         )}
                       >
                         <span
                           className={cn(
-                            "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold",
+                            "flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[11px] font-bold",
                             isActive
-                              ? "bg-primary text-white"
-                              : "bg-[#f3f4f6] text-text-secondary",
+                              ? "bg-white/20 text-white"
+                              : "bg-background text-text-secondary",
                           )}
                         >
                           {i + 1}
                         </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-semibold">
-                            {s.label}
-                          </span>
-                          <span className="block truncate text-[11px] font-medium text-text-secondary">
-                            {sectionSummary[s.id]}
-                          </span>
+                        <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                          {s.label}
                         </span>
                         {needsAttention ? (
                           <span
-                            className="h-2 w-2 shrink-0 rounded-full bg-warning"
+                            className={cn(
+                              "h-1.5 w-1.5 shrink-0 rounded-full",
+                              isActive ? "bg-white" : "bg-warning",
+                            )}
                             title="Still needs input"
                           />
                         ) : null}
@@ -1110,21 +1048,16 @@ export function AdminProducts() {
 
           {/* Active section only — keeps each group of fields clearly separated */}
           <div className="min-w-0 space-y-4">
-            <header className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4 shadow-soft sm:p-5">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <activeSection.icon className="h-5 w-5" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-text-secondary">
-                  Step {sectionIndex + 1} of {FORM_SECTIONS.length}
-                </p>
-                <h4 className="text-base font-bold text-secondary">
-                  {activeSection.label}
-                </h4>
-                <p className="mt-0.5 text-xs text-text-secondary">
-                  {activeSection.hint}
-                </p>
-              </div>
+            <header className="rounded-xl border border-border bg-card px-4 py-3 sm:px-5">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-text-secondary">
+                Step {sectionIndex + 1} / {FORM_SECTIONS.length}
+              </p>
+              <h4 className="text-lg font-bold text-text-primary">
+                {activeSection.label}
+              </h4>
+              <p className="mt-0.5 text-xs text-text-secondary">
+                {activeSection.hint}
+              </p>
             </header>
 
             {section === "media" ? (
@@ -1140,7 +1073,7 @@ export function AdminProducts() {
                     <label
                       htmlFor={fileId}
                       className={cn(
-                        "relative flex min-h-[140px] flex-1 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border bg-[#f5f6f8] px-4 py-6 text-center transition hover:border-primary/50 hover:bg-primary/5",
+                        "relative flex min-h-[140px] flex-1 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border bg-background px-4 py-6 text-center transition hover:border-primary/50 hover:bg-primary/5",
                         uploading && "pointer-events-none opacity-70",
                       )}
                     >
@@ -1237,7 +1170,7 @@ export function AdminProducts() {
                       {form.galleryUrls.map((url) => (
                         <div
                           key={url}
-                          className="group relative aspect-square overflow-hidden rounded-xl border border-border bg-[#f3f4f6]"
+                          className="group relative aspect-square overflow-hidden rounded-xl border border-border bg-background"
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
@@ -1428,7 +1361,7 @@ export function AdminProducts() {
                         />
                       </div>
 
-                      <div className="sm:col-span-2 rounded-xl border border-border bg-[#f7f8fa] p-4">
+                      <div className="sm:col-span-2 rounded-xl border border-border bg-background p-4">
                         <p className="text-[11px] font-bold uppercase tracking-wide text-text-secondary">
                           Google preview
                         </p>
@@ -1470,14 +1403,14 @@ export function AdminProducts() {
                                 className={cn(
                                   "flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition focus-ring",
                                   active
-                                    ? "border-primary bg-primary/5 text-primary shadow-soft"
-                                    : "border-border bg-card text-secondary hover:border-primary/40 hover:bg-[#e8f4fc]",
+                                    ? "border-primary bg-primary/15 text-primary shadow-soft"
+                                    : "border-border bg-background text-text-primary hover:border-primary/40 hover:bg-primary/10",
                                 )}
                               >
                                 <span
                                   className={cn(
                                     "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-                                    active ? "bg-primary/10" : "bg-[#f3f4f6]",
+                                    active ? "bg-primary/10" : "bg-background",
                                   )}
                                 >
                                   <DynamicIcon
@@ -1636,7 +1569,7 @@ export function AdminProducts() {
                   {form.faqs.map((faq, index) => (
                     <div
                       key={index}
-                      className="rounded-xl border border-border bg-[#f7f8fa] p-3 sm:p-4"
+                      className="rounded-xl border border-border bg-background p-3 sm:p-4"
                     >
                       <div className="mb-2 flex items-center justify-between gap-2">
                         <span className="text-xs font-bold text-text-secondary">
@@ -1731,7 +1664,7 @@ export function AdminProducts() {
                 </div>
 
                 {form.tabs.length === 0 ? (
-                  <p className="mt-4 rounded-xl border border-dashed border-border bg-[#f7f8fa] px-4 py-6 text-center text-xs text-text-secondary">
+                  <p className="mt-4 rounded-xl border border-dashed border-border bg-background px-4 py-6 text-center text-xs text-text-secondary">
                     No tabs yet. Click <strong>Add Tab</strong> if this product
                     needs Mailer / Product / Shipping style switchers.
                   </p>
@@ -1740,7 +1673,7 @@ export function AdminProducts() {
                     {form.tabs.map((tab, tabIndex) => (
                       <div
                         key={tab.id}
-                        className="rounded-xl border border-border bg-[#f7f8fa] p-3 sm:p-4"
+                        className="rounded-xl border border-border bg-background p-3 sm:p-4"
                       >
                         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                           <span className="text-xs font-bold text-text-secondary">
@@ -1815,7 +1748,7 @@ export function AdminProducts() {
                         <p className="mt-2 text-[11px] text-text-secondary">
                           Tab price shows on the storefront when this tab is
                           selected. Dropdown options can add extra with{" "}
-                          <code className="rounded bg-white px-1">
+                          <code className="rounded bg-background px-1">
                             Label | 5
                           </code>{" "}
                           (adds $5).
@@ -1952,7 +1885,7 @@ export function AdminProducts() {
                                   />
                                   <p className="text-[11px] text-text-secondary">
                                     Optional price addon:{" "}
-                                    <code className="rounded bg-[#f7f8fa] px-1">
+                                    <code className="rounded bg-background px-1">
                                       Large | 12
                                     </code>
                                   </p>
@@ -2049,6 +1982,7 @@ export function AdminProducts() {
                   categoryOptions.find((c) => c.slug === form.categorySlug)
                     ?.name
                 }
+                basePrice={Number(form.price) || 0}
               />
             ) : null}
 

@@ -84,12 +84,14 @@ export function Select({
   value,
   onChange,
   className,
+  placeholder = "Select…",
 }: {
   label?: string;
   options: { label: string; value: string }[];
   value: string;
   onChange: (value: string) => void;
   className?: string;
+  placeholder?: string;
 }) {
   return (
     <label className={cn("block space-y-1.5", className)}>
@@ -99,8 +101,12 @@ export function Select({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-12 w-full rounded-2xl border border-border bg-card px-4 text-sm font-medium text-text-primary shadow-soft focus-ring"
+        className={cn(
+          "h-12 w-full rounded-2xl border border-border bg-card px-4 text-sm font-medium shadow-soft focus-ring",
+          value ? "text-text-primary" : "text-text-secondary",
+        )}
       >
+        <option value="">{placeholder}</option>
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
             {opt.label}

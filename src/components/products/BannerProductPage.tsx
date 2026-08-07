@@ -85,13 +85,13 @@ export function BannerProductPage({ product }: { product: BannerProduct }) {
           {/* Left: gallery + features */}
           <div>
             <div className="relative overflow-hidden border border-border bg-[#f3f4f6]">
-              <div className="relative aspect-[4/3] w-full">
+              <div className="relative aspect-square w-full sm:aspect-[5/4]">
                 <Image
                   src={product.images[activeImage]!}
                   alt={product.name}
                   fill
                   priority
-                  className="object-cover"
+                  className="object-contain"
                   sizes="(max-width: 1024px) 100vw, 55vw"
                 />
               </div>

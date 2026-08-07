@@ -10,6 +10,10 @@ const OPTIMIZED_HOSTS = new Set([
   "plus.unsplash.com",
   "img.magnific.com",
   "staticecp.uprinting.com",
+  "s2.uprinting.com",
+  "s3.uprinting.com",
+  "printoe.com",
+  "www.printoe.com",
 ]);
 
 function canOptimize(url: string) {
@@ -17,7 +21,11 @@ function canOptimize(url: string) {
   if (url.startsWith("/")) return true;
   try {
     const host = new URL(url).hostname;
-    return OPTIMIZED_HOSTS.has(host) || host.endsWith(".magnific.com");
+    return (
+      OPTIMIZED_HOSTS.has(host) ||
+      host.endsWith(".magnific.com") ||
+      host.endsWith(".uprinting.com")
+    );
   } catch {
     return false;
   }
@@ -29,13 +37,18 @@ export function ProductMedia({
   label,
   className,
   priority = false,
+  /** `contain` shows the full product without cropping; `cover` fills the frame. */
+  fit = "contain",
 }: {
   imageUrl?: string;
   fallbackVariant: string;
   label?: string;
   className?: string;
   priority?: boolean;
+  fit?: "contain" | "cover";
 }) {
+  const objectFit = fit === "cover" ? "object-cover" : "object-contain";
+
   if (imageUrl) {
     // Admin / API may paste any CDN URL — use plain <img> when host isn't configured
     if (!canOptimize(imageUrl)) {
@@ -45,7 +58,7 @@ export function ProductMedia({
           <img
             src={imageUrl}
             alt={label ?? "Product"}
-            className="absolute inset-0 h-full w-full object-cover"
+            className={cn("absolute inset-0 h-full w-full", objectFit)}
           />
         </div>
       );
@@ -58,7 +71,7 @@ export function ProductMedia({
           alt={label ?? "Product"}
           fill
           priority={priority}
-          className="object-cover"
+          className={objectFit}
           sizes="(max-width: 768px) 100vw, 50vw"
         />
       </div>

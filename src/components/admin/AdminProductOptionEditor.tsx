@@ -73,6 +73,40 @@ function slugKey(raw: string) {
   );
 }
 
+/** Full storefront price for this choice (replaces starting price). */
+export function isAbsolutePriceField(key: string) {
+  return /^(size|package|product_type|garment)$/i.test(key);
+}
+
+function readChoiceDollars(
+  value: FormOptionValue,
+  absolute: boolean,
+): number {
+  if (absolute) {
+    if (
+      typeof value.meta?.absoluteBasePrice === "number" &&
+      Number.isFinite(value.meta.absoluteBasePrice)
+    ) {
+      return value.meta.absoluteBasePrice;
+    }
+    // Migrate old “Extra $” values so Polo 222 still shows as 222
+    if (
+      typeof value.meta?.priceAdd === "number" &&
+      Number.isFinite(value.meta.priceAdd)
+    ) {
+      return value.meta.priceAdd;
+    }
+    return 0;
+  }
+  if (
+    typeof value.meta?.priceAdd === "number" &&
+    Number.isFinite(value.meta.priceAdd)
+  ) {
+    return value.meta.priceAdd;
+  }
+  return 0;
+}
+
 export function optionGroupsFromTemplates(
   templates: OptionTemplateGroup[],
 ): FormOptionGroup[] {
@@ -147,6 +181,7 @@ export function optionGroupsToPayload(
     if (!key) key = `field_${groupIndex + 1}`;
     if (usedKeys.has(key)) key = `${key}_${groupIndex + 1}`;
     usedKeys.add(key);
+    const absolute = isAbsolutePriceField(key);
 
     const values: OptionPayload["values"] = [];
     group.values.forEach((formValue) => {
@@ -157,14 +192,37 @@ export function optionGroupsToPayload(
         slugifyProductName(valueLabel) ||
         `opt_${Math.random().toString(36).slice(2, 6)}`;
       const priceMod = Number(formValue.priceMod);
+      let meta = formValue.meta
+        ? ({ ...formValue.meta } as Record<string, unknown>)
+        : undefined;
+
+      // Garment/Size: migrate leftover Extra $ → absolute Price $
+      if (absolute && meta) {
+        const abs =
+          typeof meta.absoluteBasePrice === "number"
+            ? meta.absoluteBasePrice
+            : null;
+        const add =
+          typeof meta.priceAdd === "number" ? meta.priceAdd : null;
+        if ((abs == null || !Number.isFinite(abs)) && add != null && add > 0) {
+          meta.absoluteBasePrice = add;
+        }
+        delete meta.priceAdd;
+        if (
+          typeof meta.absoluteBasePrice === "number" &&
+          meta.absoluteBasePrice <= 0
+        ) {
+          delete meta.absoluteBasePrice;
+        }
+        if (!Object.keys(meta).length) meta = undefined;
+      }
+
       values.push({
         label: valueLabel,
         value,
         priceMod:
           Number.isFinite(priceMod) && priceMod > 0 ? priceMod : 1,
-        meta: formValue.meta
-          ? ({ ...formValue.meta } as Record<string, unknown>)
-          : undefined,
+        meta,
       });
     });
 
@@ -200,11 +258,14 @@ export function AdminProductOptionEditor({
   onChange,
   categorySlug,
   categoryName,
+  basePrice = 0,
 }: {
   groups: FormOptionGroup[];
   onChange: (next: FormOptionGroup[]) => void;
   categorySlug: string;
   categoryName?: string;
+  /** Starting price — shown so Extra $ totals are clear. */
+  basePrice?: number;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -246,11 +307,11 @@ export function AdminProductOptionEditor({
   }
 
   return (
-    <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
+    <div className="rounded-xl border border-border bg-card p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-bold text-secondary">
-            Questions customers answer
+          <p className="text-sm font-bold text-text-primary">
+            Customer dropdowns
             {categoryName ? (
               <span className="font-medium text-text-secondary">
                 {" "}
@@ -259,9 +320,11 @@ export function AdminProductOptionEditor({
             ) : null}
           </p>
           <p className="mt-1 max-w-2xl text-xs leading-5 text-text-secondary">
-            Add only the fields shown on the product page: Width, Height,
-            Material, Quantity, etc. Pricing is configured separately in the
-            next step.
+            <strong className="text-text-primary">Price $</strong> (Garment /
+            Size) = jo amount storefront pe dikhega.{" "}
+            <strong className="text-text-primary">Extra $</strong> = starting
+            price pe add. Example: Polo Price $222 → customer ko{" "}
+            <strong className="text-primary">$222</strong>.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -273,7 +336,7 @@ export function AdminProductOptionEditor({
               onChange(optionGroupsFromCategory(categorySlug))
             }
           >
-            Load category template
+            Load template
           </Button>
           <Button type="button" size="sm" onClick={addField} className="gap-1.5">
             <Plus className="h-3.5 w-3.5" />
@@ -290,16 +353,17 @@ export function AdminProductOptionEditor({
         <ul className="mt-4 space-y-2">
           {groups.map((group, index) => {
             const open = openId === group.id;
+            const absolute = isAbsolutePriceField(group.key);
             return (
               <li
                 key={group.id}
                 className={cn(
-                  "overflow-hidden rounded-xl border bg-card shadow-soft",
-                  open ? "border-primary/40" : "border-border",
+                  "overflow-hidden rounded-xl border bg-background",
+                  open ? "border-primary/50" : "border-border",
                 )}
               >
                 <div className="flex items-center gap-2 px-3 py-2.5 sm:px-4">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-secondary/10 text-xs font-bold text-secondary">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-card text-xs font-bold text-text-secondary">
                     {index + 1}
                   </span>
                   <button
@@ -311,7 +375,7 @@ export function AdminProductOptionEditor({
                       <strong className="truncate text-sm text-text-primary">
                         {group.label || "Untitled field"}
                       </strong>
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
+                      <span className="rounded-md bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
                         {TYPE_LABEL[group.uiType]}
                       </span>
                       <span className="text-xs text-text-secondary">
@@ -322,7 +386,18 @@ export function AdminProductOptionEditor({
                       <span className="mt-0.5 block truncate text-xs text-text-secondary">
                         {group.values
                           .slice(0, 5)
-                          .map((v) => v.label || "…")
+                          .map((v) => {
+                            const label = v.label || "…";
+                            const dollars = readChoiceDollars(v, absolute);
+                            if (absolute) {
+                              return dollars > 0
+                                ? `${label} $${dollars}`
+                                : label;
+                            }
+                            return dollars > 0
+                              ? `${label} +$${dollars}`
+                              : label;
+                          })
                           .join(" · ")}
                         {group.values.length > 5 ? " …" : ""}
                       </span>
@@ -453,55 +528,124 @@ export function AdminProductOptionEditor({
                           Add choice
                         </Button>
                       </div>
-                      <div className="space-y-2">
-                        {group.values.map((value, valueIndex) => (
-                          <div
-                            key={value.id}
-                            className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_36px] items-end gap-2"
-                          >
-                            <Input
-                              label={valueIndex === 0 ? "Customer sees" : undefined}
-                              value={value.label}
-                              onChange={(e) => {
-                                const label = e.target.value;
-                                updateValue(group.id, value.id, {
-                                  label,
-                                  value:
-                                    value.value ||
-                                    slugifyProductName(label) ||
-                                    "",
-                                });
-                              }}
-                              placeholder='e.g. 3.25"'
-                            />
-                            <Input
-                              label={valueIndex === 0 ? "Internal value" : undefined}
-                              value={value.value}
-                              onChange={(e) =>
-                                updateValue(group.id, value.id, {
-                                  value: e.target.value,
-                                })
-                              }
-                              placeholder="3.25"
-                            />
-                            <button
-                              type="button"
-                              disabled={group.values.length <= 1}
-                              onClick={() =>
-                                updateGroup(group.id, {
-                                  values: group.values.filter(
-                                    (v) => v.id !== value.id,
-                                  ),
-                                })
-                              }
-                              className="mb-1 inline-flex h-12 w-9 items-center justify-center rounded-xl text-danger hover:bg-danger/10 disabled:opacity-30"
-                              aria-label="Remove choice"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ))}
+                      <div className="overflow-hidden rounded-xl border border-border">
+                        <div className="grid grid-cols-[1fr_100px_36px] gap-2 bg-card px-2 py-2 text-[11px] font-bold uppercase tracking-wide text-text-secondary sm:grid-cols-[1fr_1fr_100px_72px_36px] sm:px-3">
+                          <span>Choice</span>
+                          <span className="hidden sm:inline">Key</span>
+                          <span className="text-right">
+                            {absolute ? "Price $" : "Extra $"}
+                          </span>
+                          <span className="hidden text-right sm:inline">
+                            {absolute ? "Shows" : "Total"}
+                          </span>
+                          <span />
+                        </div>
+                        <div className="divide-y divide-border">
+                          {group.values.map((value) => {
+                            const amount = readChoiceDollars(value, absolute);
+                            const storefrontTotal = absolute
+                              ? amount
+                              : (Number(basePrice) || 0) + amount;
+                            return (
+                              <div
+                                key={value.id}
+                                className="grid grid-cols-[1fr_100px_36px] items-center gap-2 px-2 py-2 sm:grid-cols-[1fr_1fr_100px_72px_36px] sm:px-3"
+                              >
+                                <input
+                                  value={value.label}
+                                  onChange={(e) => {
+                                    const label = e.target.value;
+                                    updateValue(group.id, value.id, {
+                                      label,
+                                      value:
+                                        value.value ||
+                                        slugifyProductName(label) ||
+                                        "",
+                                    });
+                                  }}
+                                  placeholder="e.g. Polo"
+                                  className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm font-medium focus-ring"
+                                />
+                                <input
+                                  value={value.value}
+                                  onChange={(e) =>
+                                    updateValue(group.id, value.id, {
+                                      value: e.target.value,
+                                    })
+                                  }
+                                  placeholder="polo"
+                                  className="hidden h-10 w-full rounded-lg border border-border bg-card px-3 text-sm focus-ring sm:block"
+                                />
+                                <div className="relative">
+                                  <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-text-secondary">
+                                    $
+                                  </span>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={amount}
+                                    onChange={(e) => {
+                                      const next = Number(e.target.value) || 0;
+                                      const meta = {
+                                        ...(value.meta ?? {}),
+                                      } as Record<string, unknown>;
+                                      if (absolute) {
+                                        delete meta.priceAdd;
+                                        if (next > 0) {
+                                          meta.absoluteBasePrice = next;
+                                        } else {
+                                          delete meta.absoluteBasePrice;
+                                        }
+                                      } else {
+                                        delete meta.absoluteBasePrice;
+                                        if (next === 0) delete meta.priceAdd;
+                                        else meta.priceAdd = next;
+                                      }
+                                      updateValue(group.id, value.id, {
+                                        priceMod: "1",
+                                        meta: Object.keys(meta).length
+                                          ? (meta as FormOptionValue["meta"])
+                                          : null,
+                                      });
+                                    }}
+                                    className="h-10 w-full rounded-lg border border-border bg-card pl-5 pr-2 text-sm font-semibold focus-ring"
+                                    aria-label={`${value.label} price`}
+                                    title={
+                                      absolute
+                                        ? "Full price shown on storefront"
+                                        : `Added to starting $${Number(basePrice) || 0}`
+                                    }
+                                  />
+                                </div>
+                                <span className="hidden text-right text-xs font-semibold text-primary sm:block">
+                                  ${storefrontTotal.toFixed(0)}
+                                </span>
+                                <button
+                                  type="button"
+                                  disabled={group.values.length <= 1}
+                                  onClick={() =>
+                                    updateGroup(group.id, {
+                                      values: group.values.filter(
+                                        (v) => v.id !== value.id,
+                                      ),
+                                    })
+                                  }
+                                  className="inline-flex h-10 w-9 items-center justify-center rounded-lg text-danger hover:bg-danger/10 disabled:opacity-30"
+                                  aria-label="Remove choice"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
+                      <p className="mt-2 text-[11px] text-text-secondary">
+                        {absolute
+                          ? "Price $ = storefront total for this choice (Polo 222 → $222). Save product after changing."
+                          : `Extra $ starting $${Number(basePrice) || 0} pe add hota hai. Column “Total” = start + extra.`}
+                      </p>
                     </div>
                   </div>
                 ) : null}

@@ -56,8 +56,8 @@ function ToolbarButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "inline-flex h-8 w-8 items-center justify-center rounded-lg text-secondary transition hover:bg-secondary/5 disabled:opacity-40",
-        active && "bg-primary/10 text-primary",
+        "inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-primary transition hover:bg-background disabled:opacity-40",
+        active && "bg-primary/15 text-primary",
       )}
     >
       {children}
@@ -148,7 +148,7 @@ export function RichTextEditor({
         className,
       )}
     >
-      <div className="flex flex-wrap items-center gap-0.5 border-b border-border bg-[#f7f8fa] px-2 py-1.5">
+      <div className="flex flex-wrap items-center gap-0.5 border-b border-border bg-background px-2 py-1.5">
         <ToolbarButton
           label="Undo"
           onClick={() => editor.chain().focus().undo().run()}

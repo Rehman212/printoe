@@ -46,6 +46,33 @@
   --shadow-card: var(--shadow-card);
 }
 
+/* Scoped dark theme for the Add / Edit product wizard */
+.admin-product-shell {
+  --background: #0f1117;
+  --card: #181b24;
+  --border: #2c3140;
+  --secondary: #f4f5f7;
+  --text-primary: #f3f4f6;
+  --text-secondary: #9aa3b2;
+  --shadow-soft: 0 4px 24px -4px rgb(0 0 0 / 0.45);
+  --shadow-card: 0 10px 36px -10px rgb(0 0 0 / 0.55);
+  color: var(--text-primary);
+  background: var(--background);
+}
+
+.admin-product-shell input:not([type="checkbox"]):not([type="radio"]),
+.admin-product-shell textarea,
+.admin-product-shell select {
+  background-color: #12151c;
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+.admin-product-shell input::placeholder,
+.admin-product-shell textarea::placeholder {
+  color: color-mix(in srgb, var(--text-secondary) 80%, transparent);
+}
+
 * {
   border-color: var(--border);
 }

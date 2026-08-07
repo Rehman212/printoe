@@ -327,9 +327,13 @@ export function calcConfiguredPrice(
 
   const selectedValue = (key: string) => {
     const group = options.find((option) => option.key === key);
-    const selected = selections[key] ?? group?.values[0]?.value;
+    const selected = selections[key];
+    if (!selected) return undefined;
     return group?.values.find((value) => value.value === selected);
   };
+
+  const isAbsoluteKey = (key: string) =>
+    /^(size|package|product_type|garment)$/i.test(key);
 
   const hiddenGroups = new Set(
     options.flatMap(
@@ -357,11 +361,13 @@ export function calcConfiguredPrice(
     };
     const width = dimension(areaConfig.widthKey);
     const height = dimension(areaConfig.heightKey);
-    configuredBasePrice = Math.max(
-      areaConfig.minimumPrice,
-      areaConfig.setupCost + width * height * areaConfig.rate,
-    );
-    usesAreaPricing = true;
+    if (width > 0 && height > 0) {
+      configuredBasePrice = Math.max(
+        areaConfig.minimumPrice,
+        areaConfig.setupCost + width * height * areaConfig.rate,
+      );
+      usesAreaPricing = true;
+    }
   } else {
     // Backwards compatibility with products synced before the Pricing step
     // existed (for example Custom Wall Decals).
@@ -371,6 +377,11 @@ export function calcConfiguredPrice(
       Number.isFinite(size.meta.absoluteBasePrice)
     ) {
       configuredBasePrice = size.meta.absoluteBasePrice;
+    } else if (
+      typeof size?.meta?.priceAdd === "number" &&
+      Number.isFinite(size.meta.priceAdd)
+    ) {
+      configuredBasePrice = size.meta.priceAdd;
     } else if (size?.meta?.areaPricing) {
       const width =
         selectedValue("width")?.meta?.dimensionInches ??
@@ -378,10 +389,17 @@ export function calcConfiguredPrice(
       const height =
         selectedValue("height")?.meta?.dimensionInches ??
         Number.parseFloat(selectedValue("height")?.value ?? "0");
-      if (Number.isFinite(width) && Number.isFinite(height)) {
+      if (
+        Number.isFinite(width) &&
+        Number.isFinite(height) &&
+        (width as number) > 0 &&
+        (height as number) > 0
+      ) {
         configuredBasePrice =
           size.meta.areaPricing.fixed +
-          size.meta.areaPricing.perSquareInch * width * height;
+          size.meta.areaPricing.perSquareInch *
+            (width as number) *
+            (height as number);
         usesAreaPricing = true;
       }
     }
@@ -418,17 +436,30 @@ export function calcConfiguredPrice(
       continue;
     }
 
-    if (
+    const absolute =
       typeof value.meta?.absoluteBasePrice === "number" &&
       Number.isFinite(value.meta.absoluteBasePrice)
-    ) {
-      configuredBasePrice = value.meta.absoluteBasePrice;
-    }
-    if (
+        ? value.meta.absoluteBasePrice
+        : null;
+    const priceAdd =
       typeof value.meta?.priceAdd === "number" &&
       Number.isFinite(value.meta.priceAdd)
-    ) {
-      unitAdd += value.meta.priceAdd;
+        ? value.meta.priceAdd
+        : null;
+
+    // Garment / Size / Package: number IS the price (not +extra).
+    // Old Extra $ on garment → Polo 222 shows $222, not start+222.
+    if (isAbsoluteKey(group.key)) {
+      if (absolute != null) configuredBasePrice = absolute;
+      else if (priceAdd != null) configuredBasePrice = priceAdd;
+      continue;
+    }
+
+    if (absolute != null) {
+      configuredBasePrice = absolute;
+    }
+    if (priceAdd != null) {
+      unitAdd += priceAdd;
     } else {
       mod *= value.priceMod;
     }
@@ -489,10 +520,7 @@ export function calcConfiguredPrice(
   };
 }
 
-export function defaultSelections(options: ProductOptionGroup[]) {
-  const selections: Record<string, string> = {};
-  for (const group of options) {
-    if (group.values[0]) selections[group.key] = group.values[0].value;
-  }
-  return selections;
+/** Empty on load — customer picks each field; price updates on select. */
+export function defaultSelections(_options: ProductOptionGroup[]) {
+  return {} as Record<string, string>;
 }

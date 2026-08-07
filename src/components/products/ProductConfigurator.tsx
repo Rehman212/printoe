@@ -41,7 +41,7 @@ export function ProductConfigurator({
   return (
     <div className="space-y-5">
       {options.map((group) => {
-        const selected = selections[group.key] ?? group.values[0]?.value ?? "";
+        const selected = selections[group.key] ?? "";
 
         if (group.uiType === "CARDS") {
           return (
@@ -85,19 +85,21 @@ export function ProductConfigurator({
                 type="number"
                 min={1}
                 value={selected}
+                placeholder="Enter…"
                 onChange={(e) => onChange(group.key, e.target.value)}
-                className="h-12 w-full rounded-2xl border border-border bg-card px-4 text-sm font-medium shadow-soft focus-ring"
+                className="h-12 w-full rounded-2xl border border-border bg-card px-4 text-sm font-medium shadow-soft focus-ring placeholder:text-text-secondary"
               />
             </div>
           );
         }
 
-        // SELECT (default)
+        // SELECT (default) — starts on "Select…" until customer picks
         return (
           <div key={group.id}>
             <Select
               label={group.label}
               value={selected}
+              placeholder="Select…"
               onChange={(val) => onChange(group.key, val)}
               options={group.values.map((v) => ({
                 label: v.label,

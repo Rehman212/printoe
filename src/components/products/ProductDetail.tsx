@@ -464,7 +464,12 @@ export function ProductDetail({ slug }: { slug: string }) {
   }, [syncSavedState]);
 
   const onOptionChange = (key: string, value: string) => {
-    setSelections((prev) => ({ ...prev, [key]: value }));
+    setSelections((prev) => {
+      const next = { ...prev };
+      if (!value) delete next[key];
+      else next[key] = value;
+      return next;
+    });
   };
 
   async function toggleWishlist() {
@@ -645,7 +650,7 @@ export function ProductDetail({ slug }: { slug: string }) {
                   imageUrl={gallery[activeImage] ?? imageUrl}
                   fallbackVariant={fallbackImage}
                   label={name}
-                  className="aspect-[4/3] w-full"
+                  className="aspect-square w-full sm:aspect-[5/4]"
                   priority
                 />
                 {gallery.length > 1 && (
@@ -689,6 +694,7 @@ export function ProductDetail({ slug }: { slug: string }) {
                         fallbackVariant={fallbackImage}
                         className="h-full w-full"
                         label={`${name} ${i + 1}`}
+                        fit="cover"
                       />
                     </button>
                   ))}
@@ -878,6 +884,8 @@ export function ProductDetail({ slug }: { slug: string }) {
                         ? ` + options ${formatCurrency(tabExtraPrice)}`
                         : null}
                     </>
+                  ) : pricing.lines.length === 0 ? (
+                    <>Select options above — price updates as you choose.</>
                   ) : (
                     <>
                       ({formatCurrency(pricing.unit)} for each · qty{" "}

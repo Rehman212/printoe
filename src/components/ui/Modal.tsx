@@ -16,6 +16,7 @@ export function Modal({
   className,
   size = "md",
   bodyClassName,
+  variant = "default",
 }: {
   open: boolean;
   onClose: () => void;
@@ -27,6 +28,8 @@ export function Modal({
   className?: string;
   size?: "sm" | "md" | "lg" | "xl" | "full";
   bodyClassName?: string;
+  /** Dark chrome for dense editors (e.g. product upload). */
+  variant?: "default" | "dark";
 }) {
   useEffect(() => {
     if (!open) return;
@@ -46,17 +49,29 @@ export function Modal({
     md: "max-w-lg",
     lg: "max-w-2xl",
     xl: "max-w-4xl",
-    full: "max-w-[min(99vw,1600px)]",
+    full: "max-w-none w-[100vw] h-[100dvh] max-h-[100dvh] rounded-none sm:rounded-none",
   };
+
+  const dark = variant === "dark";
 
   return (
     <AnimatePresence>
       {open ? (
-        <div className="fixed inset-0 z-[80] flex items-end justify-center p-2 sm:items-center sm:p-3 lg:p-4">
+        <div
+          className={cn(
+            "fixed inset-0 z-[80] flex justify-center",
+            size === "full"
+              ? "items-stretch p-0"
+              : "items-end p-2 sm:items-center sm:p-3 lg:p-4",
+          )}
+        >
           <motion.button
             type="button"
             aria-label="Close dialog"
-            className="absolute inset-0 bg-secondary/40 backdrop-blur-sm"
+            className={cn(
+              "absolute inset-0 backdrop-blur-sm",
+              dark ? "bg-black/70" : "bg-secondary/40",
+            )}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -67,8 +82,11 @@ export function Modal({
             aria-modal="true"
             aria-labelledby={title ? "modal-title" : undefined}
             className={cn(
-              "relative z-10 flex w-full max-h-[96vh] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-card",
-              size === "full" && "h-[96vh] sm:h-auto sm:max-h-[96vh]",
+              "relative z-10 flex w-full flex-col overflow-hidden border shadow-card",
+              dark
+                ? "admin-product-shell border-zinc-800"
+                : "border-border bg-card",
+              size === "full" ? "max-h-[100dvh]" : "max-h-[96vh] rounded-2xl",
               sizes[size],
               className,
             )}
@@ -77,24 +95,42 @@ export function Modal({
             exit={{ opacity: 0, y: 16, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 320, damping: 28 }}
           >
-            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-5 py-4 sm:px-6 sm:py-5">
+            <div
+              className={cn(
+                "flex shrink-0 items-start justify-between gap-4 border-b px-5 py-4 sm:px-6 sm:py-5",
+                dark ? "border-zinc-800 bg-[#12151c]" : "border-border",
+              )}
+            >
               <div>
                 {title ? (
                   <h3
                     id="modal-title"
-                    className="text-lg font-bold text-text-primary sm:text-xl"
+                    className={cn(
+                      "text-lg font-bold sm:text-xl",
+                      dark ? "text-zinc-100" : "text-text-primary",
+                    )}
                   >
                     {title}
                   </h3>
                 ) : null}
                 {description ? (
-                  <p className="mt-1 text-sm text-text-secondary">{description}</p>
+                  <p
+                    className={cn(
+                      "mt-1 text-sm",
+                      dark ? "text-zinc-400" : "text-text-secondary",
+                    )}
+                  >
+                    {description}
+                  </p>
                 ) : null}
               </div>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 shrink-0"
+                className={cn(
+                  "h-9 w-9 shrink-0",
+                  dark && "text-zinc-300 hover:bg-zinc-800 hover:text-white",
+                )}
                 onClick={onClose}
                 aria-label="Close"
               >
@@ -104,13 +140,21 @@ export function Modal({
             <div
               className={cn(
                 "min-h-0 flex-1 overflow-y-auto p-5 scrollbar-thin sm:p-6",
+                dark && "bg-[#0f1117]",
                 bodyClassName,
               )}
             >
               {children}
             </div>
             {footer ? (
-              <div className="shrink-0 border-t border-border bg-card px-4 py-3 sm:px-6 sm:py-4">
+              <div
+                className={cn(
+                  "shrink-0 border-t px-4 py-3 sm:px-6 sm:py-4",
+                  dark
+                    ? "border-zinc-800 bg-[#12151c]"
+                    : "border-border bg-card",
+                )}
+              >
                 {footer}
               </div>
             ) : null}
