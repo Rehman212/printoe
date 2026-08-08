@@ -34,6 +34,7 @@ type UploadedFile = {
   name: string;
   size: number;
   type: string;
+  url?: string;
 };
 
 function formatBytes(bytes: number) {
@@ -73,6 +74,7 @@ export function FileUploadPage() {
   const [tab, setTab] = useState<"specs" | "proofing" | "learning">("specs");
   const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const previewUrlRef = useRef<string | null>(null);
+  const uploadAbort = useRef<AbortController | null>(null);
 
   const productLabel = useMemo(() => {
     const parts = [size || product.sizes[0], product.name].filter(Boolean);
@@ -96,6 +98,7 @@ export function FileUploadPage() {
 
   const removeFile = useCallback(() => {
     if (progressTimer.current) clearInterval(progressTimer.current);
+    uploadAbort.current?.abort();
     setUploading(false);
     setProgress(0);
     setFile(null);
@@ -103,7 +106,7 @@ export function FileUploadPage() {
   }, [clearPreview]);
 
   const onFiles = useCallback(
-    (list: FileList | null) => {
+    async (list: FileList | null) => {
       const f = list?.[0];
       if (!f) return;
       if (f.size > 200 * 1024 * 1024) {
@@ -116,46 +119,109 @@ export function FileUploadPage() {
       }
 
       if (progressTimer.current) clearInterval(progressTimer.current);
+      uploadAbort.current?.abort();
       clearPreview();
 
       setFile({ name: f.name, size: f.size, type: f.type || "file" });
       setUploading(true);
-      setProgress(0);
+      setProgress(8);
 
-      let value = 0;
+      let value = 8;
       progressTimer.current = setInterval(() => {
-        value += Math.random() * 18 + 8;
-        if (value >= 100) {
-          value = 100;
-          if (progressTimer.current) clearInterval(progressTimer.current);
-          setProgress(100);
-          setUploading(false);
+        value = Math.min(value + Math.random() * 12 + 4, 90);
+        setProgress(Math.floor(value));
+      }, 160);
 
-          if (isPreviewableImage(f)) {
-            const url = URL.createObjectURL(f);
-            previewUrlRef.current = url;
-            setPreviewUrl(url);
+      const controller = new AbortController();
+      uploadAbort.current = controller;
+
+      try {
+        let uploaded: { url: string; filename: string } | null = null;
+        let lastError = "Upload failed";
+        const apiBase =
+          process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+        const attempts = [
+          `${apiBase}/files/artwork`,
+          "/api/artwork-uploads",
+        ];
+
+        for (const endpoint of attempts) {
+          try {
+            const body = new FormData();
+            body.append("file", f);
+            const res = await fetch(endpoint, {
+              method: "POST",
+              body,
+              signal: controller.signal,
+            });
+            if (!res.ok) {
+              let message = `Upload failed (${res.status})`;
+              try {
+                const err = (await res.json()) as { message?: string };
+                if (err.message) message = err.message;
+              } catch {
+                /* ignore */
+              }
+              lastError = message;
+              continue;
+            }
+            const json = (await res.json()) as {
+              data: { url: string; filename: string };
+            };
+            uploaded = json.data;
+            break;
+          } catch (err) {
+            if (controller.signal.aborted) throw err;
+            lastError =
+              err instanceof Error ? err.message : "Upload request failed";
           }
-
-          toast({
-            title: "Upload complete",
-            description: `${f.name} (${formatBytes(f.size)})`,
-            tone: "success",
-          });
-        } else {
-          setProgress(Math.floor(value));
         }
-      }, 120);
+        if (!uploaded) throw new Error(lastError);
+
+        if (progressTimer.current) clearInterval(progressTimer.current);
+        setProgress(100);
+        setUploading(false);
+        setFile({
+          name: f.name,
+          size: f.size,
+          type: f.type || "file",
+          url: uploaded.url,
+        });
+
+        if (isPreviewableImage(f)) {
+          const url = URL.createObjectURL(f);
+          previewUrlRef.current = url;
+          setPreviewUrl(url);
+        }
+
+        toast({
+          title: "Upload complete",
+          description: `${f.name} (${formatBytes(f.size)})`,
+          tone: "success",
+        });
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        if (progressTimer.current) clearInterval(progressTimer.current);
+        setUploading(false);
+        setProgress(0);
+        setFile(null);
+        toast({
+          title: "Upload failed",
+          description:
+            err instanceof Error ? err.message : "Could not upload artwork.",
+          tone: "danger",
+        });
+      }
     },
     [clearPreview, toast],
   );
 
-  const canContinue = Boolean(file && !uploading);
+  const canContinue = Boolean(file?.url && !uploading);
 
   const continueCheckout = () => {
-    if (!file || uploading) return;
+    if (!file?.url || uploading) return;
     router.push(
-      `/checkout?product=${product.slug}&file=${encodeURIComponent(file.name)}`,
+      `/checkout?product=${product.slug}&file=${encodeURIComponent(file.url)}`,
     );
   };
 

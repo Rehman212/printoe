@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
@@ -20,13 +19,13 @@ import {
   User,
   X,
 } from "lucide-react";
-import { SITE } from "@/lib/data";
 import { HEADER_NAV_GROUPS } from "@/lib/uprinting-nav";
 import { cn } from "@/lib/utils";
 import { Container } from "@/components/ui/Section";
 import { Logo } from "@/components/shared/Logo";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useCartOptional } from "@/lib/cart-store";
+import { useSiteSettings } from "@/components/settings/SiteSettingsProvider";
 
 const ACCOUNT_LINKS = [
   { href: "/dashboard", label: "Dashboard", icon: User },
@@ -38,7 +37,8 @@ const ACCOUNT_LINKS = [
 
 export function Header({ announcementOnly = false }: { announcementOnly?: boolean }) {
   const router = useRouter();
-  const { user, isAuthenticated, logout } = useAuth();
+  const site = useSiteSettings();
+  const { user, isAdmin, isCustomer, logout } = useAuth();
   const cart = useCartOptional();
   const cartCount = cart?.itemCount ?? 0;
   const [scrolled, setScrolled] = useState(false);
@@ -108,13 +108,13 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
 
             <div className="hidden min-w-0 flex-1 items-center gap-3 md:flex">
               <a
-                href={`tel:${SITE.phone.replace(/[^\d+]/g, "")}`}
+                href={`tel:${site.phone.replace(/[^\d+]/g, "")}`}
                 className="hidden shrink-0 items-start gap-2 lg:flex"
               >
                 <Phone className="mt-0.5 h-4 w-4 text-primary" />
                 <span className="leading-tight">
                   <span className="block text-sm font-bold text-secondary">
-                    {SITE.phone}
+                    {site.phone}
                   </span>
                   <span className="text-xs font-medium text-text-secondary">
                     Quality Customer Service
@@ -143,7 +143,79 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
             </div>
 
             <div className="ml-auto flex items-center gap-1 sm:gap-3">
-              {isAuthenticated && user ? (
+              {isAdmin && user ? (
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setAccountOpen((v) => !v)}
+                    className="flex items-center gap-2 rounded-lg px-1.5 py-1.5 hover:bg-background focus-ring sm:px-2"
+                    aria-label="Admin account"
+                    aria-expanded={accountOpen}
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold text-white shadow-soft">
+                      {initials}
+                    </span>
+                    <span className="hidden leading-tight sm:block">
+                      <span className="block text-xs font-medium text-text-secondary">
+                        Staff
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-sm font-bold text-secondary">
+                        Admin
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </span>
+                    </span>
+                  </button>
+                  {accountOpen ? (
+                    <>
+                      <button
+                        type="button"
+                        className="fixed inset-0 z-[200] cursor-default"
+                        aria-label="Close account menu"
+                        onClick={() => setAccountOpen(false)}
+                      />
+                      <div className="absolute right-0 z-[210] mt-2 w-56 overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+                        <div className="border-b border-border px-4 py-3">
+                          <p className="truncate text-sm font-bold text-text-primary">
+                            {user.name}
+                          </p>
+                          <p className="truncate text-xs text-text-secondary">
+                            {user.email}
+                          </p>
+                          <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-primary">
+                            Admin session
+                          </p>
+                        </div>
+                        <ul className="p-2">
+                          <li>
+                            <Link
+                              href="/admin"
+                              onClick={() => setAccountOpen(false)}
+                              className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-text-secondary transition hover:bg-secondary/5 hover:text-text-primary"
+                            >
+                              <User className="h-4 w-4" />
+                              Admin panel
+                            </Link>
+                          </li>
+                        </ul>
+                        <div className="border-t border-border p-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAccountOpen(false);
+                              logout();
+                              router.push("/");
+                            }}
+                            className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-danger transition hover:bg-danger/5"
+                          >
+                            <LogOut className="h-4 w-4" />
+                            Log out
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+              ) : isCustomer && user ? (
                 <div className="relative">
                   <button
                     type="button"
@@ -172,11 +244,11 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
                     <>
                       <button
                         type="button"
-                        className="fixed inset-0 z-40 cursor-default"
+                        className="fixed inset-0 z-[200] cursor-default"
                         aria-label="Close account menu"
                         onClick={() => setAccountOpen(false)}
                       />
-                      <div className="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+                      <div className="absolute right-0 z-[210] mt-2 w-56 overflow-hidden rounded-2xl border border-border bg-card shadow-card">
                         <div className="border-b border-border px-4 py-3">
                           <p className="truncate text-sm font-bold text-text-primary">
                             {user.name}
@@ -353,10 +425,10 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 4 }}
-              className="absolute left-0 right-0 top-full z-[120] max-h-[80vh] overflow-y-auto border-b border-border bg-card shadow-card"
+              className="absolute left-0 right-0 top-full z-[120] max-h-[80vh] overflow-y-auto border-b border-border bg-[#f7f8fa] shadow-card"
             >
               <Container size="wide">
-                <div className="grid grid-cols-2 gap-x-8 gap-y-7 py-7 md:grid-cols-3 xl:grid-cols-4">
+                <div className="grid grid-cols-2 gap-x-8 gap-y-8 py-7 md:grid-cols-3 xl:grid-cols-4">
                   {activeMega.map((col) => (
                     <div key={col.title}>
                       <Link
@@ -364,13 +436,15 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
                         onClick={() => setNavOpen(null)}
                         className="block"
                       >
-                        <span className="relative block h-[110px] w-full overflow-hidden bg-background">
-                          <Image
+                        <span className="relative block aspect-[4/3] w-full overflow-hidden rounded-md bg-white shadow-sm">
+                          {/* Native img: Next/Image optimizer was serving tiny blurry variants in the mega panel */}
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
                             src={col.image}
                             alt={col.title}
-                            fill
-                            sizes="280px"
-                            className="object-cover"
+                            className="h-full w-full object-cover"
+                            loading="eager"
+                            decoding="async"
                           />
                         </span>
                         <span className="mt-2.5 block text-[15px] font-bold text-secondary">
@@ -390,15 +464,15 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
                                   : "text-text-secondary",
                               )}
                             >
-                              <span className="inline-flex items-center gap-1.5">
+                              <span className="inline-flex flex-wrap items-center gap-1.5">
                                 {link.label}
                                 {link.badge ? (
                                   <span
                                     className={cn(
                                       "rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white",
                                       link.badge === "New"
-                                        ? "bg-primary"
-                                        : "bg-success",
+                                        ? "bg-emerald-500"
+                                        : "bg-emerald-800",
                                     )}
                                   >
                                     {link.badge}
@@ -466,22 +540,67 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
                         >
                           View all
                         </Link>
-                        {group.children.map((child) => (
-                          <Link
-                            key={child.href + child.label}
-                            href={child.href}
-                            className="block rounded-lg px-3 py-2 text-sm font-medium text-secondary hover:bg-background"
-                            onClick={() => setMobileOpen(false)}
-                          >
-                            {child.label}
-                          </Link>
-                        ))}
+                        {group.mega?.length
+                          ? group.mega.flatMap((col) => [
+                              <p
+                                key={`${col.title}-h`}
+                                className="mt-2 px-3 text-xs font-bold uppercase tracking-wide text-text-secondary"
+                              >
+                                {col.title}
+                              </p>,
+                              ...col.links.map((link) => (
+                                <Link
+                                  key={link.href + link.label}
+                                  href={link.href}
+                                  className="block rounded-lg px-3 py-2 text-sm font-medium text-secondary hover:bg-background"
+                                  onClick={() => setMobileOpen(false)}
+                                >
+                                  {link.label}
+                                  {link.badge ? (
+                                    <span className="ml-2 text-[10px] font-bold text-primary">
+                                      {link.badge}
+                                    </span>
+                                  ) : null}
+                                </Link>
+                              )),
+                            ])
+                          : group.children.map((child) => (
+                              <Link
+                                key={child.href + child.label}
+                                href={child.href}
+                                className="block rounded-lg px-3 py-2 text-sm font-medium text-secondary hover:bg-background"
+                                onClick={() => setMobileOpen(false)}
+                              >
+                                {child.label}
+                              </Link>
+                            ))}
                       </div>
                     ) : null}
                   </div>
                 );
               })}
-              {isAuthenticated ? (
+              {isAdmin ? (
+                <>
+                  <Link
+                    href="/admin"
+                    className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-secondary hover:bg-background"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    Admin panel
+                  </Link>
+                  <button
+                    type="button"
+                    className="block w-full rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-danger hover:bg-background"
+                    onClick={() => {
+                      setMobileOpen(false);
+                      logout();
+                      router.push("/");
+                    }}
+                  >
+                    Log out
+                  </button>
+                </>
+              ) : isCustomer ? (
                 <>
                   {ACCOUNT_LINKS.map(({ href, label }) => (
                     <Link

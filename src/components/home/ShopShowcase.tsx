@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Settings } from "lucide-react";
@@ -117,12 +116,14 @@ function ShowcaseRowCarousel({
             >
               <div className="relative overflow-hidden border border-border bg-[#f3f4f6]">
                 <div className="relative aspect-square transition-[filter,transform] duration-300 ease-out group-hover:scale-[1.03] group-hover:blur-[2.5px]">
-                  <Image
+                  {/* Native img avoids Next optimizer serving undersized blurry variants */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
                     src={item.image}
                     alt={item.name}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 50vw, 20vw"
+                    className="absolute inset-0 h-full w-full object-contain p-2"
+                    loading="lazy"
+                    decoding="async"
                   />
                 </div>
                 <div

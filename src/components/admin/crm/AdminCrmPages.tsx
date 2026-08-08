@@ -1,9 +1,10 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Eye, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import {
   crmApi,
+  publicPageUrl,
   type ContentStatus,
   type CrmPage,
 } from "@/lib/crm-api";
@@ -14,6 +15,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { RichTextEditor } from "@/components/ui/RichTextEditor";
 import { useToast } from "@/components/ui/Toast";
 
 type FormState = {
@@ -49,6 +51,18 @@ export function AdminCrmPages() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [slugTouched, setSlugTouched] = useState(false);
+
+  function openPublicView(page: { slug: string; status: ContentStatus }) {
+    if (page.status !== "PUBLISHED") {
+      toast({
+        title: "Not published yet",
+        description: "Set status to Published, save, then View opens the live page.",
+        tone: "warning",
+      });
+      return;
+    }
+    window.open(publicPageUrl(page.slug), "_blank", "noopener,noreferrer");
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -154,7 +168,7 @@ export function AdminCrmPages() {
             CRM · Pages
           </h1>
           <p className="mt-1 text-sm text-text-secondary">
-            Static pages — About, Contact, Policies, etc.
+            Static pages (About, Privacy…) — same WordPress-style editor as Posts.
           </p>
         </div>
         <div className="flex gap-2">
@@ -178,7 +192,7 @@ export function AdminCrmPages() {
             </div>
           ) : items.length === 0 ? (
             <p className="p-8 text-center text-sm text-text-secondary">
-              No pages yet.
+              No pages yet. Add About, Privacy, Terms, etc.
             </p>
           ) : (
             <table className="w-full min-w-[640px] text-left text-sm">
@@ -205,6 +219,15 @@ export function AdminCrmPages() {
                         <Button
                           size="sm"
                           variant="ghost"
+                          title="View on site"
+                          onClick={() => openPublicView(page)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          title="Edit"
                           onClick={() => openEdit(page)}
                         >
                           <Pencil className="h-4 w-4" />
@@ -213,6 +236,7 @@ export function AdminCrmPages() {
                           size="sm"
                           variant="ghost"
                           className="text-danger"
+                          title="Delete"
                           onClick={() => void onDelete(page)}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -230,84 +254,166 @@ export function AdminCrmPages() {
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        title={editing ? "Edit page" : "Add page"}
-        size="lg"
-      >
-        <form onSubmit={onSubmit} className="space-y-4">
-          <Input
-            label="Title"
-            value={form.title}
-            onChange={(e) => {
-              const title = e.target.value;
-              setForm((f) => ({
-                ...f,
-                title,
-                slug: slugTouched ? f.slug : slugifyProductName(title),
-              }));
-            }}
-            required
-          />
-          <Input
-            label="Slug"
-            value={form.slug}
-            onChange={(e) => {
-              setSlugTouched(true);
-              setForm((f) => ({
-                ...f,
-                slug: slugifyProductName(e.target.value) || e.target.value,
-              }));
-            }}
-            required
-          />
-          <Input
-            label="SEO title"
-            value={form.seoTitle}
-            onChange={(e) => setForm((f) => ({ ...f, seoTitle: e.target.value }))}
-          />
-          <Input
-            label="SEO description"
-            value={form.seoDescription}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, seoDescription: e.target.value }))
-            }
-          />
-          <div className="space-y-1.5">
-            <label className="block text-sm font-semibold">Status</label>
-            <select
-              value={form.status}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  status: e.target.value as ContentStatus,
-                }))
-              }
-              className="h-12 w-full rounded-2xl border border-border bg-card px-4 text-sm font-medium focus-ring"
+        title={editing ? "Edit page" : "Add new page"}
+        description="Dark WordPress-style page editor — content + SEO."
+        size="full"
+        variant="dark"
+        footer={
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {editing ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="border-zinc-600 bg-transparent text-zinc-200 hover:bg-zinc-800"
+                onClick={() =>
+                  openPublicView({
+                    slug: form.slug,
+                    status: form.status,
+                  })
+                }
+              >
+                <Eye className="h-4 w-4" />
+                View
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              className="border-zinc-600 bg-transparent text-zinc-200 hover:bg-zinc-800"
+              onClick={() => setOpen(false)}
             >
-              <option value="DRAFT">Draft</option>
-              <option value="PUBLISHED">Published</option>
-              <option value="ARCHIVED">Archived</option>
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <label className="block text-sm font-semibold">Content</label>
-            <textarea
-              value={form.content}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, content: e.target.value }))
-              }
-              rows={8}
-              className="w-full rounded-2xl border border-border bg-card px-4 py-3 text-sm focus-ring"
-              required
-            />
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? "Saving…" : editing ? "Update" : "Create"}
+            <Button type="submit" form="crm-page-form" disabled={saving}>
+              {saving
+                ? "Saving…"
+                : form.status === "PUBLISHED"
+                  ? "Publish page"
+                  : "Save draft"}
             </Button>
           </div>
+        }
+      >
+        <form
+          id="crm-page-form"
+          onSubmit={onSubmit}
+          className="grid gap-6 lg:grid-cols-[1fr_300px]"
+        >
+          <div className="min-w-0 space-y-4 rounded-2xl border border-zinc-800 bg-gradient-to-b from-[#1a1d26] to-[#12151c] p-5 shadow-lg">
+            <input
+              value={form.title}
+              onChange={(e) => {
+                const title = e.target.value;
+                setForm((f) => ({
+                  ...f,
+                  title,
+                  slug: slugTouched ? f.slug : slugifyProductName(title),
+                  seoTitle: f.seoTitle || title,
+                }));
+              }}
+              placeholder="Page title"
+              required
+              className="w-full border-0 bg-transparent text-3xl font-bold text-zinc-50 outline-none placeholder:text-zinc-600 focus:ring-0"
+            />
+            <p className="flex items-center gap-2 text-xs text-zinc-500">
+              <Eye className="h-3.5 w-3.5" />
+              URL:{" "}
+              <code className="rounded bg-zinc-900 px-1.5 py-0.5 text-primary">
+                /pages/{form.slug || "…"}
+              </code>
+            </p>
+            <RichTextEditor
+              variant="full"
+              value={form.content}
+              onChange={(content) => setForm((f) => ({ ...f, content }))}
+              placeholder="Write the page content… headings, lists, images, links."
+              className="border-zinc-700 bg-[#0f1117] shadow-none"
+            />
+          </div>
+
+          <aside className="space-y-3 lg:sticky lg:top-0 lg:self-start">
+            <div className="rounded-xl border border-zinc-800 bg-[#1a1d26] p-4">
+              <h3 className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                Publish
+              </h3>
+              <div className="mt-3 space-y-1.5">
+                <label className="block text-sm font-semibold text-zinc-200">
+                  Status
+                </label>
+                <select
+                  value={form.status}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      status: e.target.value as ContentStatus,
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-zinc-700 bg-[#12151c] px-3 text-sm font-medium text-zinc-100 focus-ring"
+                >
+                  <option value="DRAFT">Draft</option>
+                  <option value="PUBLISHED">Published</option>
+                  <option value="ARCHIVED">Archived</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-zinc-800 bg-[#1a1d26] p-4">
+              <h3 className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                Permalink
+              </h3>
+              <div className="mt-3">
+                <Input
+                  label="Slug"
+                  value={form.slug}
+                  onChange={(e) => {
+                    setSlugTouched(true);
+                    setForm((f) => ({
+                      ...f,
+                      slug: slugifyProductName(e.target.value) || e.target.value,
+                    }));
+                  }}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-zinc-800 bg-[#1a1d26] p-4">
+              <h3 className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                SEO
+              </h3>
+              <div className="mt-3 space-y-3">
+                <Input
+                  label="SEO title"
+                  value={form.seoTitle}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, seoTitle: e.target.value }))
+                  }
+                  placeholder="Title tag for Google"
+                />
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-semibold text-zinc-200">
+                    Meta description
+                  </label>
+                  <textarea
+                    value={form.seoDescription}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        seoDescription: e.target.value,
+                      }))
+                    }
+                    rows={3}
+                    maxLength={160}
+                    className="w-full rounded-xl border border-zinc-700 bg-[#12151c] px-3 py-2 text-sm text-zinc-100 focus-ring"
+                    placeholder="Up to ~160 characters"
+                  />
+                  <p className="text-[11px] text-zinc-500">
+                    {form.seoDescription.length}/160
+                  </p>
+                </div>
+              </div>
+            </div>
+          </aside>
         </form>
       </Modal>
     </div>

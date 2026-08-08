@@ -7,11 +7,13 @@ import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import TextAlign from "@tiptap/extension-text-align";
+import Image from "@tiptap/extension-image";
 import {
   Bold,
   Heading1,
   Heading2,
   Heading3,
+  ImageIcon,
   Italic,
   Link2,
   List,
@@ -25,6 +27,7 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
+  Minus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +36,8 @@ type RichTextEditorProps = {
   onChange: (html: string) => void;
   placeholder?: string;
   className?: string;
+  /** WordPress-style tall editor for posts/pages */
+  variant?: "default" | "full";
 };
 
 function ToolbarButton({
@@ -83,13 +88,22 @@ export function RichTextEditor({
   onChange,
   placeholder = "Write a detailed product description…",
   className,
+  variant = "default",
 }: RichTextEditorProps) {
+  const full = variant === "full";
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
       }),
       Underline,
+      Image.configure({
+        inline: false,
+        allowBase64: true,
+        HTMLAttributes: {
+          class: "max-w-full h-auto rounded-lg my-4",
+        },
+      }),
       Link.configure({
         openOnClick: false,
         HTMLAttributes: { class: "text-primary underline" },
@@ -103,8 +117,16 @@ export function RichTextEditor({
     immediatelyRender: false,
     editorProps: {
       attributes: {
-        class:
-          "min-h-[180px] max-h-[360px] overflow-y-auto px-4 py-3 text-sm font-medium text-text-primary outline-none focus:outline-none prose-sm [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:text-xl [&_h2]:font-bold [&_h3]:text-lg [&_h3]:font-bold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:my-3 [&_blockquote]:border-l-4 [&_blockquote]:border-success [&_blockquote]:bg-[#f3faf6] [&_blockquote]:px-4 [&_blockquote]:py-3 [&_blockquote]:font-bold [&_blockquote]:not-italic",
+        class: cn(
+          "overflow-y-auto px-4 py-3 text-sm font-medium text-text-primary outline-none focus:outline-none prose-sm max-w-none",
+          "[&_h1]:text-2xl [&_h1]:font-bold [&_h2]:text-xl [&_h2]:font-bold [&_h3]:text-lg [&_h3]:font-bold",
+          "[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5",
+          "[&_blockquote]:my-3 [&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:bg-primary/5 [&_blockquote]:px-4 [&_blockquote]:py-3 [&_blockquote]:not-italic",
+          "[&_img]:max-w-full [&_img]:rounded-lg",
+          full
+            ? "min-h-[420px] max-h-[min(70vh,720px)] text-base leading-7"
+            : "min-h-[180px] max-h-[360px]",
+        ),
       },
     },
     onUpdate: ({ editor: ed }) => {
@@ -141,6 +163,12 @@ export function RichTextEditor({
       .run();
   };
 
+  const addImage = () => {
+    const url = window.prompt("Image URL", "https://");
+    if (!url?.trim()) return;
+    editor.chain().focus().setImage({ src: url.trim() }).run();
+  };
+
   return (
     <div
       className={cn(
@@ -148,7 +176,7 @@ export function RichTextEditor({
         className,
       )}
     >
-      <div className="flex flex-wrap items-center gap-0.5 border-b border-border bg-background px-2 py-1.5">
+      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-0.5 border-b border-border bg-background px-2 py-1.5">
         <ToolbarButton
           label="Undo"
           onClick={() => editor.chain().focus().undo().run()}
@@ -249,8 +277,17 @@ export function RichTextEditor({
         >
           <Quote className="h-3.5 w-3.5" />
         </ToolbarButton>
+        <ToolbarButton
+          label="Horizontal rule"
+          onClick={() => editor.chain().focus().setHorizontalRule().run()}
+        >
+          <Minus className="h-3.5 w-3.5" />
+        </ToolbarButton>
         <ToolbarButton label="Link" active={editor.isActive("link")} onClick={setLink}>
           <Link2 className="h-3.5 w-3.5" />
+        </ToolbarButton>
+        <ToolbarButton label="Image" onClick={addImage}>
+          <ImageIcon className="h-3.5 w-3.5" />
         </ToolbarButton>
         <span className="mx-1 h-5 w-px bg-border" />
         <ToolbarButton

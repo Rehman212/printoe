@@ -18,6 +18,7 @@ export type AdminProofRow = {
   customer: string;
   email?: string;
   fileName: string;
+  fileUrl?: string | null;
   status: "awaiting" | "approved" | "changes";
   submitted: string;
 };

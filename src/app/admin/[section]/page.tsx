@@ -1,5 +1,6 @@
 import { AdminProducts } from "@/components/admin/AdminProducts";
 import { AdminSection } from "@/components/admin/AdminSection";
+import { AdminSettings } from "@/components/admin/AdminSettings";
 
 const TITLES: Record<string, string> = {
   products: "Products",
@@ -32,6 +33,9 @@ export default async function AdminSectionPage({
   const { section } = await params;
   if (section === "products") {
     return <AdminProducts />;
+  }
+  if (section === "settings") {
+    return <AdminSettings />;
   }
   return <AdminSection section={section} />;
 }

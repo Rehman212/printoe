@@ -10,12 +10,13 @@ import {
   Phone,
   Share2,
 } from "lucide-react";
-import { SITE, categories } from "@/lib/data";
+import { categories } from "@/lib/data";
 import { Container } from "@/components/ui/Section";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { Logo } from "@/components/shared/Logo";
+import { useSiteSettings } from "@/components/settings/SiteSettingsProvider";
 
 const columns = [
   {
@@ -69,6 +70,15 @@ const columns = [
 
 export function Footer() {
   const { toast } = useToast();
+  const site = useSiteSettings();
+  const socialLinks = [
+    { href: site.social.instagram, Icon: Share2, label: "Instagram" },
+    { href: site.social.facebook, Icon: Globe, label: "Facebook" },
+    { href: site.social.linkedin, Icon: LinkIcon, label: "LinkedIn" },
+    { href: site.social.twitter, Icon: AtSign, label: "X / Twitter" },
+    { href: site.social.youtube, Icon: AtSign, label: "YouTube" },
+  ].filter((l) => Boolean(l.href));
+
   return (
     <footer className="relative mt-auto overflow-hidden border-t border-border bg-secondary text-white">
       <div className="pointer-events-none absolute inset-0 opacity-40">
@@ -84,29 +94,47 @@ export function Footer() {
               <Logo />
             </div>
             <p className="max-w-sm text-sm font-medium leading-relaxed text-slate-300">
-              {SITE.description}
+              {site.description}
             </p>
             <div className="space-y-3 text-sm font-medium text-slate-300">
               <p className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-accent" />
-                {SITE.email}
+                {site.email}
               </p>
               <p className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-accent" />
-                {SITE.phone}
+                {site.phone}
               </p>
               <p className="flex items-start gap-2">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-                {SITE.address}
+                {site.address}
               </p>
+              {site.businessHours ? (
+                <p className="flex items-center gap-2 text-slate-400">
+                  <span className="inline-block h-4 w-4 shrink-0 text-center text-[10px] font-bold text-accent">
+                    ⏱
+                  </span>
+                  {site.businessHours}
+                </p>
+              ) : null}
             </div>
             <div className="flex gap-2">
-              {[Share2, Globe, LinkIcon, AtSign].map((Icon, i) => (
+              {(socialLinks.length
+                ? socialLinks
+                : [
+                    { href: "#", Icon: Share2, label: "Social" },
+                    { href: "#", Icon: Globe, label: "Web" },
+                    { href: "#", Icon: LinkIcon, label: "Link" },
+                    { href: "#", Icon: AtSign, label: "Contact" },
+                  ]
+              ).map(({ href, Icon, label }, i) => (
                 <a
-                  key={i}
-                  href="#"
+                  key={`${label}-${i}`}
+                  href={href || "#"}
+                  target={href && href !== "#" ? "_blank" : undefined}
+                  rel={href && href !== "#" ? "noopener noreferrer" : undefined}
                   className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10 hover:text-white focus-ring"
-                  aria-label="Social link"
+                  aria-label={label}
                 >
                   <Icon className="h-4 w-4" />
                 </a>
@@ -172,7 +200,7 @@ export function Footer() {
 
         <div className="mt-10 flex flex-col gap-6 border-t border-white/10 pt-8 md:flex-row md:items-center md:justify-between">
           <p className="text-xs font-medium text-slate-400">
-            © {new Date().getFullYear()} {SITE.name}. All rights reserved.
+            © {new Date().getFullYear()} {site.name}. All rights reserved.
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <span className="rounded-lg border border-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-300">

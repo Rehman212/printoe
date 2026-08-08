@@ -19,9 +19,9 @@ import {
   Tags,
   Users,
 } from "lucide-react";
-import { SITE } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useSiteSettings } from "@/components/settings/SiteSettingsProvider";
 
 const NAV = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
@@ -44,6 +44,7 @@ export function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { logout, user } = useAuth();
+  const site = useSiteSettings();
   const crmActive = pathname?.startsWith("/admin/crm");
   const [crmOpen, setCrmOpen] = useState(Boolean(crmActive));
 
@@ -57,7 +58,7 @@ export function AdminSidebar() {
         <p className="text-xs font-semibold uppercase tracking-wider text-white/50">
           Admin
         </p>
-        <p className="mt-1 text-sm font-bold">{SITE.name} Control</p>
+        <p className="mt-1 text-sm font-bold">{site.name} Control</p>
         {user?.email ? (
           <p className="mt-1 truncate text-xs text-white/50">{user.email}</p>
         ) : null}

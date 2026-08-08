@@ -19,6 +19,7 @@ import { useCart } from "@/lib/cart-store";
 import { fetchProductBySlug } from "@/lib/products-api";
 import { placeCheckout } from "@/lib/orders-api";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useSiteSettings } from "@/components/settings/SiteSettingsProvider";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { CartItem } from "@/types";
 import {
@@ -73,6 +74,8 @@ export function CheckoutFlow() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  const site = useSiteSettings();
+  const money = (amount: number) => formatCurrency(amount, site.currency);
   const { items: cartItems, loading: cartLoading, clearCart, refresh } =
     useCart();
   const [step, setStep] = useState(0);
@@ -172,6 +175,23 @@ export function CheckoutFlow() {
       toast({
         title: "Cart empty",
         description: "Add a product before placing an order.",
+        tone: "warning",
+      });
+      return;
+    }
+    if (site.minOrderAmount > 0 && total < site.minOrderAmount) {
+      toast({
+        title: "Minimum order not met",
+        description: `Orders must be at least ${money(site.minOrderAmount)}.`,
+        tone: "warning",
+      });
+      return;
+    }
+    if (site.requireProof && !artworkFile) {
+      toast({
+        title: "Artwork proof required",
+        description:
+          "Upload a PDF proof from the product customizer before checkout.",
         tone: "warning",
       });
       return;
@@ -395,7 +415,7 @@ export function CheckoutFlow() {
                           </p>
                         </div>
                         <span className="text-sm font-bold text-text-primary">
-                          {formatCurrency(method.price)}
+                          {money(method.price)}
                         </span>
                       </button>
                     ))}
@@ -514,7 +534,7 @@ export function CheckoutFlow() {
                           </p>
                         </div>
                         <span className="font-bold text-text-primary">
-                          {formatCurrency(item.unitPrice * item.quantity)}
+                          {money(item.unitPrice * item.quantity)}
                         </span>
                       </div>
                     ))}
@@ -528,7 +548,7 @@ export function CheckoutFlow() {
                       <Lock className="h-4 w-4" />
                       {placing
                         ? "Placing order…"
-                        : `Place order · ${formatCurrency(total)}`}
+                        : `Place order · ${money(total)}`}
                     </Button>
                   </div>
                 </CardContent>
@@ -549,7 +569,7 @@ export function CheckoutFlow() {
                     >
                       <span className="text-text-secondary">{item.name}</span>
                       <span className="text-text-primary">
-                        {formatCurrency(item.unitPrice * item.quantity)}
+                        {money(item.unitPrice * item.quantity)}
                       </span>
                     </div>
                   ))}
@@ -558,7 +578,7 @@ export function CheckoutFlow() {
                 <div className="space-y-2 border-t border-border pt-4 text-sm font-semibold">
                   <div className="flex justify-between text-text-secondary">
                     <span>Subtotal</span>
-                    <span>{formatCurrency(subtotal)}</span>
+                    <span>{money(subtotal)}</span>
                   </div>
                   {appliedCoupon ? (
                     <div className="flex justify-between text-success">
@@ -566,22 +586,42 @@ export function CheckoutFlow() {
                         <Tag className="h-3.5 w-3.5" />
                         {appliedCoupon}
                       </span>
-                      <span>-{formatCurrency(discount)}</span>
+                      <span>-{money(discount)}</span>
                     </div>
                   ) : null}
                   <div className="flex justify-between text-text-secondary">
                     <span>Shipping</span>
-                    <span>{formatCurrency(shippingCost)}</span>
+                    <span>{money(shippingCost)}</span>
                   </div>
                   <div className="flex justify-between text-text-secondary">
                     <span>Tax (8.25%)</span>
-                    <span>{formatCurrency(tax)}</span>
+                    <span>{money(tax)}</span>
                   </div>
                   <div className="flex justify-between border-t border-border pt-3 text-base font-bold text-text-primary">
                     <span>Total</span>
-                    <span>{formatCurrency(total)}</span>
+                    <span>{money(total)}</span>
                   </div>
                 </div>
+
+                {site.taxNote ||
+                site.shippingNote ||
+                site.minOrderAmount > 0 ||
+                site.requireProof ? (
+                  <div className="space-y-1.5 rounded-xl border border-border bg-background px-3 py-3 text-xs text-text-secondary">
+                    {site.shippingNote ? <p>{site.shippingNote}</p> : null}
+                    {site.taxNote ? <p>{site.taxNote}</p> : null}
+                    {site.minOrderAmount > 0 ? (
+                      <p>Minimum order: {money(site.minOrderAmount)}</p>
+                    ) : null}
+                    {site.requireProof ? (
+                      <p>
+                        {artworkFile
+                          ? `Proof attached: ${artworkFile}`
+                          : "Artwork PDF proof is required for this order."}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
 
                 <div className="flex gap-2">
                   <Input

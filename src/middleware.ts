@@ -10,23 +10,37 @@ export function middleware(request: NextRequest) {
 
   const isDashboard =
     pathname === "/dashboard" || pathname.startsWith("/dashboard/");
-  const isCheckout =
-    pathname === "/checkout" || pathname.startsWith("/checkout/");
   const isAdmin = pathname === "/admin" || pathname.startsWith("/admin/");
 
-  if (!isDashboard && !isCheckout && !isAdmin) {
+  if (!isDashboard && !isAdmin) {
     return NextResponse.next();
   }
 
   const hasAuthCookie = request.cookies.get("printoe_auth")?.value === "1";
-  if (hasAuthCookie) return NextResponse.next();
+  const role = decodeURIComponent(
+    request.cookies.get("printoe_role")?.value ?? "",
+  );
 
-  const loginPath = isAdmin ? "/admin/login" : "/login";
-  const loginUrl = new URL(loginPath, request.url);
-  loginUrl.searchParams.set("next", pathname);
-  return NextResponse.redirect(loginUrl);
+  if (!hasAuthCookie) {
+    const loginPath = isAdmin ? "/admin/login" : "/login";
+    const loginUrl = new URL(loginPath, request.url);
+    loginUrl.searchParams.set("next", pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // Admin session must not use customer dashboard
+  if (isDashboard && role === "ADMIN") {
+    return NextResponse.redirect(new URL("/admin", request.url));
+  }
+
+  // Customer session must not open admin panel
+  if (isAdmin && role && role !== "ADMIN") {
+    return NextResponse.redirect(new URL("/admin/login", request.url));
+  }
+
+  return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/checkout/:path*", "/admin/:path*"],
+  matcher: ["/dashboard/:path*", "/admin/:path*"],
 };

@@ -13,10 +13,11 @@ import {
   Sparkles,
   ArrowRight,
 } from "lucide-react";
-import { services, SITE } from "@/lib/data";
+import { services } from "@/lib/data";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Container, Section, SectionHeader } from "@/components/ui/Section";
+import { useSiteSettings } from "@/components/settings/SiteSettingsProvider";
 
 const ICONS: Record<string, React.ReactNode> = {
   Palette: <Palette className="h-6 w-6" />,
@@ -30,6 +31,7 @@ const ICONS: Record<string, React.ReactNode> = {
 };
 
 export function ServicesPage() {
+  const site = useSiteSettings();
   return (
     <>
       <Section className="gradient-hero pb-16 pt-16 md:pb-24 md:pt-20">
@@ -42,7 +44,7 @@ export function ServicesPage() {
               Design & production, unified
             </h1>
             <p className="mt-5 text-lg font-medium leading-relaxed text-text-secondary">
-              {SITE.name} pairs award-winning creative with color-managed print production — so
+              {site.name} pairs award-winning creative with color-managed print production — so
               your brand looks flawless from screen to substrate.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">

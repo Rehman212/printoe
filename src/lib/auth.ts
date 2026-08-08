@@ -63,12 +63,14 @@ export function setAuthSession(token: string, user: AuthUser) {
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
   document.cookie = `printoe_auth=1; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+  document.cookie = `printoe_role=${encodeURIComponent(user.role)}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
 }
 
 export function clearAuthSession() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
   document.cookie = "printoe_auth=; path=/; max-age=0; SameSite=Lax";
+  document.cookie = "printoe_role=; path=/; max-age=0; SameSite=Lax";
 }
 
 export function isAuthenticated(): boolean {

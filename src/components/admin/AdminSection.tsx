@@ -26,10 +26,13 @@ import {
   type OrderStatus,
 } from "@/lib/orders-api";
 import { cn, formatCurrency } from "@/lib/utils";
+import {
+  artworkDisplayName,
+  resolvePublicArtworkUrl,
+} from "@/lib/artwork-url";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
-import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { EmptyState } from "@/components/ui/Misc";
 import { useToast } from "@/components/ui/Toast";
@@ -42,35 +45,6 @@ const ORDER_STATUSES: OrderStatus[] = [
   "delivered",
   "cancelled",
 ];
-
-const SETTINGS_KEY = "printoe_admin_settings";
-
-type StoreSettings = {
-  storeName: string;
-  supportEmail: string;
-  supportPhone: string;
-  emailOnOrders: boolean;
-  requireProof: boolean;
-};
-
-const defaultSettings: StoreSettings = {
-  storeName: "Printoe",
-  supportEmail: "hello@printoe.com",
-  supportPhone: "+1 (888) 555-0199",
-  emailOnOrders: true,
-  requireProof: true,
-};
-
-function loadSettings(): StoreSettings {
-  if (typeof window === "undefined") return defaultSettings;
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return defaultSettings;
-    return { ...defaultSettings, ...(JSON.parse(raw) as StoreSettings) };
-  } catch {
-    return defaultSettings;
-  }
-}
 
 export function AdminSection({ section }: { section: string }) {
   const { toast } = useToast();
@@ -92,8 +66,7 @@ export function AdminSection({ section }: { section: string }) {
   const [proofs, setProofs] = useState<AdminProofRow[]>([]);
   const [proofsLoading, setProofsLoading] = useState(false);
   const [proofsError, setProofsError] = useState<string | null>(null);
-
-  const [settings, setSettings] = useState<StoreSettings>(defaultSettings);
+  const [proofView, setProofView] = useState<AdminProofRow | null>(null);
 
   const loadOrders = useCallback(async () => {
     setOrdersLoading(true);
@@ -164,7 +137,6 @@ export function AdminSection({ section }: { section: string }) {
     if (section === "customers") void loadCustomers();
     if (section === "quotes") void loadQuotes();
     if (section === "proofs") void loadProofs();
-    if (section === "settings") setSettings(loadSettings());
   }, [section, loadOrders, loadCustomers, loadQuotes, loadProofs]);
 
   const title = useMemo(() => {
@@ -189,10 +161,6 @@ export function AdminSection({ section }: { section: string }) {
         title: "Categories",
         description:
           "Add, edit, or remove storefront sections (Popular Products + catalog).",
-      },
-      settings: {
-        title: "Settings",
-        description: "Store branding, notifications, and admin preferences.",
       },
     };
     return map[section];
@@ -315,15 +283,6 @@ export function AdminSection({ section }: { section: string }) {
         tone: "danger",
       });
     }
-  }
-
-  function saveSettings() {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-    toast({
-      title: "Settings saved",
-      description: "Store preferences updated on this device.",
-      tone: "success",
-    });
   }
 
   const refreshForSection =
@@ -545,13 +504,42 @@ export function AdminSection({ section }: { section: string }) {
             </div>
 
             {viewDetail.artworkFile ? (
-              <div className="rounded-xl border border-border bg-background px-4 py-3 text-sm">
-                <span className="font-semibold text-text-primary">
-                  Artwork file:{" "}
-                </span>
-                <span className="text-text-secondary">
-                  {viewDetail.artworkFile}
-                </span>
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background px-4 py-3 text-sm">
+                <div>
+                  <span className="font-semibold text-text-primary">
+                    Artwork file:{" "}
+                  </span>
+                  <span className="text-text-secondary">
+                    {artworkDisplayName(viewDetail.artworkFile)}
+                  </span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  type="button"
+                  onClick={() => {
+                    const url = resolvePublicArtworkUrl(viewDetail.artworkFile);
+                    setProofView({
+                      id: viewDetail.id,
+                      proofId: `PRF-${viewDetail.orderNumber.replace(/\D/g, "").slice(-4) || viewDetail.id.slice(-4)}`,
+                      orderId: viewDetail.orderNumber,
+                      customer:
+                        viewDetail.shippingName ||
+                        viewDetail.customer?.name ||
+                        "Customer",
+                      email:
+                        viewDetail.shippingEmail ||
+                        viewDetail.customer?.email,
+                      fileName: artworkDisplayName(viewDetail.artworkFile),
+                      fileUrl: url,
+                      status: "awaiting",
+                      submitted: viewDetail.createdAt.slice(0, 10),
+                    });
+                  }}
+                >
+                  <Eye className="h-4 w-4" />
+                  View artwork
+                </Button>
               </div>
             ) : null}
 
@@ -851,6 +839,14 @@ export function AdminSection({ section }: { section: string }) {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setProofView(p)}
+                    >
+                      <Eye className="h-4 w-4" />
+                      View
+                    </Button>
                     {p.status !== "approved" ? (
                       <Button
                         size="sm"
@@ -890,68 +886,163 @@ export function AdminSection({ section }: { section: string }) {
 
       {section === "categories" && <AdminCategories />}
 
-      {section === "settings" && (
-        <Card>
-          <CardHeader>
-            <p className="text-sm font-bold text-text-primary">Store settings</p>
-          </CardHeader>
-          <CardContent className="space-y-4 pt-0">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input
-                label="Store name"
-                value={settings.storeName}
-                onChange={(e) =>
-                  setSettings((s) => ({ ...s, storeName: e.target.value }))
-                }
-              />
-              <Input
-                label="Support email"
-                value={settings.supportEmail}
-                onChange={(e) =>
-                  setSettings((s) => ({ ...s, supportEmail: e.target.value }))
-                }
-              />
-              <Input
-                label="Support phone"
-                value={settings.supportPhone}
-                onChange={(e) =>
-                  setSettings((s) => ({ ...s, supportPhone: e.target.value }))
-                }
-                className="sm:col-span-2"
-              />
+      <Modal
+        open={Boolean(proofView)}
+        onClose={() => setProofView(null)}
+        title={proofView ? `Artwork · ${proofView.proofId}` : "Artwork proof"}
+        description={
+          proofView
+            ? `${proofView.orderId} · ${proofView.customer} · Submitted ${proofView.submitted}`
+            : undefined
+        }
+        size="xl"
+        footer={
+          proofView ? (
+            <div className="flex flex-wrap justify-end gap-2">
+              {proofView.status !== "approved" ? (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    void setProofStatus(proofView, "approved");
+                    setProofView(null);
+                  }}
+                >
+                  Approve
+                </Button>
+              ) : null}
+              {proofView.status !== "changes" ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    void setProofStatus(proofView, "changes");
+                    setProofView(null);
+                  }}
+                >
+                  Request changes
+                </Button>
+              ) : null}
+              <Button size="sm" variant="ghost" onClick={() => setProofView(null)}>
+                Close
+              </Button>
             </div>
-            <label className="flex items-center gap-2 text-sm font-semibold">
-              <input
-                type="checkbox"
-                checked={settings.emailOnOrders}
-                onChange={(e) =>
-                  setSettings((s) => ({
-                    ...s,
-                    emailOnOrders: e.target.checked,
-                  }))
-                }
-                className="h-4 w-4 accent-[var(--primary)]"
-              />
-              Email admin on new orders
-            </label>
-            <label className="flex items-center gap-2 text-sm font-semibold">
-              <input
-                type="checkbox"
-                checked={settings.requireProof}
-                onChange={(e) =>
-                  setSettings((s) => ({
-                    ...s,
-                    requireProof: e.target.checked,
-                  }))
-                }
-                className="h-4 w-4 accent-[var(--primary)]"
-              />
-              Require PDF proof for custom artwork
-            </label>
-            <Button onClick={saveSettings}>Save settings</Button>
-          </CardContent>
-        </Card>
-      )}
+          ) : null
+        }
+      >
+        {proofView ? (
+          <ProofPreview proof={proofView} />
+        ) : null}
+      </Modal>
+    </div>
+  );
+}
+
+function isImageUrl(url: string) {
+  return (
+    /\.(png|jpe?g|gif|webp|svg|bmp)(\?|$)/i.test(url) ||
+    /\/api\/files\/artwork\//i.test(url)
+  );
+}
+
+function isPdfUrl(url: string) {
+  return /\.pdf(\?|$)/i.test(url);
+}
+
+function ProofPreview({ proof }: { proof: AdminProofRow }) {
+  const url = resolvePublicArtworkUrl(proof.fileUrl) || proof.fileUrl?.trim() || "";
+  const [broken, setBroken] = useState(false);
+  const [loading, setLoading] = useState(Boolean(url));
+
+  useEffect(() => {
+    setBroken(false);
+    setLoading(Boolean(url));
+  }, [url, proof.id]);
+
+  if (!url || broken) {
+    return (
+      <div className="space-y-3 py-2">
+        <div className="rounded-2xl border border-dashed border-border bg-background px-6 py-12 text-center">
+          <ClipboardCheck className="mx-auto h-10 w-10 text-primary/70" />
+          <p className="mt-3 text-sm font-semibold text-text-primary">
+            {proof.fileName}
+          </p>
+          <p className="mt-1 text-xs text-text-secondary">
+            {broken
+              ? "Preview could not be loaded for this file."
+              : "No artwork file is stored for this proof yet. Re-upload from the product upload step to enable preview."}
+          </p>
+        </div>
+        <dl className="grid gap-2 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
+              Order
+            </dt>
+            <dd className="font-medium text-text-primary">{proof.orderId}</dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
+              Customer
+            </dt>
+            <dd className="font-medium text-text-primary">{proof.customer}</dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
+              Status
+            </dt>
+            <dd className="font-medium capitalize text-text-primary">
+              {proof.status}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
+              Submitted
+            </dt>
+            <dd className="font-medium text-text-primary">{proof.submitted}</dd>
+          </div>
+        </dl>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div
+        className="relative min-h-[280px] overflow-hidden rounded-2xl border border-border"
+        style={{
+          backgroundImage:
+            "linear-gradient(45deg,#e5e7eb 25%,transparent 25%),linear-gradient(-45deg,#e5e7eb 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e5e7eb 75%),linear-gradient(-45deg,transparent 75%,#e5e7eb 75%)",
+          backgroundSize: "20px 20px",
+          backgroundPosition: "0 0,0 10px,10px -10px,-10px 0",
+          backgroundColor: "#f8fafc",
+        }}
+      >
+        {loading ? (
+          <div className="absolute inset-0 flex items-center justify-center text-sm text-text-secondary">
+            Loading artwork…
+          </div>
+        ) : null}
+        {isPdfUrl(url) ? (
+          <iframe
+            title={proof.fileName}
+            src={url}
+            className="h-[60vh] w-full bg-white"
+            onLoad={() => setLoading(false)}
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={`${url}${url.includes("?") ? "&" : "?"}v=${encodeURIComponent(proof.id)}`}
+            alt={proof.fileName}
+            className="relative z-[1] mx-auto max-h-[60vh] w-full object-contain"
+            onLoad={() => setLoading(false)}
+            onError={() => {
+              setLoading(false);
+              setBroken(true);
+            }}
+          />
+        )}
+      </div>
+      <p className="truncate text-xs text-text-secondary">{proof.fileName}</p>
     </div>
   );
 }

@@ -1,8 +1,10 @@
+﻿"use client";
+
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { CheckCircle2, ShieldCheck, Truck, Zap } from "lucide-react";
 import { Logo } from "@/components/shared/Logo";
-import { SITE } from "@/lib/data";
+import { useSiteSettings } from "@/components/settings/SiteSettingsProvider";
 
 const perks = [
   { icon: Zap, text: "Instant quotes & live pricing" },
@@ -21,9 +23,10 @@ export function AuthShell({
   subtitle: string;
   footer: ReactNode;
 }) {
+  const site = useSiteSettings();
+
   return (
     <div className="grid min-h-[100dvh] lg:grid-cols-2">
-      {/* Brand panel */}
       <aside className="relative hidden overflow-hidden bg-secondary lg:flex lg:flex-col">
         <div
           className="pointer-events-none absolute inset-0"
@@ -41,14 +44,13 @@ export function AuthShell({
           <div className="max-w-md space-y-8">
             <div className="space-y-4">
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">
-                {SITE.tagline}
+                {site.tagline}
               </p>
               <h2 className="text-4xl font-bold leading-tight tracking-tight text-white xl:text-5xl">
                 Print that looks as good as it sells.
               </h2>
               <p className="text-base font-medium leading-relaxed text-slate-300">
-                Join thousands of brands managing business cards, packaging,
-                banners, and campaigns in one place.
+                {site.description}
               </p>
             </div>
 
@@ -73,7 +75,6 @@ export function AuthShell({
         </div>
       </aside>
 
-      {/* Form panel */}
       <div className="flex flex-col bg-background">
         <div className="flex items-center justify-between border-b border-border bg-card px-5 py-4 lg:hidden">
           <Logo />
@@ -101,7 +102,7 @@ export function AuthShell({
 
             <p className="mt-6 text-center text-xs font-medium text-text-secondary/80">
               <Link href="/" className="hidden text-primary hover:underline lg:inline">
-                ← Back to Printoe
+                {"← Back to "}{site.name}
               </Link>
             </p>
           </div>

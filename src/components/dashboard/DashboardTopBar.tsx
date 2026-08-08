@@ -18,7 +18,7 @@ import {
 import { useAuth } from "@/components/auth/AuthProvider";
 import { DASHBOARD_NAV } from "@/components/dashboard/DashboardSidebar";
 import { cn } from "@/lib/utils";
-import { SITE } from "@/lib/data";
+import { useSiteSettings } from "@/components/settings/SiteSettingsProvider";
 
 const NOTIFICATIONS = [
   { id: "n1", text: "Order ORD-10482 is now printing", time: "2h ago", unread: true },
@@ -29,6 +29,7 @@ const NOTIFICATIONS = [
 export function DashboardTopBar() {
   const router = useRouter();
   const { user, logout } = useAuth();
+  const site = useSiteSettings();
   const pathname = usePathname();
   const [query, setQuery] = useState("");
   const [notifOpen, setNotifOpen] = useState(false);
@@ -232,7 +233,7 @@ export function DashboardTopBar() {
                 <p className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
                   Customer
                 </p>
-                <p className="text-sm font-bold text-text-primary">{SITE.name} Account</p>
+                <p className="text-sm font-bold text-text-primary">{site.name} Account</p>
               </div>
               <button
                 type="button"

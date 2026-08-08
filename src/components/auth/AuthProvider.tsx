@@ -26,6 +26,7 @@ type AuthContextValue = {
   loading: boolean;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isCustomer: boolean;
   login: (email: string, password: string) => Promise<AuthUser>;
   adminLogin: (email: string, password: string) => Promise<AuthUser>;
   signup: (payload: {
@@ -120,6 +121,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       isAuthenticated: Boolean(user && getAccessToken()),
       isAdmin: user?.role === "ADMIN",
+      /** Storefront shopper session — admins are staff, not customers. */
+      isCustomer: Boolean(
+        user && getAccessToken() && user.role !== "ADMIN",
+      ),
       login,
       adminLogin,
       signup,

@@ -39,6 +39,7 @@ export type CrmPage = {
   seoDescription?: string | null;
   status: ContentStatus;
   updatedAt?: string;
+  createdAt?: string;
 };
 
 async function apiSend<T>(
@@ -125,3 +126,32 @@ export const crmApi = {
   deletePage: (id: string) =>
     apiSend<{ success: boolean }>(`/admin/crm/pages/${id}`, "DELETE"),
 };
+
+/** Public (no auth) — published content only */
+export async function fetchPublicPost(slug: string): Promise<CrmPost> {
+  const base = getApiBaseUrl();
+  const res = await fetch(`${base}/crm/posts/${encodeURIComponent(slug)}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error("Post not found");
+  const json = (await res.json()) as { data: CrmPost };
+  return json.data;
+}
+
+export async function fetchPublicPage(slug: string): Promise<CrmPage> {
+  const base = getApiBaseUrl();
+  const res = await fetch(`${base}/crm/pages/${encodeURIComponent(slug)}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error("Page not found");
+  const json = (await res.json()) as { data: CrmPage };
+  return json.data;
+}
+
+export function publicPostUrl(slug: string) {
+  return `/blog/${slug}`;
+}
+
+export function publicPageUrl(slug: string) {
+  return `/pages/${slug}`;
+}

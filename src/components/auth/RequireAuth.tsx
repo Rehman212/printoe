@@ -70,5 +70,13 @@ export function RequireAuth({
     );
   }
 
+  if (role === "CUSTOMER" && user?.role === "ADMIN") {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center text-sm font-medium text-text-secondary">
+        Redirecting to admin…
+      </div>
+    );
+  }
+
   return <>{children}</>;
 }

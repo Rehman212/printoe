@@ -38,8 +38,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${plusJakarta.variable} h-full antialiased`}>
-      <body className="min-h-full font-sans antialiased">
+    <html lang="en" className={`${plusJakarta.variable} h-full antialiased`} suppressHydrationWarning>
+      <body className="min-h-full font-sans antialiased" suppressHydrationWarning>
         <SiteShell>{children}</SiteShell>
       </body>
     </html>

@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { Mail, Sparkles } from "lucide-react";
-import { SITE } from "@/lib/data";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Container, Section } from "@/components/ui/Section";
+import { useSiteSettings } from "@/components/settings/SiteSettingsProvider";
 
 export function NewsletterSection() {
+  const site = useSiteSettings();
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
@@ -36,7 +37,7 @@ export function NewsletterSection() {
               Stay in the loop
             </span>
             <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
-              Get print tips from the {SITE.name} studio
+              Get print tips from the {site.name} studio
             </h2>
             <p className="text-base font-medium leading-relaxed text-white/85">
               Monthly insights on paper stocks, campaign scaling, and production
