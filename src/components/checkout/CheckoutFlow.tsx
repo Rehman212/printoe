@@ -8,12 +8,14 @@ import {
   Building2,
   CheckCircle2,
   CreditCard,
+  FileUp,
   Lock,
   MapPin,
   Package,
   Tag,
   Truck,
   Wallet,
+  X,
 } from "lucide-react";
 import { useCart } from "@/lib/cart-store";
 import { fetchProductBySlug } from "@/lib/products-api";
@@ -101,7 +103,19 @@ export function CheckoutFlow() {
   });
 
   const productSlug = searchParams.get("product");
-  const artworkFile = searchParams.get("file");
+  const queryArtwork = searchParams.get("file");
+  const [artworkUrl, setArtworkUrl] = useState<string | null>(queryArtwork);
+  const [artworkName, setArtworkName] = useState<string | null>(
+    queryArtwork ? queryArtwork.split("/").pop() || "Attached proof" : null,
+  );
+  const [uploadingProof, setUploadingProof] = useState(false);
+
+  useEffect(() => {
+    if (queryArtwork) {
+      setArtworkUrl(queryArtwork);
+      setArtworkName(queryArtwork.split("/").pop() || "Attached proof");
+    }
+  }, [queryArtwork]);
 
   useEffect(() => {
     if (user?.email || user?.name) {
@@ -170,6 +184,57 @@ export function CheckoutFlow() {
     }
   };
 
+  const uploadArtworkProof = async (file: File) => {
+    setUploadingProof(true);
+    try {
+      const apiBase =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+      const attempts = [`${apiBase}/files/artwork`, "/api/artwork-uploads"];
+      let lastError = "Upload failed";
+
+      for (const endpoint of attempts) {
+        try {
+          const body = new FormData();
+          body.append("file", file);
+          const res = await fetch(endpoint, { method: "POST", body });
+          if (!res.ok) {
+            let message = `Upload failed (${res.status})`;
+            try {
+              const err = (await res.json()) as { message?: string };
+              if (err.message) message = err.message;
+            } catch {
+              /* ignore */
+            }
+            lastError = message;
+            continue;
+          }
+          const json = (await res.json()) as {
+            data: { url: string; filename: string };
+          };
+          setArtworkUrl(json.data.url);
+          setArtworkName(json.data.filename || file.name);
+          toast({
+            title: "Artwork uploaded",
+            description: "Proof attached to this order.",
+            tone: "success",
+          });
+          return;
+        } catch (err) {
+          lastError =
+            err instanceof Error ? err.message : "Could not upload artwork.";
+        }
+      }
+
+      toast({
+        title: "Upload failed",
+        description: lastError,
+        tone: "danger",
+      });
+    } finally {
+      setUploadingProof(false);
+    }
+  };
+
   const placeOrder = async () => {
     if (!lineItems.length) {
       toast({
@@ -187,11 +252,10 @@ export function CheckoutFlow() {
       });
       return;
     }
-    if (site.requireProof && !artworkFile) {
+    if (site.requireProof && !artworkUrl) {
       toast({
         title: "Artwork proof required",
-        description:
-          "Upload a PDF proof from the product customizer before checkout.",
+        description: "Upload your artwork PDF or image below before placing the order.",
         tone: "warning",
       });
       return;
@@ -223,7 +287,7 @@ export function CheckoutFlow() {
         shippingZip: form.zip,
         shippingMethod,
         paymentMethod,
-        artworkFile: artworkFile || undefined,
+        artworkFile: artworkUrl || undefined,
         clearCart: cartItems.length > 0,
       });
       setOrderNumber(res.data.orderId);
@@ -540,6 +604,75 @@ export function CheckoutFlow() {
                     ))}
                   </div>
 
+                  {site.requireProof ? (
+                    <div className="space-y-3 rounded-2xl border border-border bg-background p-4">
+                      <div className="flex items-start gap-2">
+                        <FileUp className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                        <div>
+                          <p className="text-sm font-bold text-text-primary">
+                            Artwork proof
+                          </p>
+                          <p className="mt-0.5 text-xs font-medium text-text-secondary">
+                            Upload a PDF or image of your print-ready artwork before
+                            placing the order.
+                          </p>
+                        </div>
+                      </div>
+
+                      {artworkUrl ? (
+                        <div className="flex items-center justify-between gap-3 rounded-xl border border-success/30 bg-success/5 px-3 py-2.5">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-text-primary">
+                              {artworkName || "Proof attached"}
+                            </p>
+                            <a
+                              href={artworkUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs font-medium text-primary hover:underline"
+                            >
+                              View file
+                            </a>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setArtworkUrl(null);
+                              setArtworkName(null);
+                            }}
+                            className="rounded-lg p-1.5 text-text-secondary hover:bg-white hover:text-text-primary"
+                            aria-label="Remove artwork"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card px-4 py-6 text-center transition hover:border-primary/40 hover:bg-primary/5">
+                          <FileUp className="h-6 w-6 text-primary" />
+                          <span className="text-sm font-semibold text-text-primary">
+                            {uploadingProof
+                              ? "Uploading…"
+                              : "Choose PDF or image"}
+                          </span>
+                          <span className="text-xs text-text-secondary">
+                            JPEG, PNG, WebP, PDF · max 40MB
+                          </span>
+                          <input
+                            type="file"
+                            accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.svg,.tif,.tiff,application/pdf,image/*"
+                            className="sr-only"
+                            disabled={uploadingProof}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              e.target.value = "";
+                              if (file) void uploadArtworkProof(file);
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  ) : null}
+
                   <div className="flex gap-3">
                     <Button variant="outline" onClick={() => setStep(1)}>
                       Back
@@ -615,9 +748,9 @@ export function CheckoutFlow() {
                     ) : null}
                     {site.requireProof ? (
                       <p>
-                        {artworkFile
-                          ? `Proof attached: ${artworkFile}`
-                          : "Artwork PDF proof is required for this order."}
+                        {artworkUrl
+                          ? `Proof attached: ${artworkName || "file"}`
+                          : "Upload artwork PDF/image on the Review step before placing the order."}
                       </p>
                     ) : null}
                   </div>

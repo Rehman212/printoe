@@ -58,10 +58,17 @@ export function TestimonialsSlider() {
 
   return (
     <Section className="bg-secondary text-white overflow-hidden relative">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-20 top-10 h-64 w-64 rounded-full bg-primary/20 blur-3xl" />
-        <div className="absolute -right-16 bottom-0 h-72 w-72 rounded-full bg-accent/15 blur-3xl" />
-      </div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/assests/images/newctabanner.webp"
+        alt=""
+        className="absolute inset-0 h-full w-full object-cover object-center"
+        aria-hidden
+      />
+      <div
+        className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/70 to-black/45"
+        aria-hidden
+      />
 
       <Container className="relative">
         <div className="mb-10 flex flex-col gap-6 md:mb-12 md:flex-row md:items-end md:justify-between">

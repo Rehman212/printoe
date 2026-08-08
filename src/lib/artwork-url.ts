@@ -30,17 +30,29 @@ export function resolvePublicArtworkUrl(
 }
 
 export function artworkDisplayName(artworkFile: string | null | undefined): string {
-  if (!artworkFile?.trim()) return "artwork";
+  if (!artworkFile?.trim()) return "Artwork file";
   const value = artworkFile.trim();
+  let raw = value;
   try {
     if (/^https?:\/\//i.test(value)) {
-      return decodeURIComponent(new URL(value).pathname.split("/").pop() || value);
+      raw = decodeURIComponent(new URL(value).pathname.split("/").pop() || value);
+    } else if (value.includes("/")) {
+      raw = decodeURIComponent(value.split("/").pop() || value);
     }
   } catch {
     /* ignore */
   }
-  if (value.includes("/")) {
-    return decodeURIComponent(value.split("/").pop() || value);
-  }
-  return value;
+
+  // Strip upload prefix: 1786171798069-829be5c6-paymenticons.png → paymenticons.png
+  const cleaned = raw.replace(/^\d{10,}-[a-f0-9]{6,8}-/i, "");
+  return cleaned || raw || "Artwork file";
+}
+
+export function artworkFileKind(
+  artworkFile: string | null | undefined,
+): "pdf" | "image" | "file" {
+  const name = artworkDisplayName(artworkFile).toLowerCase();
+  if (name.endsWith(".pdf")) return "pdf";
+  if (/\.(png|jpe?g|gif|webp|svg|tiff?)$/i.test(name)) return "image";
+  return "file";
 }

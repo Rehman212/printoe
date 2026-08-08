@@ -6,8 +6,10 @@ import {
   Bell,
   CreditCard,
   Download,
+  ExternalLink,
   FileText,
   Heart,
+  Image as ImageIcon,
   LifeBuoy,
   Lock,
   MapPin,
@@ -22,6 +24,11 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { useCartOptional } from "@/lib/cart-store";
 import { ProductMedia } from "@/components/shared/ProductMedia";
 import {
+  artworkDisplayName,
+  artworkFileKind,
+  resolvePublicArtworkUrl,
+} from "@/lib/artwork-url";
+import {
   createCustomerDesign,
   createCustomerTicket,
   deleteCustomerDesign,
@@ -33,13 +40,16 @@ import {
   fetchCustomerTickets,
   fetchCustomerWishlist,
   removeCustomerWishlist,
+  type CustomerInvoice,
 } from "@/lib/customer-api";
+import { downloadInvoice, viewInvoice } from "@/lib/invoice-print";
 import { updateProfileRequest } from "@/lib/auth";
 import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
+import { Modal } from "@/components/ui/Modal";
 import { EmptyState } from "@/components/ui/Misc";
 import { useToast } from "@/components/ui/Toast";
 import { ProfileSettings } from "@/components/dashboard/ProfileSettings";
@@ -147,19 +157,15 @@ export function DashboardSection({ section }: { section: string }) {
       id: string;
       orderId: string;
       fileName: string;
+      productName?: string | null;
       proofStatus: string;
       date: string;
     }>
   >([]);
-  const [invoices, setInvoices] = useState<
-    Array<{
-      id: string;
-      orderId: string;
-      date: string;
-      amount: number;
-      status: string;
-    }>
-  >([]);
+  const [invoices, setInvoices] = useState<CustomerInvoice[]>([]);
+  const [viewingInvoice, setViewingInvoice] = useState<CustomerInvoice | null>(
+    null,
+  );
   const [wishlist, setWishlist] = useState<
     Array<{
       id: string;
@@ -513,78 +519,358 @@ export function DashboardSection({ section }: { section: string }) {
             description="Artwork and proofs appear here after you upload files with an order."
           />
         ) : (
-          <Card>
-            <CardContent className="divide-y divide-border p-0">
-              {downloads.map((d) => (
-                <div
-                  key={d.id}
-                  className="flex flex-wrap items-center justify-between gap-3 px-6 py-4"
-                >
-                  <div>
-                    <p className="font-semibold text-text-primary">{d.fileName}</p>
-                    <p className="text-xs text-text-secondary">
-                      {d.orderId} · Proof {d.proofStatus} · {d.date}
-                    </p>
-                  </div>
-                  <Badge className="capitalize">{d.proofStatus}</Badge>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+          <div className="space-y-3">
+            {downloads.map((d) => {
+              const label = artworkDisplayName(d.fileName);
+              const kind = artworkFileKind(d.fileName);
+              const href = resolvePublicArtworkUrl(d.fileName);
+              const statusLabel =
+                d.proofStatus === "awaiting"
+                  ? "Awaiting review"
+                  : d.proofStatus === "approved"
+                    ? "Approved"
+                    : d.proofStatus === "rejected"
+                      ? "Changes requested"
+                      : d.proofStatus.replace(/_/g, " ");
+
+              return (
+                <Card key={d.id}>
+                  <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:p-5">
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-[#f3f4f6]">
+                      {kind === "image" && href ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={href}
+                          alt={label}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : kind === "pdf" ? (
+                        <FileText className="h-7 w-7 text-primary" />
+                      ) : (
+                        <ImageIcon className="h-7 w-7 text-text-secondary" />
+                      )}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-base font-bold text-text-primary">
+                        {label}
+                      </p>
+                      <p className="mt-0.5 text-sm font-medium text-text-secondary">
+                        {d.productName ? `${d.productName} · ` : null}
+                        Order {d.orderId}
+                      </p>
+                      <p className="mt-1 text-xs text-text-secondary">
+                        Uploaded {d.date}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                      <Badge
+                        variant={
+                          d.proofStatus === "approved"
+                            ? "success"
+                            : d.proofStatus === "rejected"
+                              ? "danger"
+                              : "warning"
+                        }
+                        className="capitalize"
+                      >
+                        {statusLabel}
+                      </Badge>
+                      {href ? (
+                        <>
+                          <a
+                            href={href}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 text-sm font-semibold text-text-primary transition hover:border-primary/40 hover:bg-primary/5"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                            View
+                          </a>
+                          <a
+                            href={href}
+                            download={label}
+                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-primary px-3.5 text-sm font-semibold text-white transition hover:bg-primary-hover"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                            Download
+                          </a>
+                        </>
+                      ) : null}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         )
       )}
 
       {!loading && section === "invoices" && (
-        <Card>
-          <CardContent className="overflow-x-auto p-0">
-            {invoices.length === 0 ? (
-              <p className="px-6 py-10 text-center text-sm text-text-secondary">
-                Invoices appear when you place orders.
-              </p>
-            ) : (
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-secondary/[0.02] text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                    <th className="px-6 py-3">Invoice</th>
-                    <th className="px-6 py-3">Order</th>
-                    <th className="px-6 py-3">Date</th>
-                    <th className="px-6 py-3">Status</th>
-                    <th className="px-6 py-3 text-right">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoices.map((inv) => (
-                    <tr
-                      key={inv.id}
-                      className="border-b border-border/60 last:border-0"
-                    >
-                      <td className="px-6 py-4 font-semibold">{inv.id}</td>
-                      <td className="px-6 py-4 text-text-secondary">
-                        {inv.orderId}
-                      </td>
-                      <td className="px-6 py-4 text-text-secondary">
-                        {inv.date}
-                      </td>
-                      <td className="px-6 py-4">
-                        <Badge
-                          variant={
-                            inv.status === "paid" ? "success" : "warning"
-                          }
-                          className="capitalize"
-                        >
-                          {inv.status}
-                        </Badge>
-                      </td>
-                      <td className="px-6 py-4 text-right font-semibold">
-                        {formatCurrency(inv.amount)}
-                      </td>
+        <>
+          <Card>
+            <CardContent className="overflow-x-auto p-0">
+              {invoices.length === 0 ? (
+                <p className="px-6 py-10 text-center text-sm text-text-secondary">
+                  Invoices appear when you place orders.
+                </p>
+              ) : (
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-secondary/[0.02] text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                      <th className="px-6 py-3">Invoice</th>
+                      <th className="px-6 py-3">Order</th>
+                      <th className="px-6 py-3">Date</th>
+                      <th className="px-6 py-3">Status</th>
+                      <th className="px-6 py-3 text-right">Amount</th>
+                      <th className="px-6 py-3 text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </CardContent>
-        </Card>
+                  </thead>
+                  <tbody>
+                    {invoices.map((inv) => (
+                      <tr
+                        key={inv.id}
+                        className="border-b border-border/60 last:border-0"
+                      >
+                        <td className="px-6 py-4 font-semibold">{inv.id}</td>
+                        <td className="px-6 py-4 text-text-secondary">
+                          {inv.orderId}
+                        </td>
+                        <td className="px-6 py-4 text-text-secondary">
+                          {inv.date}
+                        </td>
+                        <td className="px-6 py-4">
+                          <Badge
+                            variant={
+                              inv.status === "paid" ? "success" : "warning"
+                            }
+                            className="capitalize"
+                          >
+                            {inv.status}
+                          </Badge>
+                        </td>
+                        <td className="px-6 py-4 text-right font-semibold">
+                          {formatCurrency(inv.amount)}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setViewingInvoice(inv)}
+                              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 text-sm font-semibold text-text-primary transition hover:border-primary/40 hover:bg-primary/5"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                              View
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                downloadInvoice(inv);
+                                toast({
+                                  title: "Invoice downloaded",
+                                  description: `${inv.id}.html saved — open it and Print to PDF if needed.`,
+                                  tone: "success",
+                                });
+                              }}
+                              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-primary px-3.5 text-sm font-semibold text-white transition hover:bg-primary-hover"
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                              Download
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </CardContent>
+          </Card>
+
+          <Modal
+            open={Boolean(viewingInvoice)}
+            onClose={() => setViewingInvoice(null)}
+            title={viewingInvoice ? `Invoice ${viewingInvoice.id}` : "Invoice"}
+            description={
+              viewingInvoice
+                ? `Order ${viewingInvoice.orderId} · ${viewingInvoice.date}`
+                : undefined
+            }
+            size="lg"
+            footer={
+              viewingInvoice ? (
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setViewingInvoice(null)}
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      if (viewingInvoice) viewInvoice(viewingInvoice);
+                    }}
+                  >
+                    Open full page
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      if (!viewingInvoice) return;
+                      downloadInvoice(viewingInvoice);
+                      toast({
+                        title: "Invoice downloaded",
+                        description: `${viewingInvoice.id}.html saved.`,
+                        tone: "success",
+                      });
+                    }}
+                  >
+                    <Download className="mr-1.5 h-4 w-4" />
+                    Download
+                  </Button>
+                </div>
+              ) : null
+            }
+          >
+            {viewingInvoice ? (
+              <div className="space-y-5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge
+                    variant={
+                      viewingInvoice.status === "paid" ? "success" : "warning"
+                    }
+                    className="capitalize"
+                  >
+                    {viewingInvoice.status}
+                  </Badge>
+                  {viewingInvoice.paymentMethod ? (
+                    <span className="text-xs font-medium text-text-secondary">
+                      Payment: {viewingInvoice.paymentMethod}
+                    </span>
+                  ) : null}
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-xl border border-border bg-background p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
+                      Bill / ship to
+                    </p>
+                    <p className="mt-2 text-sm font-bold text-text-primary">
+                      {viewingInvoice.shippingName || "Customer"}
+                    </p>
+                    {viewingInvoice.shippingEmail ? (
+                      <p className="text-sm text-text-secondary">
+                        {viewingInvoice.shippingEmail}
+                      </p>
+                    ) : null}
+                    <p className="mt-1 text-sm text-text-secondary">
+                      {[
+                        viewingInvoice.shippingAddress,
+                        [
+                          viewingInvoice.shippingCity,
+                          viewingInvoice.shippingState,
+                          viewingInvoice.shippingZip,
+                        ]
+                          .filter(Boolean)
+                          .join(", "),
+                      ]
+                        .filter(Boolean)
+                        .join(" · ") || "—"}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-border bg-background p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
+                      Summary
+                    </p>
+                    <div className="mt-2 space-y-1.5 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-text-secondary">Subtotal</span>
+                        <span className="font-semibold">
+                          {formatCurrency(
+                            viewingInvoice.subtotal ?? viewingInvoice.amount,
+                          )}
+                        </span>
+                      </div>
+                      {(viewingInvoice.discount ?? 0) > 0 ? (
+                        <div className="flex justify-between text-success">
+                          <span>Discount</span>
+                          <span className="font-semibold">
+                            -{formatCurrency(viewingInvoice.discount ?? 0)}
+                          </span>
+                        </div>
+                      ) : null}
+                      <div className="flex justify-between">
+                        <span className="text-text-secondary">Shipping</span>
+                        <span className="font-semibold">
+                          {formatCurrency(viewingInvoice.shipping ?? 0)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-text-secondary">Tax</span>
+                        <span className="font-semibold">
+                          {formatCurrency(viewingInvoice.tax ?? 0)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-t border-border pt-2 text-base font-bold">
+                        <span>Total</span>
+                        <span>{formatCurrency(viewingInvoice.amount)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-secondary">
+                    Line items
+                  </p>
+                  <div className="overflow-hidden rounded-xl border border-border">
+                    {(viewingInvoice.items ?? []).length === 0 ? (
+                      <p className="px-4 py-6 text-center text-sm text-text-secondary">
+                        No line items on this invoice.
+                      </p>
+                    ) : (
+                      <table className="w-full text-left text-sm">
+                        <thead>
+                          <tr className="border-b border-border bg-secondary/[0.02] text-xs uppercase tracking-wide text-text-secondary">
+                            <th className="px-4 py-2.5">Item</th>
+                            <th className="px-4 py-2.5 text-right">Qty</th>
+                            <th className="px-4 py-2.5 text-right">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {viewingInvoice.items!.map((it, idx) => (
+                            <tr
+                              key={`${it.name}-${idx}`}
+                              className="border-b border-border/60 last:border-0"
+                            >
+                              <td className="px-4 py-3">
+                                <p className="font-semibold text-text-primary">
+                                  {it.name}
+                                </p>
+                                {it.size ? (
+                                  <p className="text-xs text-text-secondary">
+                                    {it.size}
+                                  </p>
+                                ) : null}
+                              </td>
+                              <td className="px-4 py-3 text-right text-text-secondary">
+                                {it.quantity}
+                              </td>
+                              <td className="px-4 py-3 text-right font-semibold">
+                                {formatCurrency(it.unitPrice * it.quantity)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </Modal>
+        </>
       )}
 
       {!loading && section === "wishlist" && (

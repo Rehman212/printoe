@@ -104,6 +104,7 @@ export function fetchCustomerDownloads() {
       id: string;
       orderId: string;
       fileName: string;
+      productName?: string | null;
       proofStatus: string;
       status: string;
       date: string;
@@ -111,16 +112,36 @@ export function fetchCustomerDownloads() {
   }>("/customer/downloads");
 }
 
+export type CustomerInvoice = {
+  id: string;
+  orderId: string;
+  date: string;
+  amount: number;
+  subtotal?: number;
+  shipping?: number;
+  tax?: number;
+  discount?: number;
+  status: string;
+  paymentMethod?: string | null;
+  shippingName?: string | null;
+  shippingEmail?: string | null;
+  shippingAddress?: string | null;
+  shippingCity?: string | null;
+  shippingState?: string | null;
+  shippingZip?: string | null;
+  shippingMethod?: string | null;
+  items?: Array<{
+    name: string;
+    quantity: number;
+    unitPrice: number;
+    size?: string;
+  }>;
+};
+
 export function fetchCustomerInvoices() {
   return customerFetch<{
     success: boolean;
-    data: Array<{
-      id: string;
-      orderId: string;
-      date: string;
-      amount: number;
-      status: string;
-    }>;
+    data: CustomerInvoice[];
   }>("/customer/invoices");
 }
 

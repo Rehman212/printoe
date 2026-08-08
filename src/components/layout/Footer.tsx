@@ -81,11 +81,17 @@ export function Footer() {
 
   return (
     <footer className="relative mt-auto overflow-hidden border-t border-border bg-secondary text-white">
-      <div className="pointer-events-none absolute inset-0 opacity-40">
-        <div className="absolute -left-20 top-0 h-64 w-64 rounded-full bg-primary/30 blur-3xl" />
-        <div className="absolute right-1/3 top-10 h-40 w-40 rounded-full bg-brand-yellow/25 blur-3xl" />
-        <div className="absolute bottom-0 right-0 h-72 w-72 rounded-full bg-accent/25 blur-3xl" />
-      </div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/assests/images/footerbg.webp"
+        alt=""
+        className="absolute inset-0 h-full w-full object-cover object-center"
+        aria-hidden
+      />
+      <div
+        className="absolute inset-0 bg-gradient-to-r from-[#0b1220]/92 via-[#0b1220]/80 to-[#0b1220]/55"
+        aria-hidden
+      />
 
       <Container size="wide" className="relative py-16 md:py-20">
         <div className="grid gap-12 lg:grid-cols-[1.2fr_2fr]">
