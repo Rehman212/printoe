@@ -588,7 +588,10 @@ export function AdminProducts() {
     setReadingPricingImport(true);
     try {
       const data = JSON.parse(await file.text()) as {
-        metadata?: { source_url?: string; sourceUrl?: string };
+        metadata?: { source_url?: string; sourceUrl?: string; product_name?: string; productName?: string };
+        description?: string;
+        product_image?: string;
+        images?: string[];
         attributes?: Array<{
           attribute_id?: string;
           attributeId?: string;
@@ -661,9 +664,36 @@ export function AdminProducts() {
           inStock: typeof row.inStock === "boolean" ? row.inStock : row.in_stock !== "n" && row.in_stock !== false,
         };
       });
-      setForm((current) => ({ ...current, optionGroups: importedGroups }));
+      const importedDescription = typeof data.description === "string" ? data.description.trim() : "";
+      const importedFeaturedImage = typeof data.product_image === "string" ? data.product_image.trim() : "";
+      const importedGallery = Array.isArray(data.images)
+        ? [...new Set(data.images.map((url) => String(url).trim()).filter(Boolean))]
+        : [];
+      const importedName = (data.metadata?.productName ?? data.metadata?.product_name ?? "").trim();
+      setForm((current) => {
+        const featuredImage = importedFeaturedImage || current.imageUrl;
+        const galleryUrls = importedGallery.length
+          ? importedGallery.filter((url) => url !== featuredImage)
+          : current.galleryUrls;
+        const name = importedName || current.name;
+        return {
+          ...current,
+          optionGroups: importedGroups,
+          description: importedDescription || current.description,
+          imageUrl: featuredImage,
+          previewDataUrl: featuredImage || current.previewDataUrl,
+          galleryUrls,
+          name,
+          slug: importedName && !current.slugLocked ? slugifyProductName(name) : current.slug,
+        };
+      });
       setPricingImport({ sourceUrl: data.metadata?.sourceUrl ?? data.metadata?.source_url, rows });
-      toast({ title: "Pricing JSON loaded", description: `${importedGroups.length} fields · ${rows.length.toLocaleString()} exact prices. Save/Update to import.`, tone: "success" });
+      const importedMediaNote = [
+        importedName && "title",
+        importedDescription && "description",
+        (importedFeaturedImage || importedGallery.length) && "images",
+      ].filter(Boolean).join(" · ");
+      toast({ title: "Pricing JSON loaded", description: `${importedGroups.length} fields · ${rows.length.toLocaleString()} exact prices${importedMediaNote ? ` · ${importedMediaNote} filled` : ""}. Save/Update to import.`, tone: "success" });
     } catch (err) {
       setPricingImport(null);
       toast({ title: "JSON import failed", description: err instanceof Error ? err.message : "Invalid pricing file", tone: "danger" });
