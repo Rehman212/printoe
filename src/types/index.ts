@@ -98,6 +98,7 @@ export type CatalogProduct = {
   productTabs?: ProductTab[];
   featured?: boolean;
   active?: boolean;
+  pricingMatrixEnabled?: boolean;
   category: { id: string; name: string; slug: string };
   optionGroups?: { id: string; key: string; label: string }[];
   optionGroupCount?: number;

@@ -38,6 +38,7 @@ import { RichTextContent } from "@/components/ui/RichTextEditor";
 import {
   calcConfiguredPrice,
   defaultSelections,
+  fetchConfiguredMatrixPrice,
   fetchProductBySlug,
 } from "@/lib/products-api";
 import {
@@ -271,6 +272,15 @@ export function ProductDetail({ slug }: { slug: string }) {
   );
   const [activeImage, setActiveImage] = useState(0);
   const [notFound, setNotFound] = useState(false);
+  const [pricingMatrixEnabled, setPricingMatrixEnabled] = useState(false);
+  const [matrixPrice, setMatrixPrice] = useState<null | {
+    price: number;
+    unitPrice: number;
+    quantity: number;
+    turnaroundDays?: number | null;
+    inStock: boolean;
+  }>(null);
+  const [matrixAvailableOptions, setMatrixAvailableOptions] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -318,6 +328,7 @@ export function ProductDetail({ slug }: { slug: string }) {
           setTabFieldValues({});
         }
         setBasePrice(product.basePrice);
+        setPricingMatrixEnabled(Boolean(product.pricingMatrixEnabled));
         setRating(product.rating);
         setReviews(product.reviews);
         setBadge(product.badge ?? undefined);
@@ -348,6 +359,7 @@ export function ProductDetail({ slug }: { slug: string }) {
           setActiveTabId(null);
           setTabFieldValues({});
           setBasePrice(localProduct.price);
+          setPricingMatrixEnabled(false);
           setRating(localProduct.rating);
           setReviews(localProduct.reviews);
           setBadge(localProduct.badge);
@@ -389,6 +401,33 @@ export function ProductDetail({ slug }: { slug: string }) {
     productTabs.find((t) => t.id === activeTabId) ?? productTabs[0] ?? null;
   const hasCustomTabs = productTabs.length > 0;
 
+  const visibleOptions = useMemo(() => {
+    const linkedValue = selections.attr0;
+    if (!linkedValue) return options;
+    return options.map((group) => ({
+      ...group,
+      values: group.values.filter((value) => {
+        const matrixAllowed = matrixAvailableOptions[group.key];
+        if (matrixAllowed) return matrixAllowed.includes(value.value);
+        const allowed = (value.meta as { allowedLinkedValues?: string[] } | null)?.allowedLinkedValues;
+        return !allowed?.length || allowed.includes(linkedValue);
+      }),
+    }));
+  }, [matrixAvailableOptions, options, selections.attr0]);
+
+  useEffect(() => {
+    setSelections((current) => {
+      let changed = false;
+      const next = { ...current };
+      for (const group of visibleOptions) {
+        if (group.values.some((value) => value.value === next[group.key])) continue;
+        const fallback = group.values.find((value) => (value.meta as { default?: boolean } | null)?.default) ?? group.values[0];
+        if (fallback) { next[group.key] = fallback.value; changed = true; }
+      }
+      return changed ? next : current;
+    });
+  }, [visibleOptions]);
+
   const tabExtraPrice = useMemo(() => {
     if (!activeTab?.fields?.length) return 0;
     let extra = 0;
@@ -413,15 +452,45 @@ export function ProductDetail({ slug }: { slug: string }) {
     return basePrice;
   }, [hasCustomTabs, activeTab, basePrice, tabExtraPrice]);
 
-  const pricing = useMemo(
-    () =>
-      calcConfiguredPrice(
+  const fallbackPricing = useMemo(
+    () => calcConfiguredPrice(
         effectiveBasePrice,
-        hasCustomTabs ? [] : options,
+        hasCustomTabs ? [] : visibleOptions,
         hasCustomTabs ? {} : selections,
       ),
-    [effectiveBasePrice, hasCustomTabs, options, selections],
+    [effectiveBasePrice, hasCustomTabs, visibleOptions, selections],
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!pricingMatrixEnabled || hasCustomTabs || Object.keys(selections).length < options.length) {
+      setMatrixPrice(null);
+      return;
+    }
+    void fetchConfiguredMatrixPrice(slug, selections)
+      .then((result) => {
+        if (cancelled) return;
+        setMatrixAvailableOptions(result.data?.availableOptions ?? {});
+        setMatrixPrice(result.data && typeof result.data.price === "number" && typeof result.data.unitPrice === "number" && typeof result.data.quantity === "number"
+          ? { price: result.data.price, unitPrice: result.data.unitPrice, quantity: result.data.quantity, turnaroundDays: result.data.turnaroundDays, inStock: result.data.inStock ?? true }
+          : null);
+      })
+      .catch(() => { if (!cancelled) { setMatrixPrice(null); setMatrixAvailableOptions({}); } });
+    return () => { cancelled = true; };
+  }, [pricingMatrixEnabled, hasCustomTabs, options.length, selections, slug]);
+
+  const pricing = useMemo(() => {
+    if (!pricingMatrixEnabled || !matrixPrice) return fallbackPricing;
+    return {
+      ...fallbackPricing,
+      total: matrixPrice.price,
+      unit: matrixPrice.unitPrice,
+      quantity: matrixPrice.quantity,
+      isPerUnit: true,
+      basePrice: matrixPrice.price,
+      mod: 1,
+    };
+  }, [fallbackPricing, matrixPrice, pricingMatrixEnabled]);
 
   const optionsKey = useMemo(() => buildOptionsKey(selections), [selections]);
   const optionsSummary = useMemo(
@@ -859,7 +928,7 @@ export function ProductDetail({ slug }: { slug: string }) {
                   )
                 ) : (
                   <ProductConfigurator
-                    options={options}
+                    options={visibleOptions}
                     selections={selections}
                     onChange={onOptionChange}
                   />

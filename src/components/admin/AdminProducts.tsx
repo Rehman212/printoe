@@ -30,11 +30,15 @@ import {
 } from "lucide-react";
 import {
   createAdminProduct,
+  beginAdminPricingMatrix,
+  completeAdminPricingMatrix,
   deleteAdminProduct,
   fetchAdminCategories,
   fetchAdminProducts,
   updateAdminProduct,
   uploadAdminImage,
+  uploadAdminPricingChunk,
+  type ImportedVariationPrice,
 } from "@/lib/products-api";
 import {
   POPULAR_PRODUCT_SECTIONS,
@@ -303,6 +307,11 @@ export function AdminProducts() {
   const [optionsRefreshKey, setOptionsRefreshKey] = useState(0);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [section, setSection] = useState<FormSection>("basics");
+  const [pricingImport, setPricingImport] = useState<{
+    sourceUrl?: string;
+    rows: ImportedVariationPrice[];
+  } | null>(null);
+  const [readingPricingImport, setReadingPricingImport] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -365,6 +374,7 @@ export function AdminProducts() {
     setEditing(null);
     setForm(emptyForm(apiCategories));
     setSection("basics");
+    setPricingImport(null);
     setOpen(true);
   }
 
@@ -412,6 +422,7 @@ export function AdminProducts() {
       optionGroups: optionGroupsFromApi(row.options),
     });
     setSection("basics");
+    setPricingImport(null);
     setOpen(true);
   }
 
@@ -573,6 +584,104 @@ export function AdminProducts() {
     return optionGroupsToPayload(form.optionGroups);
   }
 
+  async function onImportPricingJson(file: File) {
+    setReadingPricingImport(true);
+    try {
+      const data = JSON.parse(await file.text()) as {
+        metadata?: { source_url?: string; sourceUrl?: string };
+        attributes?: Array<{
+          attribute_id?: string;
+          attributeId?: string;
+          name: string;
+          options: Array<{ option_id?: string; optionId?: string; label: string; default?: boolean }>;
+        }>;
+        prices?: Array<{
+          selection: Record<string, string>;
+          price: number | string;
+          unit_price?: number | string;
+          unitPrice?: number | string;
+          quantity: number;
+          turnaround_days?: number;
+          turnaroundDays?: number;
+          in_stock?: string | boolean;
+          inStock?: boolean;
+        }>;
+      };
+      if (!Array.isArray(data.attributes) || !Array.isArray(data.prices)) {
+        throw new Error("Invalid file: attributes aur prices arrays required hain.");
+      }
+      const importedGroups: FormOptionGroup[] = data.attributes.map((attribute, index) => {
+        const attributeId = String(attribute.attribute_id ?? attribute.attributeId ?? "");
+        if (!attributeId || !attribute.name || !Array.isArray(attribute.options)) {
+          throw new Error(`Invalid attribute at position ${index + 1}`);
+        }
+        return {
+          id: `import_group_${attributeId}`,
+          key: `attr${attributeId}`,
+          keyLocked: true,
+          label: attribute.name,
+          uiType: "SELECT",
+          helpText: "",
+          values: attribute.options
+            .filter((option) => String(option.option_id ?? option.optionId ?? "") !== "custom")
+            .map((option) => {
+              const optionId = String(option.option_id ?? option.optionId ?? "");
+              const allowedLinkedValues = attributeId === "0"
+                ? []
+                : [...new Set(data.prices!
+                    .filter((row) => String(row.selection?.[`attr${attributeId}`] ?? "") === optionId)
+                    .map((row) => String(row.selection?.attr0 ?? ""))
+                    .filter(Boolean))];
+              return {
+                id: `import_value_${attributeId}_${optionId}`,
+                label: option.label,
+                value: optionId,
+                priceMod: "1",
+                meta: { uprintingOptionId: optionId, default: Boolean(option.default), allowedLinkedValues },
+              };
+            }),
+        };
+      });
+      const rows: ImportedVariationPrice[] = data.prices.map((row, index) => {
+        const price = Number(row.price);
+        const unitPrice = Number(row.unitPrice ?? row.unit_price);
+        const quantity = Number(row.quantity);
+        if (!row.selection || !Number.isFinite(price) || !Number.isFinite(unitPrice) || !Number.isFinite(quantity)) {
+          throw new Error(`Invalid price row at position ${index + 1}`);
+        }
+        const allowedSelectionKeys = new Set(importedGroups.map((group) => group.key));
+        return {
+          selection: Object.fromEntries(Object.entries(row.selection)
+            .filter(([key]) => allowedSelectionKeys.has(key))
+            .map(([key, value]) => [key, String(value)])),
+          price,
+          unitPrice,
+          quantity,
+          turnaroundDays: row.turnaroundDays ?? row.turnaround_days,
+          inStock: typeof row.inStock === "boolean" ? row.inStock : row.in_stock !== "n" && row.in_stock !== false,
+        };
+      });
+      setForm((current) => ({ ...current, optionGroups: importedGroups }));
+      setPricingImport({ sourceUrl: data.metadata?.sourceUrl ?? data.metadata?.source_url, rows });
+      toast({ title: "Pricing JSON loaded", description: `${importedGroups.length} fields · ${rows.length.toLocaleString()} exact prices. Save/Update to import.`, tone: "success" });
+    } catch (err) {
+      setPricingImport(null);
+      toast({ title: "JSON import failed", description: err instanceof Error ? err.message : "Invalid pricing file", tone: "danger" });
+    } finally {
+      setReadingPricingImport(false);
+    }
+  }
+
+  async function uploadPricingMatrix(productId: string) {
+    if (!pricingImport) return;
+    await beginAdminPricingMatrix(productId, pricingImport.sourceUrl);
+    const chunkSize = 500;
+    for (let offset = 0; offset < pricingImport.rows.length; offset += chunkSize) {
+      await uploadAdminPricingChunk(productId, pricingImport.rows.slice(offset, offset + chunkSize));
+    }
+    await completeAdminPricingMatrix(productId, pricingImport.rows.length);
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!form.name.trim() || !form.price) {
@@ -661,6 +770,7 @@ export function AdminProducts() {
           productTabs,
           options: buildOptionsPayload(),
         });
+        await uploadPricingMatrix(editing.product.id);
         toast({
           title: "Saved to database",
           description: form.name,
@@ -688,6 +798,7 @@ export function AdminProducts() {
           active: isPublished,
           options: buildOptionsPayload(),
         });
+        await uploadPricingMatrix(res.data.product.id);
         toast({
           title: "Stored in database",
           description: `${form.name} → /products/${res.data.product.slug}`,
@@ -699,6 +810,7 @@ export function AdminProducts() {
       setOpen(false);
       setEditing(null);
       setForm(emptyForm(apiCategories));
+      setPricingImport(null);
       await load();
     } catch (err) {
       toast({
@@ -1983,6 +2095,9 @@ export function AdminProducts() {
                     ?.name
                 }
                 basePrice={Number(form.price) || 0}
+                onImportJson={onImportPricingJson}
+                importing={readingPricingImport}
+                importSummary={pricingImport ? `${form.optionGroups.length} fields · ${pricingImport.rows.length.toLocaleString()} exact combination prices ready to upload on Save` : null}
               />
             ) : null}
 

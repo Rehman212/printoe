@@ -7,6 +7,7 @@ import {
   ChevronDown,
   Plus,
   Trash2,
+  Upload,
 } from "lucide-react";
 import type {
   OptionUiType,
@@ -259,6 +260,9 @@ export function AdminProductOptionEditor({
   categorySlug,
   categoryName,
   basePrice = 0,
+  onImportJson,
+  importing = false,
+  importSummary,
 }: {
   groups: FormOptionGroup[];
   onChange: (next: FormOptionGroup[]) => void;
@@ -266,6 +270,9 @@ export function AdminProductOptionEditor({
   categoryName?: string;
   /** Starting price — shown so Extra $ totals are clear. */
   basePrice?: number;
+  onImportJson?: (file: File) => void;
+  importing?: boolean;
+  importSummary?: string | null;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -328,6 +335,23 @@ export function AdminProductOptionEditor({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {onImportJson ? (
+            <label className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-xl border border-border bg-background px-3 text-xs font-bold text-text-primary hover:border-primary/50">
+              <Upload className="h-3.5 w-3.5" />
+              {importing ? "Reading JSON…" : "Import pricing JSON"}
+              <input
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                disabled={importing}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) onImportJson(file);
+                  event.currentTarget.value = "";
+                }}
+              />
+            </label>
+          ) : null}
           <Button
             type="button"
             size="sm"
@@ -344,6 +368,11 @@ export function AdminProductOptionEditor({
           </Button>
         </div>
       </div>
+      {importSummary ? (
+        <p className="mt-3 rounded-xl border border-success/30 bg-success/10 px-3 py-2 text-xs font-semibold text-success">
+          {importSummary}
+        </p>
+      ) : null}
 
       {groups.length === 0 ? (
         <p className="mt-4 rounded-xl border border-dashed border-border bg-card px-3 py-8 text-center text-xs text-text-secondary">

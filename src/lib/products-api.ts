@@ -80,6 +80,32 @@ export async function fetchProductBySlug(slug: string) {
   };
 }
 
+export type ImportedVariationPrice = {
+  selection: Record<string, string>;
+  price: number;
+  unitPrice: number;
+  quantity: number;
+  turnaroundDays?: number;
+  inStock?: boolean;
+};
+
+export async function fetchConfiguredMatrixPrice(
+  slug: string,
+  selections: Record<string, string>,
+) {
+  return apiSend<{
+    success: boolean;
+    data: null | {
+      price?: number;
+      unitPrice?: number;
+      quantity?: number;
+      turnaroundDays?: number | null;
+      inStock?: boolean;
+      availableOptions: Record<string, string[]>;
+    };
+  }>(`/products/${encodeURIComponent(slug)}/price`, "POST", { selections });
+}
+
 export async function fetchAdminProducts() {
   return apiGet<{
     success: boolean;
@@ -224,6 +250,24 @@ export async function deleteAdminProduct(id: string) {
     data: { id: string };
     message?: string;
   }>(`/admin/products/${id}`, "DELETE");
+}
+
+export function beginAdminPricingMatrix(id: string, sourceUrl?: string) {
+  return apiSend<{ success: boolean; data: { importedRows: number } }>(
+    `/admin/products/${id}/pricing-matrix/begin`, "POST", { sourceUrl },
+  );
+}
+
+export function uploadAdminPricingChunk(id: string, rows: ImportedVariationPrice[]) {
+  return apiSend<{ success: boolean; data: { importedRows: number } }>(
+    `/admin/products/${id}/pricing-matrix/chunk`, "POST", { rows },
+  );
+}
+
+export function completeAdminPricingMatrix(id: string, expectedRows: number) {
+  return apiSend<{ success: boolean; data: { importedRows: number; enabled: boolean } }>(
+    `/admin/products/${id}/pricing-matrix/complete`, "POST", { expectedRows },
+  );
 }
 
 /** Upload product image → saved under printoe/public/uploads */
@@ -522,5 +566,10 @@ export function calcConfiguredPrice(
 
 /** Empty on load — customer picks each field; price updates on select. */
 export function defaultSelections(_options: ProductOptionGroup[]) {
-  return {} as Record<string, string>;
+  const selections: Record<string, string> = {};
+  for (const group of _options) {
+    const importedDefault = group.values.find((value) => value.meta?.default === true);
+    if (importedDefault) selections[group.key] = importedDefault.value;
+  }
+  return selections;
 }
