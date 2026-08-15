@@ -613,6 +613,14 @@ export function AdminProducts() {
       if (!Array.isArray(data.attributes) || !Array.isArray(data.prices)) {
         throw new Error("Invalid file: attributes aur prices arrays required hain.");
       }
+      // priceMod feeds calcConfiguredPrice as a MULTIPLIER (mod *= value.priceMod,
+      // then total = basePrice * mod) - it is never a dollar delta. "1" is the
+      // correct neutral value for every option here: imported products are
+      // meant to always be priced from the exact combination matrix
+      // (pricingMatrixEnabled), and this formula is only the emergency
+      // fallback for a combination the matrix doesn't cover. Do not compute
+      // per-option dollar deltas and store them as priceMod - a $102.51 delta
+      // multiplies the base price by over 100x under this formula.
       const importedGroups: FormOptionGroup[] = data.attributes.map((attribute, index) => {
         const attributeId = String(attribute.attribute_id ?? attribute.attributeId ?? "");
         if (!attributeId || !attribute.name || !Array.isArray(attribute.options)) {
@@ -645,7 +653,7 @@ export function AdminProducts() {
             }),
         };
       });
-      const rows: ImportedVariationPrice[] = data.prices.map((row, index) => {
+      const allImportedRows: ImportedVariationPrice[] = data.prices.map((row, index) => {
         const price = Number(row.price);
         const unitPrice = Number(row.unitPrice ?? row.unit_price);
         const quantity = Number(row.quantity);
@@ -664,12 +672,28 @@ export function AdminProducts() {
           inStock: typeof row.inStock === "boolean" ? row.inStock : row.in_stock !== "n" && row.in_stock !== false,
         };
       });
+      // Two originally-different scrape requests can resolve to the exact
+      // same real combination (UPrinting substituted both to the same valid
+      // paper/quantity), and trimming to only the imported attributes can
+      // also collapse rows further. The backend's unique (productId,
+      // selectionKey) constraint already discards true duplicates - dedupe
+      // here too so the row count we tell it to expect matches what actually
+      // gets stored, instead of failing the import over a legitimate collapse.
+      const seenSelectionKeys = new Set<string>();
+      const rows: ImportedVariationPrice[] = [];
+      for (const row of allImportedRows) {
+        const key = Object.entries(row.selection).sort().map(([k, v]) => `${k}=${v}`).join("&");
+        if (seenSelectionKeys.has(key)) continue;
+        seenSelectionKeys.add(key);
+        rows.push(row);
+      }
       const importedDescription = typeof data.description === "string" ? data.description.trim() : "";
       const importedFeaturedImage = typeof data.product_image === "string" ? data.product_image.trim() : "";
       const importedGallery = Array.isArray(data.images)
         ? [...new Set(data.images.map((url) => String(url).trim()).filter(Boolean))]
         : [];
       const importedName = (data.metadata?.productName ?? data.metadata?.product_name ?? "").trim();
+      const importedMinPrice = rows.length ? Math.min(...rows.map((row) => row.price)) : undefined;
       setForm((current) => {
         const featuredImage = importedFeaturedImage || current.imageUrl;
         const galleryUrls = importedGallery.length
@@ -685,6 +709,10 @@ export function AdminProducts() {
           galleryUrls,
           name,
           slug: importedName && !current.slugLocked ? slugifyProductName(name) : current.slug,
+          // The imported matrix already has real prices for every combination;
+          // seed "Starting from" with the cheapest one so admins aren't forced
+          // to guess a number just to get past the required-field check.
+          price: current.price.trim() ? current.price : (importedMinPrice !== undefined ? String(importedMinPrice) : current.price),
         };
       });
       setPricingImport({ sourceUrl: data.metadata?.sourceUrl ?? data.metadata?.source_url, rows });
