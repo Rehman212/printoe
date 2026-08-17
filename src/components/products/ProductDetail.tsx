@@ -37,6 +37,7 @@ import { Breadcrumbs } from "@/components/ui/Misc";
 import { RichTextContent } from "@/components/ui/RichTextEditor";
 import {
   calcConfiguredPrice,
+  calcMatrixFallbackPrice,
   defaultSelections,
   fetchConfiguredMatrixPrice,
   fetchProductBySlug,
@@ -280,7 +281,6 @@ export function ProductDetail({ slug }: { slug: string }) {
     turnaroundDays?: number | null;
     inStock: boolean;
   }>(null);
-  const [matrixAvailableOptions, setMatrixAvailableOptions] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -329,6 +329,7 @@ export function ProductDetail({ slug }: { slug: string }) {
         }
         setBasePrice(product.basePrice);
         setPricingMatrixEnabled(Boolean(product.pricingMatrixEnabled));
+        setMatrixPrice(null);
         setRating(product.rating);
         setReviews(product.reviews);
         setBadge(product.badge ?? undefined);
@@ -360,6 +361,7 @@ export function ProductDetail({ slug }: { slug: string }) {
           setTabFieldValues({});
           setBasePrice(localProduct.price);
           setPricingMatrixEnabled(false);
+          setMatrixPrice(null);
           setRating(localProduct.rating);
           setReviews(localProduct.reviews);
           setBadge(localProduct.badge);
@@ -407,13 +409,11 @@ export function ProductDetail({ slug }: { slug: string }) {
     return options.map((group) => ({
       ...group,
       values: group.values.filter((value) => {
-        const matrixAllowed = matrixAvailableOptions[group.key];
-        if (matrixAllowed) return matrixAllowed.includes(value.value);
         const allowed = (value.meta as { allowedLinkedValues?: string[] } | null)?.allowedLinkedValues;
         return !allowed?.length || allowed.includes(linkedValue);
       }),
     }));
-  }, [matrixAvailableOptions, options, selections.attr0]);
+  }, [options, selections.attr0]);
 
   useEffect(() => {
     setSelections((current) => {
@@ -452,14 +452,27 @@ export function ProductDetail({ slug }: { slug: string }) {
     return basePrice;
   }, [hasCustomTabs, activeTab, basePrice, tabExtraPrice]);
 
-  const fallbackPricing = useMemo(
-    () => calcConfiguredPrice(
-        effectiveBasePrice,
-        hasCustomTabs ? [] : visibleOptions,
-        hasCustomTabs ? {} : selections,
-      ),
-    [effectiveBasePrice, hasCustomTabs, visibleOptions, selections],
+  // Imported (pricing-matrix) products stamp every option value's meta with
+  // the default combo's real scraped price - use that as the fallback's
+  // starting point instead of basePrice (the catalog's "Starting At", i.e.
+  // the matrix's cheapest row, not the default combo). Each option's
+  // priceAdd is itself a delta off this same anchor, so the two combine
+  // correctly - see the import-time comment in AdminProducts.tsx.
+  const matrixAnchorPrice = useMemo(
+    () =>
+      options
+        .flatMap((group) => group.values)
+        .map((value) => value.meta?.matrixAnchorPrice)
+        .find((price): price is number => typeof price === "number"),
+    [options],
   );
+
+  const fallbackPricing = useMemo(() => {
+    if (matrixAnchorPrice !== undefined) {
+      return calcMatrixFallbackPrice(hasCustomTabs ? [] : visibleOptions, hasCustomTabs ? {} : selections);
+    }
+    return calcConfiguredPrice(effectiveBasePrice, hasCustomTabs ? [] : visibleOptions, hasCustomTabs ? {} : selections);
+  }, [matrixAnchorPrice, effectiveBasePrice, hasCustomTabs, visibleOptions, selections]);
 
   useEffect(() => {
     let cancelled = false;
@@ -470,12 +483,11 @@ export function ProductDetail({ slug }: { slug: string }) {
     void fetchConfiguredMatrixPrice(slug, selections)
       .then((result) => {
         if (cancelled) return;
-        setMatrixAvailableOptions(result.data?.availableOptions ?? {});
         setMatrixPrice(result.data && typeof result.data.price === "number" && typeof result.data.unitPrice === "number" && typeof result.data.quantity === "number"
           ? { price: result.data.price, unitPrice: result.data.unitPrice, quantity: result.data.quantity, turnaroundDays: result.data.turnaroundDays, inStock: result.data.inStock ?? true }
           : null);
       })
-      .catch(() => { if (!cancelled) { setMatrixPrice(null); setMatrixAvailableOptions({}); } });
+      .catch(() => { if (!cancelled) setMatrixPrice(null); });
     return () => { cancelled = true; };
   }, [pricingMatrixEnabled, hasCustomTabs, options.length, selections, slug]);
 

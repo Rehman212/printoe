@@ -8,3 +8,16 @@
 - Environments: .env.local
 ✓ Ready in 787ms
 
+○ Compiling / ...
+ GET / 200 in 6.1s (next.js: 4.0s, application-code: 2.1s)
+ GET /products/die-cut-business 500 in 8.6s (next.js: 8.1s, application-code: 516ms)
+ GET /admin/products 200 in 9.0s (next.js: 7.1s, proxy.ts: 127ms, application-code: 1724ms)
+ GET /products/test-product 200 in 9.0s (next.js: 6.8s, generate-params: 873ms, application-code: 2.2s)
+ GET /products/newefdf 200 in 9.0s (next.js: 7.1s, generate-params: 1179ms, application-code: 1898ms)
+ GET /products/square-roundesssss 200 in 9.0s (next.js: 7.2s, generate-params: 1256ms, application-code: 1836ms)
+ GET /products/square-rounded-corner-business-cardssdsadsadsd 200 in 9.1s (next.js: 7.7s, generate-params: 1802ms, application-code: 1333ms)
+ GET /products/square-corner-business-c 200 in 205ms (next.js: 28ms, generate-params: 15ms, application-code: 177ms)
+ GET / 200 in 561ms (next.js: 38ms, application-code: 524ms)
+ GET /notification-sw.js 404 in 147ms (next.js: 68ms, application-code: 80ms)
+ GET / 200 in 358ms (next.js: 14ms, application-code: 344ms)
+ GET /notification-sw.js 404 in 63ms (next.js: 8ms, application-code: 55ms)

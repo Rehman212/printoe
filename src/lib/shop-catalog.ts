@@ -121,7 +121,7 @@ function items(
     return {
       label,
       slug,
-      href: `/products/${category}/${slug}`,
+      href: `/products/${slug}`,
     };
   });
 }

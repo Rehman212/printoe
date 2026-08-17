@@ -22,7 +22,7 @@ export function HeroSection() {
         <div className="flex min-h-[340px] max-w-xl flex-col justify-center py-14 md:min-h-[400px] md:py-16 lg:min-h-[440px]">
           <div className="mb-5 h-1.5 w-24 rounded-full brand-cmy-bar" aria-hidden />
           <h1 className="text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl md:text-5xl">
-            Print that looks (Demo Testing Build)
+            Print that looks
             <br />
             as good as it sells.
           </h1>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Settings } from "lucide-react";
 import { fetchProducts } from "@/lib/products-api";
 import { DynamicIcon } from "@/lib/icons";
@@ -12,13 +12,80 @@ import {
 } from "@/lib/uprinting-nav";
 import { BUSINESS_CARDS_FLYOUT_SECTIONS } from "@/lib/business-cards-catalog";
 import { SHOP_FLYOUTS, SHOP_STATIC_CATEGORIES } from "@/lib/shop-catalog";
-import {
-  HOMEPAGE_SHOWCASE_ROWS,
-  type ShowcaseItem,
-} from "@/lib/homepage-showcase";
 import { Container } from "@/components/ui/Section";
+import { ProductMedia } from "@/components/shared/ProductMedia";
 import { cn } from "@/lib/utils";
 import type { CatalogProduct } from "@/types";
+
+type ShowcaseItem = {
+  id: string;
+  name: string;
+  slug: string;
+  imageUrl?: string | null;
+  categorySlug: string;
+};
+
+type ShowcaseRow = {
+  title: string;
+  items: ShowcaseItem[];
+};
+
+function toShowcaseItem(p: CatalogProduct): ShowcaseItem {
+  return {
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    imageUrl: p.imageUrl,
+    categorySlug: p.category.slug,
+  };
+}
+
+/** Builds homepage carousels straight from admin-uploaded products — no hardcoded slugs. */
+function buildShowcaseRows(apiProducts: CatalogProduct[]): ShowcaseRow[] {
+  if (apiProducts.length === 0) return [];
+
+  const used = new Set<string>();
+  const take = (list: CatalogProduct[], count: number) => {
+    const picked: CatalogProduct[] = [];
+    for (const p of list) {
+      if (used.has(p.slug)) continue;
+      picked.push(p);
+      used.add(p.slug);
+      if (picked.length >= count) break;
+    }
+    return picked;
+  };
+
+  const byPopularity = [...apiProducts].sort(
+    (a, b) => b.reviews - a.reviews || b.rating - a.rating,
+  );
+  const topSellers = take(byPopularity, 8);
+
+  const byRating = [...apiProducts].sort((a, b) => b.rating - a.rating);
+  const featured = take(byRating, 8);
+
+  const mostRecent = [...apiProducts].reverse();
+  const newAndUpdated = take(mostRecent, 8);
+
+  const rows: ShowcaseRow[] = [];
+  if (topSellers.length) rows.push({ title: "Top Sellers", items: topSellers.map(toShowcaseItem) });
+  if (featured.length) rows.push({ title: "Featured Products", items: featured.map(toShowcaseItem) });
+  if (newAndUpdated.length)
+    rows.push({ title: "New & Updated Products", items: newAndUpdated.map(toShowcaseItem) });
+  return rows;
+}
+
+/**
+ * The hand-authored nav data (CATEGORY_SUBMENUS and friends) predates the
+ * admin/scraper import and still links `/products/{category}/{slug}` -
+ * there's no such nested route, only `/products/{slug}`. Collapse to the
+ * real route shape so a mismatched guess 404s cleanly instead of always
+ * 404ing on the wrong path shape.
+ */
+function normalizeStaticHref(href: string): string {
+  const match = href.match(/^\/products\/(?:[^/]+\/)*([^/]+)\/?$/);
+  return match ? `/products/${match[1]}` : href;
+}
 
 const STATIC_FLYOUT_IDS = new Set<string>([
   "apparel",
@@ -116,14 +183,11 @@ function ShowcaseRowCarousel({
             >
               <div className="relative overflow-hidden border border-border bg-[#f3f4f6]">
                 <div className="relative aspect-square transition-[filter,transform] duration-300 ease-out group-hover:scale-[1.03] group-hover:blur-[2.5px]">
-                  {/* Native img avoids Next optimizer serving undersized blurry variants */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    className="absolute inset-0 h-full w-full object-contain p-2"
-                    loading="lazy"
-                    decoding="async"
+                  <ProductMedia
+                    imageUrl={item.imageUrl ?? undefined}
+                    fallbackVariant={item.categorySlug}
+                    label={item.name}
+                    className="absolute inset-0 h-full w-full"
                   />
                 </div>
                 <div
@@ -164,6 +228,11 @@ export function ShopShowcase() {
     };
   }, []);
 
+  const showcaseRows = useMemo(
+    () => buildShowcaseRows(apiProducts),
+    [apiProducts],
+  );
+
   const submenuByCategory = useMemo(() => {
     const map: Record<string, { label: string; href: string }[]> = {};
     for (const p of apiProducts) {
@@ -176,6 +245,21 @@ export function ShopShowcase() {
     }
     return map;
   }, [apiProducts]);
+
+  const productSlugByName = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of apiProducts) map.set(p.name.trim().toLowerCase(), p.slug);
+    return map;
+  }, [apiProducts]);
+
+  /** Prefer a real product's own slug when its name matches this link's label. */
+  const resolveHref = useCallback(
+    (label: string, fallbackHref: string) => {
+      const realSlug = productSlugByName.get(label.trim().toLowerCase());
+      return realSlug ? `/products/${realSlug}` : normalizeStaticHref(fallbackHref);
+    },
+    [productSlugByName],
+  );
 
   return (
     <section className="border-b border-border bg-white py-8 md:py-10">
@@ -270,7 +354,7 @@ export function ShopShowcase() {
                                 {section.items.map((sub) => (
                                   <Link
                                     key={sub.href}
-                                    href={sub.href}
+                                    href={resolveHref(sub.label, sub.href)}
                                     role="menuitem"
                                     className="block px-4 py-1.5 text-sm text-secondary transition hover:bg-[#e8f4fc] hover:text-primary"
                                   >
@@ -296,7 +380,7 @@ export function ShopShowcase() {
                                 {section.items.map((sub) => (
                                   <Link
                                     key={sub.href + sub.label}
-                                    href={sub.href}
+                                    href={resolveHref(sub.label, sub.href)}
                                     role="menuitem"
                                     className="block px-4 py-1.5 text-sm text-secondary transition hover:bg-[#e8f4fc] hover:text-primary"
                                   >
@@ -310,7 +394,7 @@ export function ShopShowcase() {
                               {submenu.map((sub) => (
                                 <Link
                                   key={sub.href + sub.label}
-                                  href={sub.href}
+                                  href={resolveHref(sub.label, sub.href)}
                                   role="menuitem"
                                   className="block px-4 py-2 text-sm text-secondary transition hover:bg-[#e8f4fc] hover:text-primary"
                                 >
@@ -355,7 +439,7 @@ export function ShopShowcase() {
           </aside>
 
           <div className="min-w-0 space-y-8">
-            {HOMEPAGE_SHOWCASE_ROWS.map((row) => (
+            {showcaseRows.map((row) => (
               <ShowcaseRowCarousel
                 key={row.title}
                 title={row.title}

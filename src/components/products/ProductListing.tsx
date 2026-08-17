@@ -18,7 +18,7 @@ import { fetchProducts } from "@/lib/products-api";
 import { addCustomerWishlist } from "@/lib/customer-api";
 import { useCart } from "@/lib/cart-store";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, stripHtml } from "@/lib/utils";
 import type { CatalogProduct, Product } from "@/types";
 import { ProductVisual } from "@/components/shared/ProductVisual";
 import {
@@ -110,7 +110,9 @@ function filterProducts(
     if (!matchesDelivery(p, filters.deliveryTime)) return false;
     if (
       q &&
-      !`${p.name} ${p.description} ${p.category}`.toLowerCase().includes(q)
+      !`${p.name} ${stripHtml(p.description)} ${p.category}`
+        .toLowerCase()
+        .includes(q)
     ) {
       return false;
     }
@@ -209,7 +211,7 @@ function ProductCard({ product }: { product: Product }) {
         </div>
 
         <p className="line-clamp-2 text-sm font-medium text-text-secondary">
-          {product.description}
+          {stripHtml(product.description)}
         </p>
 
         <div className="mt-auto flex items-end justify-between gap-3 pt-2">

@@ -1,1 +1,1293 @@
 ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+⨯ SyntaxError: Unexpected end of JSON input
+    at JSON.parse (<anonymous>) {
+  page: '/products/die-cut-business'
+}
+[browser] Uncaught SyntaxError: Unexpected end of JSON input
+    at JSON.parse (<anonymous>)
+[browser] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
+      <AppDevOverlayErrorBoundary globalError={[...]}>
+        <ReplaySsrOnlyErrors>
+        <DevRootHTTPAccessFallbackBoundary>
+          <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+            <HTTPAccessFallbackErrorBoundary pathname="/products/..." notFound={<NotAllowedRootHTTPFallbackError>} ...>
+              <RedirectBoundary>
+                <RedirectErrorBoundary router={{...}}>
+                  <Head headCacheNode={{rsc:{...}, ...}}>
+                    <__next_viewport_boundary__>
+                    <MetadataWrapper>
+                      <div
+                        hidden={true}
+-                       bis_skin_checked="1"
+                      >
+                    ...
+                  <__next_root_layout_boundary__>
+                    <SegmentViewNode type="layout" pagePath="layout.tsx">
+                      <SegmentTrieNode>
+                      <link>
+                      <script>
+                      <script>
+                      <script>
+                      <script>
+                      <script>
+                      <script>
+                      <script>
+                      <RootLayout>
+                        <html lang="en" className="plus_jakar..." suppressHydrationWarning={true}>
+                          <body className="min-h-full..." suppressHydrationWarning={true}>
+                            <SiteShell>
+                              <ToastProvider>
+                                ...
+                                  <ProductStoreProvider>
+                                    <SiteChrome>
+                                      <div
+                                        className="flex min-h-full flex-col"
+-                                       bis_skin_checked="1"
+                                      >
+                                        <SiteDocumentEffects>
+                                        <Header announcementOnly={false}>
+                                          <header className="z-[100] bg...">
+                                            <div
+                                              className="bg-secondary text-center text-[13px] font-medium tracking-wid..."
+-                                             bis_skin_checked="1"
+                                            >
+                                              <div
+                                                className="brand-cmy-bar h-1 w-full"
+                                                aria-hidden={true}
+-                                               bis_skin_checked="1"
+                                              >
+                                              <div
+                                                className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 ..."
+-                                               bis_skin_checked="1"
+                                              >
+                                            <div
+                                              className="border-b border-border bg-card transition-shadow"
+-                                             bis_skin_checked="1"
+                                            >
+                                              <Container size="wide">
+                                                <div
+                                                  className="mx-auto w-full px-4 sm:px-6 lg:px-8 max-w-[1440px]"
+-                                                 bis_skin_checked="1"
+                                                >
+                                                  <div
+                                                    className="flex items-center gap-3 py-3 md:gap-5 md:py-4"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                                    <Logo>
+                                                    <div
+                                                      className="hidden min-w-0 flex-1 items-center gap-3 md:flex"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                      <a>
+                                                      <form onSubmit={function onSearch} className="mx-auto w-...">
+                                                        <div
+                                                          className="flex overflow-hidden rounded-md border-2 border-p..."
+-                                                         bis_skin_checked="1"
+                                                        >
+                                                    <div
+                                                      className="ml-auto flex items-center gap-1 sm:gap-3"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                  <form onSubmit={function onSearch} className="pb-3 md:hi...">
+                                                    <div
+                                                      className="flex overflow-hidden rounded-md border-2 border-primary"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                            <div
+                                              className="relative z-[110] hidden border-b border-border bg-card lg:block"
+                                              onMouseLeave={function onMouseLeave}
+-                                             bis_skin_checked="1"
+                                            >
+                                              <Container size="wide">
+                                                <div
+                                                  className="mx-auto w-full px-4 sm:px-6 lg:px-8 max-w-[1440px]"
+-                                                 bis_skin_checked="1"
+                                                >
+                                                  <nav className="relative f..." aria-label="Product ca...">
+                                                    <div
+                                                      className="relative"
+                                                      onMouseEnter={function onMouseEnter}
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="relative"
+                                                      onMouseEnter={function onMouseEnter}
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="relative"
+                                                      onMouseEnter={function onMouseEnter}
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="relative"
+                                                      onMouseEnter={function onMouseEnter}
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="relative"
+                                                      onMouseEnter={function onMouseEnter}
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="relative"
+                                                      onMouseEnter={function onMouseEnter}
+-                                                     bis_skin_checked="1"
+                                                    >
+                                              ...
+                                            ...
+                                        ...
+                                          <Section>
+                                            <section id={undefined} className="py-16 md:p...">
+                                              <Container>
+                                                <div
+                                                  className="mx-auto w-full px-4 sm:px-6 lg:px-8 max-w-7xl"
+-                                                 bis_skin_checked="1"
+                                                >
+                                                  <div
+                                                    className="grid gap-8 lg:grid-cols-2"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                                    <div
+                                                      className="aspect-[4/3] animate-pulse rounded-2xl bg-border/60"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="space-y-4"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                      <div
+                                                        className="h-8 w-2/3 animate-pulse rounded-xl bg-border/60"
+-                                                       bis_skin_checked="1"
+                                                      >
+                                                      <div
+                                                        className="h-40 animate-pulse rounded-2xl bg-border/60"
+-                                                       bis_skin_checked="1"
+                                                      >
+                                                      <div
+                                                        className="h-24 animate-pulse rounded-2xl bg-border/60"
+-                                                       bis_skin_checked="1"
+                                                      >
+                                        <Footer>
+                                          <footer className="relative m...">
+                                            <img>
+                                            <div
+                                              className="absolute inset-0 bg-gradient-to-r from-[#0b1220]/92 via-[#0b1..."
+                                              aria-hidden={true}
+-                                             bis_skin_checked="1"
+                                            >
+                                            <Container size="wide" className="relative p...">
+                                              <div
+                                                className="mx-auto w-full px-4 sm:px-6 lg:px-8 max-w-[1440px] relative..."
+-                                               bis_skin_checked="1"
+                                              >
+                                                <div
+                                                  className="grid gap-12 lg:grid-cols-[1.2fr_2fr]"
+-                                                 bis_skin_checked="1"
+                                                >
+                                                  <div
+                                                    className="space-y-6"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                                    <div
+                                                      className="inline-flex rounded-lg bg-white px-2 py-1"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <p>
+                                                    <div
+                                                      className="space-y-3 text-sm font-medium text-slate-300"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="flex gap-2"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                  <div
+                                                    className="grid gap-8 sm:grid-cols-2 lg:grid-cols-5"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                                    <div
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                <div
+                                                  className="mt-14 rounded-2xl border border-white/10 bg-white/5 p-6 m..."
+-                                                 bis_skin_checked="1"
+                                                >
+                                                  <div
+                                                    className="grid gap-6 md:grid-cols-[1fr_auto] md:items-end"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                                    <div
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <form className="flex w-ful..." onSubmit={function onSubmit}>
+                                                      <_c type="email" required={true} placeholder="Work email" ...>
+                                                        <div
+                                                          className="w-full space-y-1.5"
+-                                                         bis_skin_checked="1"
+                                                        >
+                                                          <div
+                                                            className="relative"
+-                                                           bis_skin_checked="1"
+                                                          >
+                                                      ...
+                                                <div
+                                                  className="mt-10 flex flex-col gap-6 border-t border-white/10 pt-8 m..."
+-                                                 bis_skin_checked="1"
+                                                >
+                                                  <p>
+                                                  <div
+                                                    className="flex flex-wrap items-center gap-3"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                        ...
+                                <div
+                                  className="pointer-events-none fixed top-4 right-4 z-[200] flex w-[calc(100%-2rem)] ..."
+-                                 bis_skin_checked="1"
+                                >
+                  ...
+ 
+[browser] Image with src "https://staticecp.uprinting.com/106/600x600/Square_Rounded_Corner_Business_Cards_Marketing_Material_A.jpg" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+[browser] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
+      <AppDevOverlayErrorBoundary globalError={[...]}>
+        <ReplaySsrOnlyErrors>
+        <DevRootHTTPAccessFallbackBoundary>
+          <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+            <HTTPAccessFallbackErrorBoundary pathname="/products/..." notFound={<NotAllowedRootHTTPFallbackError>} ...>
+              <RedirectBoundary>
+                <RedirectErrorBoundary router={{...}}>
+                  <Head headCacheNode={{rsc:{...}, ...}}>
+                    <__next_viewport_boundary__>
+                    <MetadataWrapper>
+                      <div
+                        hidden={true}
+-                       bis_skin_checked="1"
+                      >
+                    ...
+                  <__next_root_layout_boundary__>
+                    <SegmentViewNode type="layout" pagePath="layout.tsx">
+                      <SegmentTrieNode>
+                      <link>
+                      <script>
+                      <script>
+                      <script>
+                      <script>
+                      <script>
+                      <script>
+                      <script>
+                      <RootLayout>
+                        <html lang="en" className="plus_jakar..." suppressHydrationWarning={true}>
+                          <body className="min-h-full..." suppressHydrationWarning={true}>
+                            <SiteShell>
+                              <ToastProvider>
+                                ...
+                                  <ProductStoreProvider>
+                                    <SiteChrome>
+                                      <div
+                                        className="flex min-h-full flex-col"
+-                                       bis_skin_checked="1"
+                                      >
+                                        <SiteDocumentEffects>
+                                        <Header announcementOnly={false}>
+                                          <header className="z-[100] bg...">
+                                            <div
+                                              className="bg-secondary text-center text-[13px] font-medium tracking-wid..."
+-                                             bis_skin_checked="1"
+                                            >
+                                              <div
+                                                className="brand-cmy-bar h-1 w-full"
+                                                aria-hidden={true}
+-                                               bis_skin_checked="1"
+                                              >
+                                              <div
+                                                className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 ..."
+-                                               bis_skin_checked="1"
+                                              >
+                                            <div
+                                              className="border-b border-border bg-card transition-shadow"
+-                                             bis_skin_checked="1"
+                                            >
+                                              <Container size="wide">
+                                                <div
+                                                  className="mx-auto w-full px-4 sm:px-6 lg:px-8 max-w-[1440px]"
+-                                                 bis_skin_checked="1"
+                                                >
+                                                  <div
+                                                    className="flex items-center gap-3 py-3 md:gap-5 md:py-4"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                                    <Logo>
+                                                    <div
+                                                      className="hidden min-w-0 flex-1 items-center gap-3 md:flex"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                      <a>
+                                                      <form onSubmit={function onSearch} className="mx-auto w-...">
+                                                        <div
+                                                          className="flex overflow-hidden rounded-md border-2 border-p..."
+-                                                         bis_skin_checked="1"
+                                                        >
+                                                    <div
+                                                      className="ml-auto flex items-center gap-1 sm:gap-3"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                  <form onSubmit={function onSearch} className="pb-3 md:hi...">
+                                                    <div
+                                                      className="flex overflow-hidden rounded-md border-2 border-primary"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                            <div
+                                              className="relative z-[110] hidden border-b border-border bg-card lg:block"
+                                              onMouseLeave={function onMouseLeave}
+-                                             bis_skin_checked="1"
+                                            >
+                                              <Container size="wide">
+                                                <div
+                                                  className="mx-auto w-full px-4 sm:px-6 lg:px-8 max-w-[1440px]"
+-                                                 bis_skin_checked="1"
+                                                >
+                                                  <nav className="relative f..." aria-label="Product ca...">
+                                                    <div
+                                                      className="relative"
+                                                      onMouseEnter={function onMouseEnter}
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="relative"
+                                                      onMouseEnter={function onMouseEnter}
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="relative"
+                                                      onMouseEnter={function onMouseEnter}
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="relative"
+                                                      onMouseEnter={function onMouseEnter}
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="relative"
+                                                      onMouseEnter={function onMouseEnter}
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="relative"
+                                                      onMouseEnter={function onMouseEnter}
+-                                                     bis_skin_checked="1"
+                                                    >
+                                              ...
+                                            ...
+                                        ...
+                                          <Section>
+                                            <section id={undefined} className="py-16 md:p...">
+                                              <Container>
+                                                <div
+                                                  className="mx-auto w-full px-4 sm:px-6 lg:px-8 max-w-7xl"
+-                                                 bis_skin_checked="1"
+                                                >
+                                                  <div
+                                                    className="grid gap-8 lg:grid-cols-2"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                                    <div
+                                                      className="aspect-[4/3] animate-pulse rounded-2xl bg-border/60"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="space-y-4"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                      <div
+                                                        className="h-8 w-2/3 animate-pulse rounded-xl bg-border/60"
+-                                                       bis_skin_checked="1"
+                                                      >
+                                                      <div
+                                                        className="h-40 animate-pulse rounded-2xl bg-border/60"
+-                                                       bis_skin_checked="1"
+                                                      >
+                                                      <div
+                                                        className="h-24 animate-pulse rounded-2xl bg-border/60"
+-                                                       bis_skin_checked="1"
+                                                      >
+                                        <Footer>
+                                          <footer className="relative m...">
+                                            <img>
+                                            <div
+                                              className="absolute inset-0 bg-gradient-to-r from-[#0b1220]/92 via-[#0b1..."
+                                              aria-hidden={true}
+-                                             bis_skin_checked="1"
+                                            >
+                                            <Container size="wide" className="relative p...">
+                                              <div
+                                                className="mx-auto w-full px-4 sm:px-6 lg:px-8 max-w-[1440px] relative..."
+-                                               bis_skin_checked="1"
+                                              >
+                                                <div
+                                                  className="grid gap-12 lg:grid-cols-[1.2fr_2fr]"
+-                                                 bis_skin_checked="1"
+                                                >
+                                                  <div
+                                                    className="space-y-6"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                                    <div
+                                                      className="inline-flex rounded-lg bg-white px-2 py-1"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <p>
+                                                    <div
+                                                      className="space-y-3 text-sm font-medium text-slate-300"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="flex gap-2"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                  <div
+                                                    className="grid gap-8 sm:grid-cols-2 lg:grid-cols-5"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                                    <div
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                <div
+                                                  className="mt-14 rounded-2xl border border-white/10 bg-white/5 p-6 m..."
+-                                                 bis_skin_checked="1"
+                                                >
+                                                  <div
+                                                    className="grid gap-6 md:grid-cols-[1fr_auto] md:items-end"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                                    <div
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <form className="flex w-ful..." onSubmit={function onSubmit}>
+                                                      <_c type="email" required={true} placeholder="Work email" ...>
+                                                        <div
+                                                          className="w-full space-y-1.5"
+-                                                         bis_skin_checked="1"
+                                                        >
+                                                          <div
+                                                            className="relative"
+-                                                           bis_skin_checked="1"
+                                                          >
+                                                      ...
+                                                <div
+                                                  className="mt-10 flex flex-col gap-6 border-t border-white/10 pt-8 m..."
+-                                                 bis_skin_checked="1"
+                                                >
+                                                  <p>
+                                                  <div
+                                                    className="flex flex-wrap items-center gap-3"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                        ...
+                                <div
+                                  className="pointer-events-none fixed top-4 right-4 z-[200] flex w-[calc(100%-2rem)] ..."
+-                                 bis_skin_checked="1"
+                                >
+                  ...
+ 
+[browser] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
+      <AppDevOverlayErrorBoundary globalError={[...]}>
+        <ReplaySsrOnlyErrors>
+        <DevRootHTTPAccessFallbackBoundary>
+          <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+            <HTTPAccessFallbackErrorBoundary pathname="/products/..." notFound={<NotAllowedRootHTTPFallbackError>} ...>
+              <RedirectBoundary>
+                <RedirectErrorBoundary router={{...}}>
+                  <Head headCacheNode={{rsc:{...}, ...}}>
+                    <__next_viewport_boundary__>
+                    <MetadataWrapper>
+                      <div
+                        hidden={true}
+-                       bis_skin_checked="1"
+                      >
+                    ...
+                  <__next_root_layout_boundary__>
+                    <SegmentViewNode type="layout" pagePath="layout.tsx">
+                      <SegmentTrieNode>
+                      <link>
+                      <script>
+                      <script>
+                      <script>
+                      <script>
+                      <script>
+                      <script>
+                      <script>
+                      <RootLayout>
+                        <html lang="en" className="plus_jakar..." suppressHydrationWarning={true}>
+                          <body className="min-h-full..." suppressHydrationWarning={true}>
+                            <SiteShell>
+                              <ToastProvider>
+                                ...
+                                  <ProductStoreProvider>
+                                    <SiteChrome>
+                                      <div
+                                        className="flex min-h-full flex-col"
+-                                       bis_skin_checked="1"
+                                      >
+                                        <SiteDocumentEffects>
+                                        <Header announcementOnly={false}>
+                                          <header className="z-[100] bg...">
+                                            <div
+                                              className="bg-secondary text-center text-[13px] font-medium tracking-wid..."
+-                                             bis_skin_checked="1"
+                                            >
+                                              <div
+                                                className="brand-cmy-bar h-1 w-full"
+                                                aria-hidden={true}
+-                                               bis_skin_checked="1"
+                                              >
+                                              <div
+                                                className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 ..."
+-                                               bis_skin_checked="1"
+                                              >
+                                            <div
+                                              className="border-b border-border bg-card transition-shadow"
+-                                             bis_skin_checked="1"
+                                            >
+                                              <Container size="wide">
+                                                <div
+                                                  className="mx-auto w-full px-4 sm:px-6 lg:px-8 max-w-[1440px]"
+-                                                 bis_skin_checked="1"
+                                                >
+                                                  <div
+                                                    className="flex items-center gap-3 py-3 md:gap-5 md:py-4"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                                    <Logo>
+                                                    <div
+                                                      className="hidden min-w-0 flex-1 items-center gap-3 md:flex"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                      <a>
+                                                      <form onSubmit={function onSearch} className="mx-auto w-...">
+                                                        <div
+                                                          className="flex overflow-hidden rounded-md border-2 border-p..."
+-                                                         bis_skin_checked="1"
+                                                        >
+                                                    <div
+                                                      className="ml-auto flex items-center gap-1 sm:gap-3"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                  <form onSubmit={function onSearch} className="pb-3 md:hi...">
+                                                    <div
+                                                      className="flex overflow-hidden rounded-md border-2 border-primary"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                            <div
+                                              className="relative z-[110] hidden border-b border-border bg-card lg:block"
+                                              onMouseLeave={function onMouseLeave}
+-                                             bis_skin_checked="1"
+                                            >
+                                              <Container size="wide">
+                                                <div
+                                                  className="mx-auto w-full px-4 sm:px-6 lg:px-8 max-w-[1440px]"
+-                                                 bis_skin_checked="1"
+                                                >
+                                                  <nav className="relative f..." aria-label="Product ca...">
+                                                    <div
+                                                      className="relative"
+                                                      onMouseEnter={function onMouseEnter}
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="relative"
+                                                      onMouseEnter={function onMouseEnter}
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="relative"
+                                                      onMouseEnter={function onMouseEnter}
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="relative"
+                                                      onMouseEnter={function onMouseEnter}
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="relative"
+                                                      onMouseEnter={function onMouseEnter}
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="relative"
+                                                      onMouseEnter={function onMouseEnter}
+-                                                     bis_skin_checked="1"
+                                                    >
+                                              ...
+                                            ...
+                                        ...
+                                          <Section>
+                                            <section id={undefined} className="py-16 md:p...">
+                                              <Container>
+                                                <div
+                                                  className="mx-auto w-full px-4 sm:px-6 lg:px-8 max-w-7xl"
+-                                                 bis_skin_checked="1"
+                                                >
+                                                  <div
+                                                    className="grid gap-8 lg:grid-cols-2"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                                    <div
+                                                      className="aspect-[4/3] animate-pulse rounded-2xl bg-border/60"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="space-y-4"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                      <div
+                                                        className="h-8 w-2/3 animate-pulse rounded-xl bg-border/60"
+-                                                       bis_skin_checked="1"
+                                                      >
+                                                      <div
+                                                        className="h-40 animate-pulse rounded-2xl bg-border/60"
+-                                                       bis_skin_checked="1"
+                                                      >
+                                                      <div
+                                                        className="h-24 animate-pulse rounded-2xl bg-border/60"
+-                                                       bis_skin_checked="1"
+                                                      >
+                                        <Footer>
+                                          <footer className="relative m...">
+                                            <img>
+                                            <div
+                                              className="absolute inset-0 bg-gradient-to-r from-[#0b1220]/92 via-[#0b1..."
+                                              aria-hidden={true}
+-                                             bis_skin_checked="1"
+                                            >
+                                            <Container size="wide" className="relative p...">
+                                              <div
+                                                className="mx-auto w-full px-4 sm:px-6 lg:px-8 max-w-[1440px] relative..."
+-                                               bis_skin_checked="1"
+                                              >
+                                                <div
+                                                  className="grid gap-12 lg:grid-cols-[1.2fr_2fr]"
+-                                                 bis_skin_checked="1"
+                                                >
+                                                  <div
+                                                    className="space-y-6"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                                    <div
+                                                      className="inline-flex rounded-lg bg-white px-2 py-1"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <p>
+                                                    <div
+                                                      className="space-y-3 text-sm font-medium text-slate-300"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="flex gap-2"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                  <div
+                                                    className="grid gap-8 sm:grid-cols-2 lg:grid-cols-5"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                                    <div
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                <div
+                                                  className="mt-14 rounded-2xl border border-white/10 bg-white/5 p-6 m..."
+-                                                 bis_skin_checked="1"
+                                                >
+                                                  <div
+                                                    className="grid gap-6 md:grid-cols-[1fr_auto] md:items-end"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                                    <div
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <form className="flex w-ful..." onSubmit={function onSubmit}>
+                                                      <_c type="email" required={true} placeholder="Work email" ...>
+                                                        <div
+                                                          className="w-full space-y-1.5"
+-                                                         bis_skin_checked="1"
+                                                        >
+                                                          <div
+                                                            className="relative"
+-                                                           bis_skin_checked="1"
+                                                          >
+                                                      ...
+                                                <div
+                                                  className="mt-10 flex flex-col gap-6 border-t border-white/10 pt-8 m..."
+-                                                 bis_skin_checked="1"
+                                                >
+                                                  <p>
+                                                  <div
+                                                    className="flex flex-wrap items-center gap-3"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                        ...
+                                <div
+                                  className="pointer-events-none fixed top-4 right-4 z-[200] flex w-[calc(100%-2rem)] ..."
+-                                 bis_skin_checked="1"
+                                >
+                  ...
+ 
+[browser] Image with src "https://staticecp.uprinting.com/9556/600x600/UP_Plastic_Signs_Pet-Store_UP_B.jpg" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+[browser] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
+      <AppDevOverlayErrorBoundary globalError={[...]}>
+        <ReplaySsrOnlyErrors>
+        <DevRootHTTPAccessFallbackBoundary>
+          <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+            <HTTPAccessFallbackErrorBoundary pathname="/products/..." notFound={<NotAllowedRootHTTPFallbackError>} ...>
+              <RedirectBoundary>
+                <RedirectErrorBoundary router={{...}}>
+                  <Head>
+                  <__next_root_layout_boundary__>
+                    <SegmentViewNode type="layout" pagePath="layout.tsx">
+                      <SegmentTrieNode>
+                      <link>
+                      <script>
+                      <script>
+                      <script>
+                      <script>
+                      <script>
+                      <script>
+                      <script>
+                      <RootLayout>
+                        <html lang="en" className="plus_jakar..." suppressHydrationWarning={true}>
+                          <body className="min-h-full..." suppressHydrationWarning={true}>
+                            <SiteShell>
+                              <ToastProvider>
+                                ...
+                                  <ProductStoreProvider>
+                                    <SiteChrome>
+                                      <div
+                                        className="flex min-h-full flex-col"
+-                                       bis_skin_checked="1"
+                                      >
+                                        <SiteDocumentEffects>
+                                        <Header announcementOnly={false}>
+                                          <header className="z-[100] bg...">
+                                            <div
+                                              className="bg-secondary text-center text-[13px] font-medium tracking-wid..."
+-                                             bis_skin_checked="1"
+                                            >
+                                              <div
+                                                className="brand-cmy-bar h-1 w-full"
+                                                aria-hidden={true}
+-                                               bis_skin_checked="1"
+                                              >
+                                              <div
+                                                className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 ..."
+-                                               bis_skin_checked="1"
+                                              >
+                                            <div
+                                              className="border-b border-border bg-card transition-shadow"
+-                                             bis_skin_checked="1"
+                                            >
+                                              <Container size="wide">
+                                                <div
+                                                  className="mx-auto w-full px-4 sm:px-6 lg:px-8 max-w-[1440px]"
+-                                                 bis_skin_checked="1"
+                                                >
+                                                  <div
+                                                    className="flex items-center gap-3 py-3 md:gap-5 md:py-4"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                                    <Logo>
+                                                    <div
+                                                      className="hidden min-w-0 flex-1 items-center gap-3 md:flex"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                      <a>
+                                                      <form onSubmit={function onSearch} className="mx-auto w-...">
+                                                        <div
+                                                          className="flex overflow-hidden rounded-md border-2 border-p..."
+-                                                         bis_skin_checked="1"
+                                                        >
+                                                    <div
+                                                      className="ml-auto flex items-center gap-1 sm:gap-3"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                  <form onSubmit={function onSearch} className="pb-3 md:hi...">
+                                                    <div
+                                                      className="flex overflow-hidden rounded-md border-2 border-primary"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                            <div
+                                              className="relative z-[110] hidden border-b border-border bg-card lg:block"
+                                              onMouseLeave={function onMouseLeave}
+-                                             bis_skin_checked="1"
+                                            >
+                                              <Container size="wide">
+                                                <div
+                                                  className="mx-auto w-full px-4 sm:px-6 lg:px-8 max-w-[1440px]"
+-                                                 bis_skin_checked="1"
+                                                >
+                                                  <nav className="relative f..." aria-label="Product ca...">
+                                                    <div
+                                                      className="relative"
+                                                      onMouseEnter={function onMouseEnter}
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="relative"
+                                                      onMouseEnter={function onMouseEnter}
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="relative"
+                                                      onMouseEnter={function onMouseEnter}
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="relative"
+                                                      onMouseEnter={function onMouseEnter}
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="relative"
+                                                      onMouseEnter={function onMouseEnter}
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="relative"
+                                                      onMouseEnter={function onMouseEnter}
+-                                                     bis_skin_checked="1"
+                                                    >
+                                              ...
+                                            ...
+                                        ...
+                                          <Section>
+                                            <section id={undefined} className="py-16 md:p...">
+                                              <Container>
+                                                <div
+                                                  className="mx-auto w-full px-4 sm:px-6 lg:px-8 max-w-7xl"
+-                                                 bis_skin_checked="1"
+                                                >
+                                                  <div
+                                                    className="grid gap-8 lg:grid-cols-2"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                                    <div
+                                                      className="aspect-[4/3] animate-pulse rounded-2xl bg-border/60"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="space-y-4"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                      <div
+                                                        className="h-8 w-2/3 animate-pulse rounded-xl bg-border/60"
+-                                                       bis_skin_checked="1"
+                                                      >
+                                                      <div
+                                                        className="h-40 animate-pulse rounded-2xl bg-border/60"
+-                                                       bis_skin_checked="1"
+                                                      >
+                                                      <div
+                                                        className="h-24 animate-pulse rounded-2xl bg-border/60"
+-                                                       bis_skin_checked="1"
+                                                      >
+                                        <Footer>
+                                          <footer className="relative m...">
+                                            <img>
+                                            <div
+                                              className="absolute inset-0 bg-gradient-to-r from-[#0b1220]/92 via-[#0b1..."
+                                              aria-hidden={true}
+-                                             bis_skin_checked="1"
+                                            >
+                                            <Container size="wide" className="relative p...">
+                                              <div
+                                                className="mx-auto w-full px-4 sm:px-6 lg:px-8 max-w-[1440px] relative..."
+-                                               bis_skin_checked="1"
+                                              >
+                                                <div
+                                                  className="grid gap-12 lg:grid-cols-[1.2fr_2fr]"
+-                                                 bis_skin_checked="1"
+                                                >
+                                                  <div
+                                                    className="space-y-6"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                                    <div
+                                                      className="inline-flex rounded-lg bg-white px-2 py-1"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <p>
+                                                    <div
+                                                      className="space-y-3 text-sm font-medium text-slate-300"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+                                                      className="flex gap-2"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                  <div
+                                                    className="grid gap-8 sm:grid-cols-2 lg:grid-cols-5"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                                    <div
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <div
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                <div
+                                                  className="mt-14 rounded-2xl border border-white/10 bg-white/5 p-6 m..."
+-                                                 bis_skin_checked="1"
+                                                >
+                                                  <div
+                                                    className="grid gap-6 md:grid-cols-[1fr_auto] md:items-end"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                                    <div
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                    <form className="flex w-ful..." onSubmit={function onSubmit}>
+                                                      <_c type="email" required={true} placeholder="Work email" ...>
+                                                        <div
+                                                          className="w-full space-y-1.5"
+-                                                         bis_skin_checked="1"
+                                                        >
+                                                          <div
+                                                            className="relative"
+-                                                           bis_skin_checked="1"
+                                                          >
+                                                      ...
+                                                <div
+                                                  className="mt-10 flex flex-col gap-6 border-t border-white/10 pt-8 m..."
+-                                                 bis_skin_checked="1"
+                                                >
+                                                  <p>
+                                                  <div
+                                                    className="flex flex-wrap items-center gap-3"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                        ...
+                                <div
+                                  className="pointer-events-none fixed top-4 right-4 z-[200] flex w-[calc(100%-2rem)] ..."
+-                                 bis_skin_checked="1"
+                                >
+                  ...
+ 
+[browser] Image with src "https://staticecp.uprinting.com/106/600x600/Square_Rounded_Corner_Business_Cards_Marketing_Material_A.jpg" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+[browser] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
+      <AppDevOverlayErrorBoundary globalError={[...]}>
+        <ReplaySsrOnlyErrors>
+        <DevRootHTTPAccessFallbackBoundary>
+          <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+            <HTTPAccessFallbackErrorBoundary pathname="/products/..." notFound={<NotAllowedRootHTTPFallbackError>} ...>
+              <RedirectBoundary>
+                <RedirectErrorBoundary router={{...}}>
+                  <Head>
+                  <__next_root_layout_boundary__>
+                    <SegmentViewNode type="layout" pagePath="layout.tsx">
+                      <SegmentTrieNode>
+                      <link>
+                      <script>
+                      <script>
+                      <script>
+                      <script>
+                      <script>
+                      <script>
+                      <script>
+                      <RootLayout>
+                        <html lang="en" className="plus_jakar..." suppressHydrationWarning={true}>
+                          <body className="min-h-full..." suppressHydrationWarning={true}>
+                            <SiteShell>
+                              <ToastProvider>
+                                ...
+                                  <div className="flex min-h...">
+                                    <SiteDocumentEffects>
+                                    <Header announcementOnly={false}>
+                                      <header className="z-[100] bg...">
+                                        <div>
+                                        <div className="border-b b...">
+                                          <Container size="wide">
+                                            <div className="mx-auto w-...">
+                                              <div>
+                                              <form onSubmit={function onSearch} className="pb-3 md:hi...">
+                                                <div
+                                                  className="flex overflow-hidden rounded-md border-2 border-primary"
+-                                                 bis_skin_checked="1"
+                                                >
+                                        <div
+                                          className="relative z-[110] hidden border-b border-border bg-card lg:block"
+                                          onMouseLeave={function onMouseLeave}
+-                                         bis_skin_checked="1"
+                                        >
+                                          <Container size="wide">
+                                            <div
+                                              className="mx-auto w-full px-4 sm:px-6 lg:px-8 max-w-[1440px]"
+-                                             bis_skin_checked="1"
+                                            >
+                                              <nav className="relative f..." aria-label="Product ca...">
+                                                <div
+                                                  className="relative"
+                                                  onMouseEnter={function onMouseEnter}
+-                                                 bis_skin_checked="1"
+                                                >
+                                                <div
+                                                  className="relative"
+                                                  onMouseEnter={function onMouseEnter}
+-                                                 bis_skin_checked="1"
+                                                >
+                                                <div
+                                                  className="relative"
+                                                  onMouseEnter={function onMouseEnter}
+-                                                 bis_skin_checked="1"
+                                                >
+                                                <div
+                                                  className="relative"
+                                                  onMouseEnter={function onMouseEnter}
+-                                                 bis_skin_checked="1"
+                                                >
+                                                <div
+                                                  className="relative"
+                                                  onMouseEnter={function onMouseEnter}
+-                                                 bis_skin_checked="1"
+                                                >
+                                                <div
+                                                  className="relative"
+                                                  onMouseEnter={function onMouseEnter}
+-                                                 bis_skin_checked="1"
+                                                >
+                                          ...
+                                        ...
+                                    ...
+                                      <Section>
+                                        <section id={undefined} className="py-16 md:p...">
+                                          <Container>
+                                            <div
+                                              className="mx-auto w-full px-4 sm:px-6 lg:px-8 max-w-7xl"
+-                                             bis_skin_checked="1"
+                                            >
+                                              <div
+                                                className="grid gap-8 lg:grid-cols-2"
+-                                               bis_skin_checked="1"
+                                              >
+                                                <div
+                                                  className="aspect-[4/3] animate-pulse rounded-2xl bg-border/60"
+-                                                 bis_skin_checked="1"
+                                                >
+                                                <div
+                                                  className="space-y-4"
+-                                                 bis_skin_checked="1"
+                                                >
+                                                  <div
+                                                    className="h-8 w-2/3 animate-pulse rounded-xl bg-border/60"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                                  <div
+                                                    className="h-40 animate-pulse rounded-2xl bg-border/60"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                                  <div
+                                                    className="h-24 animate-pulse rounded-2xl bg-border/60"
+-                                                   bis_skin_checked="1"
+                                                  >
+                                    <Footer>
+                                      <footer className="relative m...">
+                                        <img>
+                                        <div
+                                          className="absolute inset-0 bg-gradient-to-r from-[#0b1220]/92 via-[#0b1220]..."
+                                          aria-hidden={true}
+-                                         bis_skin_checked="1"
+                                        >
+                                        <Container size="wide" className="relative p...">
+                                          <div
+                                            className="mx-auto w-full px-4 sm:px-6 lg:px-8 max-w-[1440px] relative py-..."
+-                                           bis_skin_checked="1"
+                                          >
+                                            <div
+                                              className="grid gap-12 lg:grid-cols-[1.2fr_2fr]"
+-                                             bis_skin_checked="1"
+                                            >
+                                              <div
+                                                className="space-y-6"
+-                                               bis_skin_checked="1"
+                                              >
+                                                <div
+                                                  className="inline-flex rounded-lg bg-white px-2 py-1"
+-                                                 bis_skin_checked="1"
+                                                >
+                                                <p>
+                                                <div
+                                                  className="space-y-3 text-sm font-medium text-slate-300"
+-                                                 bis_skin_checked="1"
+                                                >
+                                                <div
+                                                  className="flex gap-2"
+-                                                 bis_skin_checked="1"
+                                                >
+                                              <div
+                                                className="grid gap-8 sm:grid-cols-2 lg:grid-cols-5"
+-                                               bis_skin_checked="1"
+                                              >
+                                                <div
+-                                                 bis_skin_checked="1"
+                                                >
+                                                <div
+-                                                 bis_skin_checked="1"
+                                                >
+                                                <div
+-                                                 bis_skin_checked="1"
+                                                >
+                                                <div
+-                                                 bis_skin_checked="1"
+                                                >
+                                                <div
+-                                                 bis_skin_checked="1"
+                                                >
+                                            <div
+                                              className="mt-14 rounded-2xl border border-white/10 bg-white/5 p-6 md:p-8"
+-                                             bis_skin_checked="1"
+                                            >
+                                              <div
+                                                className="grid gap-6 md:grid-cols-[1fr_auto] md:items-end"
+-                                               bis_skin_checked="1"
+                                              >
+                                                <div
+-                                                 bis_skin_checked="1"
+                                                >
+                                                <form className="flex w-ful..." onSubmit={function onSubmit}>
+                                                  <_c type="email" required={true} placeholder="Work email" ...>
+                                                    <div
+                                                      className="w-full space-y-1.5"
+-                                                     bis_skin_checked="1"
+                                                    >
+                                                      <div
+                                                        className="relative"
+-                                                       bis_skin_checked="1"
+                                                      >
+                                                  ...
+                                            <div
+                                              className="mt-10 flex flex-col gap-6 border-t border-white/10 pt-8 md:fl..."
+-                                             bis_skin_checked="1"
+                                            >
+                                              <p>
+                                              <div
+                                                className="flex flex-wrap items-center gap-3"
+-                                               bis_skin_checked="1"
+                                              >
+                                    ...
+                                <div
+                                  className="pointer-events-none fixed top-4 right-4 z-[200] flex w-[calc(100%-2rem)] ..."
+-                                 bis_skin_checked="1"
+                                >
+                  ...
+ 

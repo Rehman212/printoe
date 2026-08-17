@@ -463,8 +463,11 @@ export function calcConfiguredPrice(
       priceMod: value.priceMod,
     });
 
-    if (group.key === "quantity") {
-      const qty = Number(selected);
+    if (group.key === "quantity" || /^quantity$/i.test(group.label)) {
+      // Imported (uprinting) groups key their Quantity group "attrN", not
+      // "quantity" - the real number lives in the option's label ("100"),
+      // since value.value is that source system's opaque option id.
+      const qty = Number(group.key === "quantity" ? selected : value.label);
       if (!Number.isNaN(qty) && qty > 0) quantity = qty;
       mod *= value.priceMod;
       continue;
@@ -562,6 +565,57 @@ export function calcConfiguredPrice(
     isPerUnit,
     lines,
   };
+}
+
+/**
+ * Fallback pricing for imported (pricing-matrix) products when the exact
+ * combination isn't in the matrix. Every option value here carries
+ * meta.matrixAnchorPrice (the default combo's real scraped price) and,
+ * where the scraper tested that single change, meta.priceAdd (the dollar
+ * delta vs. the anchor) - see the import-time comment in AdminProducts.tsx.
+ *
+ * Quantity is handled separately from every other option: its scraped rows
+ * are real bulk-discount totals (e.g. qty 100 costs $28.85/unit, not the
+ * qty-1 rate of $44.63/unit), not a flat per-unit add. So when the selected
+ * quantity has real scraped data (meta.matrixUnitPrice), that becomes the
+ * per-unit anchor in place of the qty-1 default - other options' deltas
+ * then add on top of that discounted rate, and the qty-1 anchor is never
+ * multiplied by the quantity a second time.
+ */
+export function calcMatrixFallbackPrice(
+  options: ProductOptionGroup[],
+  selections: Record<string, string>,
+) {
+  const selectedValues = options
+    .map((group) => ({ group, value: group.values.find((v) => v.value === selections[group.key]) }))
+    .filter(
+      (entry): entry is { group: ProductOptionGroup; value: (typeof entry)["value"] & object } =>
+        Boolean(entry.value),
+    );
+
+  const anchorPrice =
+    selectedValues
+      .map((entry) => entry.value.meta?.matrixAnchorPrice)
+      .find((price): price is number => typeof price === "number") ?? 0;
+
+  const quantityEntry = selectedValues.find((entry) => /^quantity$/i.test(entry.group.label));
+  const quantityUnitOverride = quantityEntry?.value.meta?.matrixUnitPrice;
+  const unitAnchor = typeof quantityUnitOverride === "number" ? quantityUnitOverride : anchorPrice;
+
+  const delta = selectedValues.reduce((sum, entry) => {
+    if (entry === quantityEntry) return sum;
+    const add = entry.value.meta?.priceAdd;
+    return sum + (typeof add === "number" ? add : 0);
+  }, 0);
+
+  const quantity = (() => {
+    const parsed = quantityEntry ? Number.parseInt(quantityEntry.value.label, 10) : NaN;
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+  })();
+
+  const unit = unitAnchor + delta;
+  const total = unit * quantity;
+  return { unit, total, quantity, basePrice: unit, mod: 1, isPerUnit: true, lines: [] as PriceBreakdownLine[] };
 }
 
 /** Empty on load — customer picks each field; price updates on select. */

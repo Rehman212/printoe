@@ -589,6 +589,7 @@ export function AdminProducts() {
     try {
       const data = JSON.parse(await file.text()) as {
         metadata?: { source_url?: string; sourceUrl?: string; product_name?: string; productName?: string };
+        default_selection?: Record<string, string>;
         description?: string;
         product_image?: string;
         images?: string[];
@@ -653,6 +654,7 @@ export function AdminProducts() {
             }),
         };
       });
+      const allowedSelectionKeys = new Set(importedGroups.map((group) => group.key));
       const allImportedRows: ImportedVariationPrice[] = data.prices.map((row, index) => {
         const price = Number(row.price);
         const unitPrice = Number(row.unitPrice ?? row.unit_price);
@@ -660,7 +662,6 @@ export function AdminProducts() {
         if (!row.selection || !Number.isFinite(price) || !Number.isFinite(unitPrice) || !Number.isFinite(quantity)) {
           throw new Error(`Invalid price row at position ${index + 1}`);
         }
-        const allowedSelectionKeys = new Set(importedGroups.map((group) => group.key));
         return {
           selection: Object.fromEntries(Object.entries(row.selection)
             .filter(([key]) => allowedSelectionKeys.has(key))
@@ -686,6 +687,49 @@ export function AdminProducts() {
         if (seenSelectionKeys.has(key)) continue;
         seenSelectionKeys.add(key);
         rows.push(row);
+      }
+      // The scraper sweeps one attribute at a time off the default combo (see
+      // preview_server.py's /api/export) rather than every joint combination -
+      // that's thousands of live requests and gets rate-limited long before it
+      // finishes. Each such row therefore isolates exactly one option's real
+      // dollar effect: reconstruct it as that option's priceAdd (read by
+      // calcMatrixFallbackPrice, see products-api.ts) so a combination the
+      // matrix never saw still prices from real deltas instead of freezing at
+      // the flat base price. matrixUnitPrice is also stashed from the same
+      // row - Quantity specifically needs its real per-unit rate (bulk
+      // discount), not a flat per-unit add, since its rows are priced at
+      // that exact quantity rather than at quantity 1 like every other group.
+      const defaultSelection = Object.fromEntries(
+        Object.entries(data.default_selection ?? {}).filter(([key]) => allowedSelectionKeys.has(key)),
+      );
+      const anchorRow = rows.find(
+        (row) =>
+          Object.keys(row.selection).length === Object.keys(defaultSelection).length &&
+          Object.entries(defaultSelection).every(([key, value]) => row.selection[key] === value),
+      );
+      if (anchorRow) {
+        for (const row of rows) {
+          if (row === anchorRow) continue;
+          const diffKeys = Object.keys(defaultSelection).filter(
+            (key) => row.selection[key] !== anchorRow.selection[key],
+          );
+          if (diffKeys.length !== 1) continue;
+          const [changedKey] = diffKeys;
+          const group = importedGroups.find((g) => g.key === changedKey);
+          const value = group?.values.find((v) => v.value === row.selection[changedKey]);
+          if (value) {
+            value.meta = {
+              ...value.meta,
+              priceAdd: row.price - anchorRow.price,
+              matrixUnitPrice: row.unitPrice,
+            };
+          }
+        }
+        for (const group of importedGroups) {
+          for (const value of group.values) {
+            value.meta = { ...value.meta, matrixAnchorPrice: anchorRow.price };
+          }
+        }
       }
       const importedDescription = typeof data.description === "string" ? data.description.trim() : "";
       const importedFeaturedImage = typeof data.product_image === "string" ? data.product_image.trim() : "";
