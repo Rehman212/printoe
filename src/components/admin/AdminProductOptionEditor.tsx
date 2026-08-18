@@ -38,6 +38,7 @@ export type FormOptionGroup = {
   label: string;
   uiType: OptionUiType;
   helpText: string;
+  meta: ProductOptionGroup["meta"];
   values: FormOptionValue[];
 };
 
@@ -63,6 +64,7 @@ export function emptyOptionGroup(): FormOptionGroup {
     label: "",
     uiType: "SELECT",
     helpText: "",
+    meta: null,
     values: [emptyOptionValue(), emptyOptionValue()],
   };
 }
@@ -118,6 +120,7 @@ export function optionGroupsFromTemplates(
     label: g.label,
     uiType: g.uiType,
     helpText: g.helpText ?? "",
+    meta: null,
     values: g.values.map((v) => ({
       id: newId("oval"),
       label: v.label,
@@ -145,6 +148,7 @@ export function optionGroupsFromApi(
     label: g.label,
     uiType: g.uiType,
     helpText: g.helpText ?? "",
+    meta: g.meta ?? null,
     values: (g.values ?? []).map((v) => ({
       id: v.id || newId("oval"),
       label: v.label,
@@ -161,6 +165,7 @@ type OptionPayload = {
   uiType: OptionUiType;
   helpText?: string;
   sortOrder: number;
+  meta?: Record<string, unknown>;
   values: Array<{
     label: string;
     value: string;
@@ -234,6 +239,7 @@ export function optionGroupsToPayload(
         uiType: group.uiType,
         helpText: group.helpText.trim() || undefined,
         sortOrder: groupIndex,
+        meta: (group.meta ?? undefined) as Record<string, unknown> | undefined,
         values,
       });
     }

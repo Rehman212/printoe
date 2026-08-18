@@ -108,6 +108,7 @@ type FormState = {
   featured: boolean;
   active: boolean;
   imageUrl: string;
+  videoUrl: string;
   previewDataUrl: string | null;
   /** Extra photos (besides primary feature image) */
   galleryUrls: string[];
@@ -213,6 +214,7 @@ const emptyForm = (cats: ApiCategory[] = []): FormState => {
     featured: false,
     active: true,
     imageUrl: "",
+    videoUrl: "",
     previewDataUrl: null,
     galleryUrls: [],
     faqs: DEFAULT_PRODUCT_FAQS.map((f) => ({
@@ -404,6 +406,7 @@ export function AdminProducts() {
       featured: Boolean(row.product.featured),
       active: row.product.active !== false,
       imageUrl: row.product.imageUrl ?? "",
+      videoUrl: row.product.videoUrl ?? "",
       previewDataUrl: row.product.imageUrl ?? null,
       galleryUrls: (() => {
         const imgs = (row.product.galleryUrls ?? []).filter(Boolean);
@@ -593,11 +596,21 @@ export function AdminProducts() {
         description?: string;
         product_image?: string;
         images?: string[];
+        video?: string;
         attributes?: Array<{
           attribute_id?: string;
           attributeId?: string;
           name: string;
-          options: Array<{ option_id?: string; optionId?: string; label: string; default?: boolean }>;
+          defaults_by_product?: Record<string, string>;
+          hide_rules_by_product?: Record<string, Array<Record<string, string>>>;
+          options: Array<{
+            option_id?: string;
+            optionId?: string;
+            label: string;
+            default?: boolean;
+            available_product_ids?: string[];
+            exclusion_rules_by_product?: Record<string, Array<Record<string, string>>>;
+          }>;
         }>;
         prices?: Array<{
           selection: Record<string, string>;
@@ -614,6 +627,22 @@ export function AdminProducts() {
       if (!Array.isArray(data.attributes) || !Array.isArray(data.prices)) {
         throw new Error("Invalid file: attributes aur prices arrays required hain.");
       }
+      const normalizeRuleMap = (
+        value?: Record<string, Array<Record<string, string>>>,
+      ) =>
+        Object.fromEntries(
+          Object.entries(value ?? {}).map(([productId, rules]) => [
+            productId,
+            rules.map((rule) =>
+              Object.fromEntries(
+                Object.entries(rule).map(([key, selected]) => [
+                  key.startsWith("attr") ? key : `attr${key}`,
+                  String(selected),
+                ]),
+              ),
+            ),
+          ]),
+        );
       // priceMod feeds calcConfiguredPrice as a MULTIPLIER (mod *= value.priceMod,
       // then total = basePrice * mod) - it is never a dollar delta. "1" is the
       // correct neutral value for every option here: imported products are
@@ -634,6 +663,12 @@ export function AdminProducts() {
           label: attribute.name,
           uiType: "SELECT",
           helpText: "",
+          meta: {
+            defaultsByProduct: attribute.defaults_by_product ?? {},
+            hideRulesByProduct: normalizeRuleMap(
+              attribute.hide_rules_by_product,
+            ),
+          },
           values: attribute.options
             .filter((option) => String(option.option_id ?? option.optionId ?? "") !== "custom")
             .map((option) => {
@@ -649,7 +684,17 @@ export function AdminProducts() {
                 label: option.label,
                 value: optionId,
                 priceMod: "1",
-                meta: { uprintingOptionId: optionId, default: Boolean(option.default), allowedLinkedValues },
+                meta: {
+                  uprintingOptionId: optionId,
+                  default: Boolean(option.default),
+                  allowedLinkedValues:
+                    attributeId === "0"
+                      ? []
+                      : option.available_product_ids ?? allowedLinkedValues,
+                  exclusionRulesByProduct: normalizeRuleMap(
+                    option.exclusion_rules_by_product,
+                  ),
+                },
               };
             }),
         };
@@ -720,14 +765,18 @@ export function AdminProducts() {
           if (value) {
             value.meta = {
               ...value.meta,
-              priceAdd: row.price - anchorRow.price,
+              unitPriceAdd: row.unitPrice - anchorRow.unitPrice,
               matrixUnitPrice: row.unitPrice,
             };
           }
         }
         for (const group of importedGroups) {
           for (const value of group.values) {
-            value.meta = { ...value.meta, matrixAnchorPrice: anchorRow.price };
+            value.meta = {
+              ...value.meta,
+              matrixAnchorPrice: anchorRow.price,
+              matrixAnchorUnitPrice: anchorRow.unitPrice,
+            };
           }
         }
       }
@@ -749,6 +798,7 @@ export function AdminProducts() {
           optionGroups: importedGroups,
           description: importedDescription || current.description,
           imageUrl: featuredImage,
+          videoUrl: typeof data.video === "string" ? data.video.trim() : current.videoUrl,
           previewDataUrl: featuredImage || current.previewDataUrl,
           galleryUrls,
           name,
@@ -867,6 +917,7 @@ export function AdminProducts() {
           featured: form.featured,
           active: isPublished,
           imageUrl,
+          videoUrl: form.videoUrl.trim() || undefined,
           galleryUrls,
           faqs,
           productTabs,
@@ -893,6 +944,7 @@ export function AdminProducts() {
           deliveryDays: Number(form.deliveryDays) || 3,
           badge: form.badge.trim() || undefined,
           imageUrl: imageUrl || undefined,
+          videoUrl: form.videoUrl.trim() || undefined,
           galleryUrls: galleryUrls.length ? galleryUrls : undefined,
           faqs,
           productTabs,
@@ -1448,6 +1500,28 @@ export function AdminProducts() {
                     {form.galleryUrls.length === 1 ? "" : "s"}
                     {form.imageUrl ? " · featured image kept separate" : ""}
                   </p>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-card p-4 shadow-soft sm:p-5">
+                  <h4 className="text-sm font-bold text-secondary">
+                    Product video
+                  </h4>
+                  <p className="mt-1 text-xs text-text-secondary">
+                    Optional YouTube/Vimeo embed or direct MP4 URL shown below the gallery.
+                  </p>
+                  <div className="mt-4">
+                    <Input
+                      label="Video URL"
+                      value={form.videoUrl}
+                      onChange={(e) =>
+                        setForm((current) => ({
+                          ...current,
+                          videoUrl: e.target.value,
+                        }))
+                      }
+                      placeholder="https://www.youtube.com/embed/… or https://…/video.mp4"
+                    />
+                  </div>
                 </div>
               </>
             ) : null}

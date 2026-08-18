@@ -43,6 +43,10 @@ import {
   fetchProductBySlug,
 } from "@/lib/products-api";
 import {
+  normalizeImportedSelections,
+  visibleImportedOptions,
+} from "@/lib/imported-product-rules";
+import {
   addCustomerWishlist,
   createCustomerDesign,
   deleteCustomerDesign,
@@ -257,6 +261,7 @@ export function ProductDetail({ slug }: { slug: string }) {
   const [categorySlug, setCategorySlug] = useState(localProduct?.category ?? "");
   const [categoryName, setCategoryName] = useState("");
   const [imageUrl, setImageUrl] = useState(localProduct?.imageUrl);
+  const [videoUrl, setVideoUrl] = useState<string | undefined>();
   const [gallery, setGallery] = useState<string[]>(
     localProduct?.galleryUrls?.length
       ? localProduct.galleryUrls
@@ -336,6 +341,7 @@ export function ProductDetail({ slug }: { slug: string }) {
         setCategorySlug(product.category.slug);
         setCategoryName(product.category.name);
         setImageUrl(product.imageUrl ?? undefined);
+        setVideoUrl(product.videoUrl ?? undefined);
         setGallery(
           product.galleryUrls?.length
             ? product.galleryUrls
@@ -373,6 +379,7 @@ export function ProductDetail({ slug }: { slug: string }) {
               .join(" "),
           );
           setImageUrl(localProduct.imageUrl);
+          setVideoUrl(undefined);
           setGallery(
             localProduct.galleryUrls?.length
               ? localProduct.galleryUrls
@@ -404,29 +411,18 @@ export function ProductDetail({ slug }: { slug: string }) {
   const hasCustomTabs = productTabs.length > 0;
 
   const visibleOptions = useMemo(() => {
-    const linkedValue = selections.attr0;
-    if (!linkedValue) return options;
-    return options.map((group) => ({
-      ...group,
-      values: group.values.filter((value) => {
-        const allowed = (value.meta as { allowedLinkedValues?: string[] } | null)?.allowedLinkedValues;
-        return !allowed?.length || allowed.includes(linkedValue);
-      }),
-    }));
-  }, [options, selections.attr0]);
+    return visibleImportedOptions(options, selections);
+  }, [options, selections]);
 
-  useEffect(() => {
-    setSelections((current) => {
-      let changed = false;
-      const next = { ...current };
-      for (const group of visibleOptions) {
-        if (group.values.some((value) => value.value === next[group.key])) continue;
-        const fallback = group.values.find((value) => (value.meta as { default?: boolean } | null)?.default) ?? group.values[0];
-        if (fallback) { next[group.key] = fallback.value; changed = true; }
-      }
-      return changed ? next : current;
-    });
-  }, [visibleOptions]);
+  const matrixSelections = useMemo(
+    () =>
+      Object.fromEntries(
+        visibleOptions
+          .filter((group) => selections[group.key])
+          .map((group) => [group.key, selections[group.key]]),
+      ),
+    [selections, visibleOptions],
+  );
 
   const tabExtraPrice = useMemo(() => {
     if (!activeTab?.fields?.length) return 0;
@@ -458,29 +454,37 @@ export function ProductDetail({ slug }: { slug: string }) {
   // the matrix's cheapest row, not the default combo). Each option's
   // priceAdd is itself a delta off this same anchor, so the two combine
   // correctly - see the import-time comment in AdminProducts.tsx.
-  const matrixAnchorPrice = useMemo(
+  const hasImportedFallbackPricing = useMemo(
     () =>
       options
         .flatMap((group) => group.values)
-        .map((value) => value.meta?.matrixAnchorPrice)
-        .find((price): price is number => typeof price === "number"),
+        .some(
+          (value) =>
+            typeof value.meta?.matrixAnchorPrice === "number" ||
+            (value.meta?.pricingByProduct !== null &&
+              typeof value.meta?.pricingByProduct === "object"),
+        ),
     [options],
   );
 
   const fallbackPricing = useMemo(() => {
-    if (matrixAnchorPrice !== undefined) {
-      return calcMatrixFallbackPrice(hasCustomTabs ? [] : visibleOptions, hasCustomTabs ? {} : selections);
+    if (hasImportedFallbackPricing) {
+      return calcMatrixFallbackPrice(hasCustomTabs ? [] : visibleOptions, hasCustomTabs ? {} : matrixSelections);
     }
-    return calcConfiguredPrice(effectiveBasePrice, hasCustomTabs ? [] : visibleOptions, hasCustomTabs ? {} : selections);
-  }, [matrixAnchorPrice, effectiveBasePrice, hasCustomTabs, visibleOptions, selections]);
+    return calcConfiguredPrice(effectiveBasePrice, hasCustomTabs ? [] : visibleOptions, hasCustomTabs ? {} : matrixSelections);
+  }, [hasImportedFallbackPricing, effectiveBasePrice, hasCustomTabs, visibleOptions, matrixSelections]);
 
   useEffect(() => {
     let cancelled = false;
-    if (!pricingMatrixEnabled || hasCustomTabs || Object.keys(selections).length < options.length) {
+    if (
+      !pricingMatrixEnabled ||
+      hasCustomTabs ||
+      Object.keys(matrixSelections).length < visibleOptions.length
+    ) {
       setMatrixPrice(null);
       return;
     }
-    void fetchConfiguredMatrixPrice(slug, selections)
+    void fetchConfiguredMatrixPrice(slug, matrixSelections)
       .then((result) => {
         if (cancelled) return;
         setMatrixPrice(result.data && typeof result.data.price === "number" && typeof result.data.unitPrice === "number" && typeof result.data.quantity === "number"
@@ -489,7 +493,7 @@ export function ProductDetail({ slug }: { slug: string }) {
       })
       .catch(() => { if (!cancelled) setMatrixPrice(null); });
     return () => { cancelled = true; };
-  }, [pricingMatrixEnabled, hasCustomTabs, options.length, selections, slug]);
+  }, [pricingMatrixEnabled, hasCustomTabs, matrixSelections, visibleOptions.length, slug]);
 
   const pricing = useMemo(() => {
     if (!pricingMatrixEnabled || !matrixPrice) return fallbackPricing;
@@ -549,7 +553,7 @@ export function ProductDetail({ slug }: { slug: string }) {
       const next = { ...prev };
       if (!value) delete next[key];
       else next[key] = value;
-      return next;
+      return normalizeImportedSelections(options, next, key);
     });
   };
 
@@ -781,6 +785,28 @@ export function ProductDetail({ slug }: { slug: string }) {
                   ))}
                 </div>
               )}
+              {videoUrl && /^https?:\/\//i.test(videoUrl) ? (
+                <div className="mt-4 aspect-video overflow-hidden border border-border bg-black">
+                  {/youtube\.com\/embed|player\.vimeo\.com\/video/i.test(videoUrl) ? (
+                    <iframe
+                      src={videoUrl}
+                      title={`${name} video`}
+                      className="h-full w-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <video
+                      src={videoUrl}
+                      controls
+                      preload="metadata"
+                      className="h-full w-full object-contain"
+                    >
+                      Your browser does not support product video.
+                    </video>
+                  )}
+                </div>
+              ) : null}
             </div>
 
             <div className="min-w-0 lg:sticky lg:top-24 lg:self-start">

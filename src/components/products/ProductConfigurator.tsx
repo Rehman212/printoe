@@ -41,6 +41,10 @@ export function ProductConfigurator({
   return (
     <div className="space-y-5">
       {options.map((group) => {
+        // A linked-calculator product's per-type fields (e.g. a Silk-only
+        // finish) get filtered down to zero values once a different type is
+        // selected - nothing left to pick, so there's nothing to render.
+        if (group.values.length === 0) return null;
         const selected = selections[group.key] ?? "";
 
         if (group.uiType === "CARDS") {

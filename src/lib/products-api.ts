@@ -1,5 +1,6 @@
 import { getApiBaseUrl, getAccessToken } from "@/lib/auth";
 import { showcaseImageForSlug } from "@/lib/homepage-showcase";
+import { importedDefaultSelections } from "@/lib/imported-product-rules";
 import type {
   CatalogProduct,
   ProductDetailPayload,
@@ -177,6 +178,7 @@ export async function createAdminProduct(payload: {
   deliveryDays?: number;
   badge?: string;
   imageUrl?: string;
+  videoUrl?: string;
   galleryUrls?: string[];
   faqs?: Array<{ question: string; answer: string }>;
   productTabs?: ProductTab[];
@@ -188,6 +190,7 @@ export async function createAdminProduct(payload: {
     uiType: "SELECT" | "CARDS" | "NUMBER";
     helpText?: string;
     sortOrder?: number;
+    meta?: Record<string, unknown>;
     values: Array<{
       label: string;
       value: string;
@@ -217,6 +220,7 @@ export async function updateAdminProduct(
     deliveryDays?: number;
     badge?: string;
     imageUrl?: string;
+    videoUrl?: string;
     galleryUrls?: string[];
     faqs?: Array<{ question: string; answer: string }>;
     productTabs?: ProductTab[];
@@ -228,6 +232,7 @@ export async function updateAdminProduct(
       uiType: "SELECT" | "CARDS" | "NUMBER";
       helpText?: string;
       sortOrder?: number;
+      meta?: Record<string, unknown>;
       values: Array<{
         label: string;
         value: string;
@@ -593,6 +598,66 @@ export function calcMatrixFallbackPrice(
         Boolean(entry.value),
     );
 
+  const productId = selections.attr0 ?? "default";
+  const pricingEntries = selectedValues
+    .map((entry) => {
+      const byProduct = entry.value.meta?.pricingByProduct;
+      if (!byProduct || typeof byProduct !== "object") return null;
+      const pricing = (byProduct as Record<string, unknown>)[productId];
+      return pricing && typeof pricing === "object"
+        ? (pricing as {
+            anchorPrice?: number;
+            anchorUnitPrice?: number;
+            matrixUnitPrice?: number;
+            unitPriceAdd?: number;
+          })
+        : null;
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+  if (pricingEntries.length) {
+    const quantityEntry = selectedValues.find((entry) =>
+      /^quantity$/i.test(entry.group.label),
+    );
+    const quantity = (() => {
+      const parsed = quantityEntry
+        ? Number.parseInt(quantityEntry.value.label, 10)
+        : NaN;
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+    })();
+    const quantityPricing = (() => {
+      const byProduct = quantityEntry?.value.meta?.pricingByProduct;
+      const value =
+        byProduct && typeof byProduct === "object"
+          ? (byProduct as Record<string, unknown>)[productId]
+          : null;
+      return value && typeof value === "object"
+        ? (value as { matrixUnitPrice?: number })
+        : null;
+    })();
+    const anchorUnit =
+      typeof quantityPricing?.matrixUnitPrice === "number"
+        ? quantityPricing.matrixUnitPrice
+        : (pricingEntries
+            .map((entry) => entry.anchorUnitPrice)
+            .find((value): value is number => typeof value === "number") ?? 0);
+    const unitDelta = pricingEntries.reduce(
+      (sum, entry) =>
+        sum +
+        (typeof entry.unitPriceAdd === "number" ? entry.unitPriceAdd : 0),
+      0,
+    );
+    const unit = Math.max(0, anchorUnit + unitDelta);
+    return {
+      unit,
+      total: unit * quantity,
+      quantity,
+      basePrice: unit,
+      mod: 1,
+      isPerUnit: true,
+      lines: [] as PriceBreakdownLine[],
+    };
+  }
+
   const anchorPrice =
     selectedValues
       .map((entry) => entry.value.meta?.matrixAnchorPrice)
@@ -600,11 +665,20 @@ export function calcMatrixFallbackPrice(
 
   const quantityEntry = selectedValues.find((entry) => /^quantity$/i.test(entry.group.label));
   const quantityUnitOverride = quantityEntry?.value.meta?.matrixUnitPrice;
-  const unitAnchor = typeof quantityUnitOverride === "number" ? quantityUnitOverride : anchorPrice;
+  const matrixAnchorUnitPrice = selectedValues
+    .map((entry) => entry.value.meta?.matrixAnchorUnitPrice)
+    .find((price): price is number => typeof price === "number");
+  const unitAnchor =
+    typeof quantityUnitOverride === "number"
+      ? quantityUnitOverride
+      : (matrixAnchorUnitPrice ?? anchorPrice);
 
   const delta = selectedValues.reduce((sum, entry) => {
     if (entry === quantityEntry) return sum;
-    const add = entry.value.meta?.priceAdd;
+    const add =
+      typeof entry.value.meta?.unitPriceAdd === "number"
+        ? entry.value.meta.unitPriceAdd
+        : entry.value.meta?.priceAdd;
     return sum + (typeof add === "number" ? add : 0);
   }, 0);
 
@@ -620,10 +694,5 @@ export function calcMatrixFallbackPrice(
 
 /** Empty on load — customer picks each field; price updates on select. */
 export function defaultSelections(_options: ProductOptionGroup[]) {
-  const selections: Record<string, string> = {};
-  for (const group of _options) {
-    const importedDefault = group.values.find((value) => value.meta?.default === true);
-    if (importedDefault) selections[group.key] = importedDefault.value;
-  }
-  return selections;
+  return importedDefaultSelections(_options);
 }

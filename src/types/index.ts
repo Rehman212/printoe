@@ -53,6 +53,11 @@ export type ProductOptionGroup = {
   required: boolean;
   sortOrder: number;
   helpText?: string | null;
+  meta?: {
+    defaultsByProduct?: Record<string, string>;
+    hideRulesByProduct?: Record<string, Array<Record<string, string>>>;
+    [key: string]: unknown;
+  } | null;
   values: ProductOptionValue[];
 };
 
@@ -93,6 +98,7 @@ export type CatalogProduct = {
   deliveryDays: number;
   badge?: string | null;
   imageUrl?: string | null;
+  videoUrl?: string | null;
   galleryUrls?: string[];
   faqs?: ProductFaq[];
   productTabs?: ProductTab[];

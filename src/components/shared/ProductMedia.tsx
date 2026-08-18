@@ -21,11 +21,10 @@ function canOptimize(url: string) {
   if (url.startsWith("/")) return true;
   try {
     const host = new URL(url).hostname;
-    return (
-      OPTIMIZED_HOSTS.has(host) ||
-      host.endsWith(".magnific.com") ||
-      host.endsWith(".uprinting.com")
-    );
+    // UPrinting's CDN permits direct browser images but intermittently rejects
+    // Next's server-side optimizer requests, producing broken imported media.
+    if (host.endsWith(".uprinting.com")) return false;
+    return OPTIMIZED_HOSTS.has(host) || host.endsWith(".magnific.com");
   } catch {
     return false;
   }
