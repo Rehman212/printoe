@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Bookmark,
@@ -19,7 +19,13 @@ import {
   User,
   X,
 } from "lucide-react";
-import { HEADER_NAV_GROUPS } from "@/lib/uprinting-nav";
+import {
+  HEADER_NAV_GROUPS,
+  type MegaColumn,
+  type NavGroup,
+} from "@/lib/uprinting-nav";
+import { fetchProducts } from "@/lib/products-api";
+import type { CatalogProduct } from "@/types";
 import { cn } from "@/lib/utils";
 import { Container } from "@/components/ui/Section";
 import { Logo } from "@/components/shared/Logo";
@@ -35,6 +41,131 @@ const ACCOUNT_LINKS = [
   { href: "/dashboard/quotations", label: "Quotations", icon: FileText },
 ];
 
+const NAV_PRODUCT_CATEGORIES: Record<string, Set<string>> = {
+  "Marketing Materials": new Set([
+    "business-cards",
+    "brochures",
+    "flyers",
+    "marketing-materials",
+    "postcards",
+  ]),
+  "Stickers & Labels": new Set(["stickers", "labels"]),
+  "Boxes & Packaging": new Set(["boxes", "packaging"]),
+  "Signs & Banners": new Set(["banners", "signs"]),
+  "Apparel & Promo": new Set(["apparel", "promotional-products"]),
+};
+
+function normalizedProductName(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+const MATCH_IGNORED_WORDS = new Set([
+  "all",
+  "and",
+  "custom",
+  "printed",
+  "printing",
+  "the",
+]);
+
+function productNameTokens(value: string) {
+  return normalizedProductName(value)
+    .split(" ")
+    .filter((word) => word && !MATCH_IGNORED_WORDS.has(word))
+    .map((word) => (word.length > 3 && word.endsWith("s") ? word.slice(0, -1) : word));
+}
+
+function isRelatedProduct(label: string, productName: string) {
+  const labelTokens = productNameTokens(label);
+  const productTokens = productNameTokens(productName);
+  if (!labelTokens.length || !productTokens.length) return false;
+  const labelSet = new Set(labelTokens);
+  const productSet = new Set(productTokens);
+  return (
+    labelTokens.every((word) => productSet.has(word)) ||
+    productTokens.every((word) => labelSet.has(word))
+  );
+}
+
+function resolveProductMenu(
+  groups: NavGroup[],
+  products: CatalogProduct[],
+): NavGroup[] {
+  const productByName = new Map(
+    products.map((product) => [normalizedProductName(product.name), product]),
+  );
+
+  return groups.map((group) => {
+    if (!group.mega) return group;
+
+    const linkedSlugs = new Set<string>();
+    const supplementalProducts = new Map<string, CatalogProduct>();
+    const mega = group.mega.map((column): MegaColumn => ({
+      ...column,
+      links: column.links.map((link) => {
+        if (link.all) return { ...link, href: "#" };
+
+        const exactProduct = productByName.get(
+          normalizedProductName(link.label),
+        );
+        if (exactProduct) {
+          linkedSlugs.add(exactProduct.slug);
+          return { ...link, href: `/products/${exactProduct.slug}` };
+        }
+
+        const relatedProducts = products.filter(
+          (product) =>
+            !linkedSlugs.has(product.slug) &&
+            isRelatedProduct(link.label, product.name),
+        );
+        if (relatedProducts.length === 1) {
+          linkedSlugs.add(relatedProducts[0].slug);
+          return { ...link, href: `/products/${relatedProducts[0].slug}` };
+        }
+        if (relatedProducts.length > 1) {
+          for (const product of relatedProducts) {
+            linkedSlugs.add(product.slug);
+            supplementalProducts.set(product.slug, product);
+          }
+        }
+        return { ...link, href: "#" };
+      }),
+    }));
+
+    const categories = NAV_PRODUCT_CATEGORIES[group.label];
+    const extraProducts = [
+      ...supplementalProducts.values(),
+      ...products.filter((product) => {
+        if (linkedSlugs.has(product.slug)) return false;
+        if (group.label === "Featured Collections") return product.featured;
+        return categories?.has(product.category.slug);
+      }),
+    ];
+
+    for (let offset = 0; offset < extraProducts.length; offset += 6) {
+      const chunk = extraProducts.slice(offset, offset + 6);
+      mega.push({
+        title:
+          extraProducts.length <= 6
+            ? "More Products"
+            : `More Products ${offset / 6 + 1}`,
+        href: group.href,
+        image: chunk[0]?.imageUrl || mega[0]?.image || "/mega/featured-collections.jpg",
+        links: chunk.map((product) => ({
+          label: product.name,
+          href: `/products/${product.slug}`,
+        })),
+      });
+    }
+
+    return { ...group, mega };
+  });
+}
+
 export function Header({ announcementOnly = false }: { announcementOnly?: boolean }) {
   const router = useRouter();
   const site = useSiteSettings();
@@ -47,6 +178,12 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
   const [mobileNavOpen, setMobileNavOpen] = useState<string | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [menuProducts, setMenuProducts] = useState<CatalogProduct[]>([]);
+
+  const navGroups = useMemo(
+    () => resolveProductMenu(HEADER_NAV_GROUPS, menuProducts),
+    [menuProducts],
+  );
 
   const initials = (user?.name || user?.email || "?")
     .split(/\s+/)
@@ -55,7 +192,7 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
     .slice(0, 2)
     .toUpperCase();
   const firstName = user?.name?.split(/\s+/)[0] ?? "there";
-  const activeMega = HEADER_NAV_GROUPS.find(
+  const activeMega = navGroups.find(
     (group) => group.label === navOpen,
   )?.mega;
 
@@ -65,6 +202,21 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
+  }, [announcementOnly]);
+
+  useEffect(() => {
+    if (announcementOnly) return;
+    let cancelled = false;
+    void fetchProducts()
+      .then((response) => {
+        if (!cancelled) setMenuProducts(response.data);
+      })
+      .catch(() => {
+        if (!cancelled) setMenuProducts([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [announcementOnly]);
 
   const onSearch = (e: FormEvent) => {
@@ -371,7 +523,7 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
             className="relative flex items-center justify-center gap-2 py-0 xl:gap-6"
             aria-label="Product categories"
           >
-            {HEADER_NAV_GROUPS.map((group) => {
+            {navGroups.map((group) => {
               const isOpen = navOpen === group.label;
               return (
                 <div
@@ -511,7 +663,7 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
               >
                 Custom Product Builder
               </Link>
-              {HEADER_NAV_GROUPS.map((group) => {
+              {navGroups.map((group) => {
                 const open = mobileNavOpen === group.label;
                 return (
                   <div key={group.label} className="border-b border-border/60 pb-1">
