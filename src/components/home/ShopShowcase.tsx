@@ -1,17 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Settings } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { fetchProducts } from "@/lib/products-api";
 import { DynamicIcon } from "@/lib/icons";
 import {
-  CATEGORY_SUBMENUS,
   POPULAR_FOOTER_LINKS,
   POPULAR_PRODUCT_CATEGORIES,
 } from "@/lib/uprinting-nav";
-import { BUSINESS_CARDS_FLYOUT_SECTIONS } from "@/lib/business-cards-catalog";
-import { SHOP_FLYOUTS, SHOP_STATIC_CATEGORIES } from "@/lib/shop-catalog";
 import { Container } from "@/components/ui/Section";
 import { ProductMedia } from "@/components/shared/ProductMedia";
 import { cn } from "@/lib/utils";
@@ -75,25 +72,55 @@ function buildShowcaseRows(apiProducts: CatalogProduct[]): ShowcaseRow[] {
   return rows;
 }
 
-/**
- * The hand-authored nav data (CATEGORY_SUBMENUS and friends) predates the
- * admin/scraper import and still links `/products/{category}/{slug}` -
- * there's no such nested route, only `/products/{slug}`. Collapse to the
- * real route shape so a mismatched guess 404s cleanly instead of always
- * 404ing on the wrong path shape.
- */
-function normalizeStaticHref(href: string): string {
-  const match = href.match(/^\/products\/(?:[^/]+\/)*([^/]+)\/?$/);
-  return match ? `/products/${match[1]}` : href;
-}
+const SIDEBAR_CATEGORY_SLUGS: Set<string> = new Set(
+  POPULAR_PRODUCT_CATEGORIES.map((category) => category.slug),
+);
 
-const STATIC_FLYOUT_IDS = new Set<string>([
-  "apparel",
-  "banners",
-  "boxes",
-  "business-cards",
-  ...SHOP_STATIC_CATEGORIES,
-]);
+function sidebarCategoryForProduct(product: CatalogProduct): string | null {
+  const category = product.category.slug.toLowerCase();
+  if (SIDEBAR_CATEGORY_SLUGS.has(category)) return category;
+
+  const text = `${category} ${product.name}`.toLowerCase();
+  if (text.includes("business card")) return "business-cards";
+  if (text.includes("postcard")) return "postcards";
+  if (text.includes("sticker")) return "stickers";
+  if (text.includes("label")) return "labels";
+  if (text.includes("flyer")) return "flyers";
+  if (
+    /(brochure|leaflet|newsletter|magazine|rack card)/.test(text)
+  ) {
+    return "brochures";
+  }
+  if (/(banner|fabric display|pop-up display|backdrop)/.test(text)) {
+    return "banners";
+  }
+  if (
+    /(sign|decal|cling|floor graphic|flag|poster stand|foam board|counter card)/.test(
+      text,
+    )
+  ) {
+    return "signs";
+  }
+  if (text.includes("box")) return "boxes";
+  if (
+    /(packaging|mailer|packing tape|tissue paper|wrapping paper|ribbon|bow|gift bag|dvd)/.test(
+      text,
+    )
+  ) {
+    return "packaging";
+  }
+  if (/(t-shirt|apparel|shirt|sweat|jacket|hat|polo)/.test(text)) {
+    return "apparel";
+  }
+  if (
+    /(magnet|stamp|notepad|table tent|trading card|appointment card|event ticket|menu)/.test(
+      text,
+    )
+  ) {
+    return "promotional-products";
+  }
+  return null;
+}
 
 const popularItems = [
   {
@@ -236,30 +263,19 @@ export function ShopShowcase() {
   const submenuByCategory = useMemo(() => {
     const map: Record<string, { label: string; href: string }[]> = {};
     for (const p of apiProducts) {
-      const slug = p.category.slug;
-      if (!map[slug]) map[slug] = [];
-      map[slug].push({
+      const sidebarCategory = sidebarCategoryForProduct(p);
+      if (!sidebarCategory) continue;
+      if (!map[sidebarCategory]) map[sidebarCategory] = [];
+      map[sidebarCategory].push({
         label: p.name,
         href: `/products/${p.slug}`,
       });
     }
+    for (const items of Object.values(map)) {
+      items.sort((a, b) => a.label.localeCompare(b.label));
+    }
     return map;
   }, [apiProducts]);
-
-  const productSlugByName = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const p of apiProducts) map.set(p.name.trim().toLowerCase(), p.slug);
-    return map;
-  }, [apiProducts]);
-
-  /** Prefer a real product's own slug when its name matches this link's label. */
-  const resolveHref = useCallback(
-    (label: string, fallbackHref: string) => {
-      const realSlug = productSlugByName.get(label.trim().toLowerCase());
-      return realSlug ? `/products/${realSlug}` : normalizeStaticHref(fallbackHref);
-    },
-    [productSlugByName],
-  );
 
   return (
     <section className="border-b border-border bg-white py-8 md:py-10">
@@ -277,20 +293,14 @@ export function ShopShowcase() {
               <ul className="divide-y divide-border">
                 {popularItems.map((item) => {
                   const isBuilder = item.id === "builder";
-                  const live = isBuilder
+                  const submenu = isBuilder
                     ? []
                     : (submenuByCategory[item.id] ?? []);
-                  const staticExtras = isBuilder
-                    ? []
-                    : (CATEGORY_SUBMENUS[item.id] ?? []);
-                  // Apparel / Banners flyouts match UPrinting subtype lists
-                  const submenu = STATIC_FLYOUT_IDS.has(item.id)
-                      ? staticExtras
-                      : [...live, ...staticExtras].slice(0, 8);
                   const hasSubmenu = !isBuilder && submenu.length > 0;
+                  const hasExactCategory = apiProducts.some(
+                    (product) => product.category.slug === item.id,
+                  );
                   const isOpen = openId === item.id;
-                  const isBcFlyout = item.id === "business-cards";
-                  const shopSections = SHOP_FLYOUTS[item.id];
 
                   return (
                     <li
@@ -299,7 +309,7 @@ export function ShopShowcase() {
                       onMouseEnter={() => setOpenId(item.id)}
                     >
                       <Link
-                        href={item.href}
+                        href={isBuilder || hasExactCategory ? item.href : "#"}
                         className={cn(
                           "flex items-center gap-3 px-3.5 py-2.5 transition focus-ring",
                           isOpen
@@ -345,71 +355,21 @@ export function ShopShowcase() {
                           role="menu"
                           className="absolute left-full top-0 z-40 ml-0 max-h-[min(70vh,560px)] min-w-[280px] overflow-y-auto border border-border bg-white py-2 shadow-soft"
                         >
-                          {isBcFlyout ? (
-                            BUSINESS_CARDS_FLYOUT_SECTIONS.map((section) => (
-                              <div key={section.title} className="pb-2">
-                                <p className="px-4 pb-1 pt-2 text-sm font-bold text-secondary">
-                                  {section.title}
-                                </p>
-                                {section.items.map((sub) => (
-                                  <Link
-                                    key={sub.href}
-                                    href={resolveHref(sub.label, sub.href)}
-                                    role="menuitem"
-                                    className="block px-4 py-1.5 text-sm text-secondary transition hover:bg-[#e8f4fc] hover:text-primary"
-                                  >
-                                    {sub.label}
-                                  </Link>
-                                ))}
-                              </div>
-                            ))
-                          ) : shopSections ? (
-                            shopSections.map((section, si) => (
-                              <div key={(section.title ?? "s") + si} className="pb-1">
-                                {section.header ? (
-                                  <p className="flex items-center gap-2 px-4 pb-1 pt-2 text-sm font-bold text-secondary">
-                                    <Settings className="h-4 w-4 text-text-secondary" />
-                                    {section.header}
-                                  </p>
-                                ) : null}
-                                {section.title ? (
-                                  <p className="px-4 pb-1 pt-2 text-sm font-bold text-secondary">
-                                    {section.title}
-                                  </p>
-                                ) : null}
-                                {section.items.map((sub) => (
-                                  <Link
-                                    key={sub.href + sub.label}
-                                    href={resolveHref(sub.label, sub.href)}
-                                    role="menuitem"
-                                    className="block px-4 py-1.5 text-sm text-secondary transition hover:bg-[#e8f4fc] hover:text-primary"
-                                  >
-                                    {sub.label}
-                                  </Link>
-                                ))}
-                              </div>
-                            ))
-                          ) : (
-                            <>
-                              {submenu.map((sub) => (
-                                <Link
-                                  key={sub.href + sub.label}
-                                  href={resolveHref(sub.label, sub.href)}
-                                  role="menuitem"
-                                  className="block px-4 py-2 text-sm text-secondary transition hover:bg-[#e8f4fc] hover:text-primary"
-                                >
-                                  {sub.label}
-                                </Link>
-                              ))}
-                            </>
-                          )}
+                          {submenu.map((sub) => (
+                            <Link
+                              key={sub.href + sub.label}
+                              href={sub.href}
+                              role="menuitem"
+                              className="block px-4 py-2 text-sm text-secondary transition hover:bg-[#e8f4fc] hover:text-primary"
+                            >
+                              {sub.label}
+                            </Link>
+                          ))}
                           <Link
-                            href={item.href}
+                            href={hasExactCategory ? item.href : "#"}
                             className="mt-1 block border-t border-border px-4 py-2 text-xs font-semibold text-primary hover:underline"
                           >
-                            {isBcFlyout
-                              ? "See All Business Cards ›"
-                              : `View all ${item.name}`}
+                            {`View all ${item.name}`}
                           </Link>
                         </div>
                       )}
