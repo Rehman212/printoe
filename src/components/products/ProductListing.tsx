@@ -13,12 +13,11 @@ import {
   Truck,
   X,
 } from "lucide-react";
-import { useProductsOptional } from "@/lib/product-store";
 import { fetchProducts } from "@/lib/products-api";
 import { addCustomerWishlist } from "@/lib/customer-api";
 import { useCart } from "@/lib/cart-store";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { cn, formatCurrency, stripHtml } from "@/lib/utils";
+import { formatCurrency, stripHtml } from "@/lib/utils";
 import type { CatalogProduct, Product } from "@/types";
 import { ProductVisual } from "@/components/shared/ProductVisual";
 import {
@@ -43,6 +42,7 @@ import { Breadcrumbs } from "@/components/ui/Misc";
 export type ProductListingProps = {
   initialCategory?: string;
   searchQuery?: string;
+  initialProducts?: CatalogProduct[] | null;
 };
 
 const PAGE_SIZE = 12;
@@ -285,9 +285,12 @@ function ProductCard({ product }: { product: Product }) {
 export function ProductListing({
   initialCategory,
   searchQuery,
+  initialProducts = null,
 }: ProductListingProps = {}) {
-  const localStore = useProductsOptional();
-  const [apiProducts, setApiProducts] = useState<Product[] | null>(null);
+  const [apiProducts, setApiProducts] = useState<Product[] | null>(() =>
+    initialProducts?.map(catalogToProduct) ?? null,
+  );
+  const [loading, setLoading] = useState(initialProducts === null);
   const [filters, setFilters] = useState<ProductFiltersState>({
     ...defaultProductFilters,
     category: initialCategory || "all",
@@ -296,20 +299,27 @@ export function ProductListing({
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   useEffect(() => {
+    if (initialProducts !== null) return;
     let cancelled = false;
     void fetchProducts()
       .then((res) => {
-        if (!cancelled) setApiProducts(res.data.map(catalogToProduct));
+        if (!cancelled) {
+          setApiProducts(res.data.map(catalogToProduct));
+          setLoading(false);
+        }
       })
       .catch(() => {
-        if (!cancelled) setApiProducts(null);
+        if (!cancelled) {
+          setApiProducts([]);
+          setLoading(false);
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [initialProducts]);
 
-  const products = apiProducts ?? localStore.products;
+  const products = useMemo(() => apiProducts ?? [], [apiProducts]);
 
   const filtered = useMemo(
     () =>
@@ -356,7 +366,7 @@ export function ProductListing({
 
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4 lg:hidden">
           <p className="text-sm font-semibold text-text-secondary">
-            {filtered.length} products
+            {loading ? "Loading products…" : `${filtered.length} products`}
           </p>
           <Button
             variant="outline"
@@ -379,16 +389,31 @@ export function ProductListing({
           <div>
             <div className="mb-6 hidden items-center justify-between gap-4 rounded-2xl border border-border bg-card px-5 py-4 shadow-soft lg:flex">
               <p className="text-sm font-semibold text-text-secondary">
-                Showing{" "}
-                <span className="text-text-primary">{filtered.length}</span>{" "}
-                products
+                {loading ? (
+                  "Loading products…"
+                ) : (
+                  <>
+                    Showing{" "}
+                    <span className="text-text-primary">{filtered.length}</span>{" "}
+                    products
+                  </>
+                )}
               </p>
               <p className="text-sm font-semibold text-text-secondary">
-                Page {currentPage} of {totalPages}
+                {loading ? null : `Page ${currentPage} of ${totalPages}`}
               </p>
             </div>
 
-            {paginated.length === 0 ? (
+            {loading ? (
+              <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3" aria-label="Loading products">
+                {Array.from({ length: 6 }, (_, index) => (
+                  <div
+                    key={index}
+                    className="h-[420px] animate-pulse rounded-2xl border border-border bg-card"
+                  />
+                ))}
+              </div>
+            ) : paginated.length === 0 ? (
               <EmptyState
                 title="No products match your filters"
                 description="Try adjusting categories, price range, or delivery options."
@@ -412,7 +437,7 @@ export function ProductListing({
               </motion.div>
             )}
 
-            {totalPages > 1 ? (
+            {!loading && totalPages > 1 ? (
               <div className="mt-10 flex items-center justify-center gap-2">
                 <Button
                   variant="outline"
