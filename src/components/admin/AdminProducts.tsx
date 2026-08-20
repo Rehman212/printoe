@@ -56,7 +56,6 @@ import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { RichTextEditor } from "@/components/ui/RichTextEditor";
 import { useToast } from "@/components/ui/Toast";
-import { AdminProductOptionsPanel } from "@/components/admin/AdminProductOptionsPanel";
 import { AdminProductsTable } from "@/components/admin/AdminProductsTable";
 import {
   AdminProductOptionEditor,
@@ -306,7 +305,6 @@ export function AdminProducts() {
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<ProductDetailPayload[]>([]);
   const [apiCategories, setApiCategories] = useState<ApiCategory[]>([]);
-  const [optionsRefreshKey, setOptionsRefreshKey] = useState(0);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [section, setSection] = useState<FormSection>("basics");
   const [pricingImport, setPricingImport] = useState<{
@@ -960,7 +958,6 @@ export function AdminProducts() {
         });
       }
 
-      setOptionsRefreshKey((k) => k + 1);
       setOpen(false);
       setEditing(null);
       setForm(emptyForm(apiCategories));
@@ -993,7 +990,6 @@ export function AdminProducts() {
         description: row.product.name,
         tone: "info",
       });
-      setOptionsRefreshKey((k) => k + 1);
       await load();
     } catch (err) {
       toast({
@@ -1029,7 +1025,6 @@ export function AdminProducts() {
             : `${ok} product${ok === 1 ? "" : "s"} deleted.`,
         tone: failed > 0 ? "warning" : "info",
       });
-      setOptionsRefreshKey((k) => k + 1);
       await load();
     } finally {
       setBulkDeleting(false);
@@ -1130,8 +1125,6 @@ export function AdminProducts() {
           )}
         </CardContent>
       </Card>
-
-      <AdminProductOptionsPanel refreshKey={optionsRefreshKey} />
 
       <Modal
         open={open}
