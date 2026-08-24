@@ -87,12 +87,25 @@ export function Select({
   placeholder = "Select…",
 }: {
   label?: string;
-  options: { label: string; value: string }[];
+  options: { label: string; value: string; group?: string }[];
   value: string;
   onChange: (value: string) => void;
   className?: string;
   placeholder?: string;
 }) {
+  const grouped = options.some((opt) => opt.group);
+  const groups = grouped
+    ? Array.from(
+        options.reduce((map, opt) => {
+          const key = opt.group?.trim() || "Other";
+          const list = map.get(key) ?? [];
+          list.push(opt);
+          map.set(key, list);
+          return map;
+        }, new Map<string, { label: string; value: string; group?: string }[]>()),
+      )
+    : [];
+
   return (
     <label className={cn("block space-y-1.5", className)}>
       {label ? (
@@ -107,11 +120,21 @@ export function Select({
         )}
       >
         <option value="">{placeholder}</option>
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
+        {grouped
+          ? groups.map(([groupLabel, items]) => (
+              <optgroup key={groupLabel} label={groupLabel}>
+                {items.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))
+          : options.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
       </select>
     </label>
   );

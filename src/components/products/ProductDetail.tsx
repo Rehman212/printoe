@@ -1160,12 +1160,12 @@ export function ProductDetail({ slug }: { slug: string }) {
                             ? ` + options ${formatCurrency(tabExtraPrice)}`
                             : null}
                         </>
-                      ) : pricing.lines.length === 0 ? (
+                      ) : pricing.lines.length === 0 &&
+                        !(pricingMatrixEnabled && matrixPrice) ? (
                         <>Select options above — price updates as you choose.</>
                       ) : (
                         <>
-                          ({formatCurrency(pricing.unit)} for each · qty{" "}
-                          {pricing.quantity})
+                          ({formatCurrency(pricing.unit)} for each)
                         </>
                       )}
                     </p>

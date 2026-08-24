@@ -142,8 +142,10 @@ export function visibleImportedOptions(
       values:
         group.key === "attr0"
           ? group.values
-          : group.values.filter((value) =>
-              valueAvailable(value, productId, selections),
+          : group.values.filter(
+              (value) =>
+                !value.meta?.uiHidden &&
+                valueAvailable(value, productId, selections),
             ),
     }))
     .filter((group) => group.values.length > 0);

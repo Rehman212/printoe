@@ -144,7 +144,7 @@ export function ProductConfigurator({
           );
         }
 
-        if (readOnly) {
+        if (readOnly && !group.meta?.forceSelect) {
           const only = group.values[0];
           return (
             <div key={group.id} className="space-y-1.5">
@@ -163,10 +163,16 @@ export function ProductConfigurator({
               value={selected}
               placeholder="Select…"
               onChange={(val) => onChange(group.key, val)}
-              options={group.values.map((v) => ({
-                label: optionLabel(v),
-                value: v.value,
-              }))}
+              options={group.values.map((v) => {
+                const optionGroup = v.meta?.optionGroup;
+                return {
+                  label: optionLabel(v),
+                  value: v.value,
+                  ...(typeof optionGroup === "string" && optionGroup.trim()
+                    ? { group: optionGroup.trim() }
+                    : {}),
+                };
+              })}
             />
             {group.helpText ? (
               <p className="mt-1.5 text-xs text-text-secondary">{group.helpText}</p>
