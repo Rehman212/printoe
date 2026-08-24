@@ -16,9 +16,18 @@ const OPTIMIZED_HOSTS = new Set([
   "www.printoe.com",
 ]);
 
+/** Protocol-relative and scraped CDN URLs → absolute https for <img>/next/image. */
+export function normalizeMediaUrl(url?: string | null): string | undefined {
+  if (!url) return undefined;
+  const trimmed = url.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.startsWith("//")) return `https:${trimmed}`;
+  return trimmed;
+}
+
 function canOptimize(url: string) {
-  // Local public assets (e.g. /uploads/catalog/menus.jpg)
-  if (url.startsWith("/")) return true;
+  // Local public assets only (e.g. /uploads/catalog/menus.jpg) — not //cdn/...
+  if (url.startsWith("/") && !url.startsWith("//")) return true;
   try {
     const host = new URL(url).hostname;
     // UPrinting's CDN permits direct browser images but intermittently rejects
@@ -47,15 +56,16 @@ export function ProductMedia({
   fit?: "contain" | "cover";
 }) {
   const objectFit = fit === "cover" ? "object-cover" : "object-contain";
+  const resolvedUrl = normalizeMediaUrl(imageUrl);
 
-  if (imageUrl) {
+  if (resolvedUrl) {
     // Admin / API may paste any CDN URL — use plain <img> when host isn't configured
-    if (!canOptimize(imageUrl)) {
+    if (!canOptimize(resolvedUrl)) {
       return (
         <div className={cn("relative overflow-hidden bg-[#f3f4f6]", className)}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={imageUrl}
+            src={resolvedUrl}
             alt={label ?? "Product"}
             className={cn("absolute inset-0 h-full w-full", objectFit)}
           />
@@ -66,7 +76,7 @@ export function ProductMedia({
     return (
       <div className={cn("relative overflow-hidden bg-[#f3f4f6]", className)}>
         <Image
-          src={imageUrl}
+          src={resolvedUrl}
           alt={label ?? "Product"}
           fill
           priority={priority}
