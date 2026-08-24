@@ -599,19 +599,25 @@ export function calcMatrixFallbackPrice(
     );
 
   const productId = selections.attr0 ?? "default";
+  const pricingFor = (byProduct: unknown, key: string) => {
+    if (!byProduct || typeof byProduct !== "object" || !key) return null;
+    const pricing = (byProduct as Record<string, unknown>)[key];
+    return pricing && typeof pricing === "object"
+      ? (pricing as {
+          anchorPrice?: number;
+          anchorUnitPrice?: number;
+          matrixUnitPrice?: number;
+          unitPriceAdd?: number;
+        })
+      : null;
+  };
   const pricingEntries = selectedValues
     .map((entry) => {
       const byProduct = entry.value.meta?.pricingByProduct;
+      const current = pricingFor(byProduct, productId) ?? pricingFor(byProduct, "default");
+      if (current) return current;
       if (!byProduct || typeof byProduct !== "object") return null;
-      const pricing = (byProduct as Record<string, unknown>)[productId];
-      return pricing && typeof pricing === "object"
-        ? (pricing as {
-            anchorPrice?: number;
-            anchorUnitPrice?: number;
-            matrixUnitPrice?: number;
-            unitPriceAdd?: number;
-          })
-        : null;
+      return pricingFor(byProduct, Object.keys(byProduct as object)[0] ?? "");
     })
     .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
   if (pricingEntries.length) {

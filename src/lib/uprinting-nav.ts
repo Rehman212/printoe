@@ -408,7 +408,7 @@ const STICKERS_LABELS_MEGA: MegaColumn[] = [
     links: [
       {
         label: "Address Labels/Return Address Labels",
-        href: "/products/address-labels",
+        href: "/products/address-labels-return-address-labels",
       },
       {
         label: "Shipping And Mailing Labels",

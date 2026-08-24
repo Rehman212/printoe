@@ -116,12 +116,16 @@ function items(
   category: string,
   labels: string[],
 ): { label: string; href: string; slug: string }[] {
+  const importedHref: Record<string, string> = {
+    "address-labels": "/products/address-labels-return-address-labels",
+    "return-address-labels": "/products/address-labels-return-address-labels",
+  };
   return labels.map((label) => {
     const slug = slugify(label);
     return {
       label,
       slug,
-      href: `/products/${slug}`,
+      href: importedHref[slug] ?? `/products/${slug}`,
     };
   });
 }

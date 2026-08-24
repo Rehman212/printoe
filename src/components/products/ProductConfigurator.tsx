@@ -21,14 +21,29 @@ const ICON_MAP: Record<string, LucideIcon> = {
   FileText,
 };
 
+function optionLabel(value: ProductOptionGroup["values"][number]) {
+  const display = value.meta?.displayLabel;
+  return typeof display === "string" && display.trim()
+    ? display.trim()
+    : value.label;
+}
+
+function isRadioGroup(group: ProductOptionGroup) {
+  // Opt-in only — never infer from label (would change every product).
+  return group.meta?.presentation === "radio";
+}
+
 export function ProductConfigurator({
   options,
   selections,
   onChange,
+  computedQuantity,
 }: {
   options: ProductOptionGroup[];
   selections: Record<string, string>;
   onChange: (key: string, value: string) => void;
+  /** Sheet labels: show Quantity as read-only text (UPrinting style). */
+  computedQuantity?: number | null;
 }) {
   if (!options.length) {
     return (
@@ -41,11 +56,43 @@ export function ProductConfigurator({
   return (
     <div className="space-y-5">
       {options.map((group) => {
-        // A linked-calculator product's per-type fields (e.g. a Silk-only
-        // finish) get filtered down to zero values once a different type is
-        // selected - nothing left to pick, so there's nothing to render.
         if (group.values.length === 0) return null;
         const selected = selections[group.key] ?? "";
+        const readOnly = group.values.length === 1;
+
+        if (isRadioGroup(group) && group.values.length > 1) {
+          return (
+            <div key={group.id} className="space-y-2.5">
+              <FieldLabel label={group.label} helpText={group.helpText} />
+              <div className="space-y-2 rounded-xl border border-[#1b5e20]/40 bg-[#f4faf4] p-3">
+                {group.values.map((v) => {
+                  const active = selected === v.value;
+                  return (
+                    <label
+                      key={v.id}
+                      className={cn(
+                        "flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm transition",
+                        active
+                          ? "bg-white font-semibold text-secondary shadow-sm"
+                          : "text-text-secondary hover:bg-white/70",
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name={group.key}
+                        value={v.value}
+                        checked={active}
+                        onChange={() => onChange(group.key, v.value)}
+                        className="h-4 w-4 accent-[#1b5e20]"
+                      />
+                      <span>{optionLabel(v)}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        }
 
         if (group.uiType === "CARDS") {
           return (
@@ -71,7 +118,7 @@ export function ProductConfigurator({
                     >
                       <Icon className="h-5 w-5" />
                       <span className="text-xs font-semibold leading-tight">
-                        {v.label}
+                        {optionLabel(v)}
                       </span>
                     </button>
                   );
@@ -97,16 +144,27 @@ export function ProductConfigurator({
           );
         }
 
-        // SELECT (default) — starts on "Select…" until customer picks
-        return (
-          <div key={group.id}>
+        if (readOnly) {
+          const only = group.values[0];
+          return (
+            <div key={group.id} className="space-y-1.5">
+              <FieldLabel label={group.label} helpText={group.helpText} />
+              <p className="text-sm font-medium text-secondary">
+                {optionLabel(only)}
+              </p>
+            </div>
+          );
+        }
+
+        const field = (
+          <div>
             <Select
               label={group.label}
               value={selected}
               placeholder="Select…"
               onChange={(val) => onChange(group.key, val)}
               options={group.values.map((v) => ({
-                label: v.label,
+                label: optionLabel(v),
                 value: v.value,
               }))}
             />
@@ -115,6 +173,26 @@ export function ProductConfigurator({
             ) : null}
           </div>
         );
+
+        if (
+          group.key === "attr853" &&
+          typeof computedQuantity === "number" &&
+          computedQuantity > 0
+        ) {
+          return (
+            <div key={group.id} className="space-y-4">
+              {field}
+              <div className="space-y-1.5">
+                <FieldLabel label="Quantity" />
+                <p className="text-sm font-medium text-secondary">
+                  {computedQuantity.toLocaleString()}
+                </p>
+              </div>
+            </div>
+          );
+        }
+
+        return <div key={group.id}>{field}</div>;
       })}
     </div>
   );

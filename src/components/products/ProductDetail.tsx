@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  Check,
   ChevronLeft,
   ChevronRight,
   Bookmark,
@@ -11,6 +12,7 @@ import {
   Package,
   Pencil,
   Share2,
+  ShoppingCart,
   Upload,
 } from "lucide-react";
 import { useProductsOptional } from "@/lib/product-store";
@@ -43,6 +45,8 @@ import {
   fetchProductBySlug,
 } from "@/lib/products-api";
 import {
+  computedSheetQuantity,
+  extractFeatureBullets,
   normalizeImportedSelections,
   visibleImportedOptions,
 } from "@/lib/imported-product-rules";
@@ -55,6 +59,7 @@ import {
   removeCustomerWishlist,
 } from "@/lib/customer-api";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useCartOptional } from "@/lib/cart-store";
 import { ProductReviews } from "@/components/products/ProductReviews";
 
 function buildOptionsKey(selections: Record<string, string>) {
@@ -234,6 +239,8 @@ function legacyToOptions(product: Product): ProductOptionGroup[] {
 export function ProductDetail({ slug }: { slug: string }) {
   const store = useProductsOptional();
   const { isAuthenticated } = useAuth();
+  const cart = useCartOptional();
+  const [cartBusy, setCartBusy] = useState(false);
   const { toast } = useToast();
   const localProduct = store.getBySlug(slug);
 
@@ -411,18 +418,27 @@ export function ProductDetail({ slug }: { slug: string }) {
   const hasCustomTabs = productTabs.length > 0;
 
   const visibleOptions = useMemo(() => {
-    return visibleImportedOptions(options, selections);
+    const base = visibleImportedOptions(options, selections);
+    if (selections.attr0 !== "1508") return base;
+    return base.map((group) => {
+      if (group.key === "attr3") return { ...group, label: "Label Size" };
+      if (group.key === "attr6") return { ...group, label: "Turnaround" };
+      return group;
+    });
   }, [options, selections]);
 
-  const matrixSelections = useMemo(
-    () =>
-      Object.fromEntries(
-        visibleOptions
-          .filter((group) => selections[group.key])
-          .map((group) => [group.key, selections[group.key]]),
-      ),
-    [selections, visibleOptions],
-  );
+  const matrixSelections = useMemo(() => {
+    const visibleKeys = new Set(visibleOptions.map((group) => group.key));
+    return Object.fromEntries(
+      options
+        .filter((group) => {
+          if (!selections[group.key]) return false;
+          if (visibleKeys.has(group.key)) return true;
+          return Boolean(group.meta?.keepWhenHidden);
+        })
+        .map((group) => [group.key, selections[group.key]]),
+    );
+  }, [options, selections, visibleOptions]);
 
   const tabExtraPrice = useMemo(() => {
     if (!activeTab?.fields?.length) return 0;
@@ -479,7 +495,7 @@ export function ProductDetail({ slug }: { slug: string }) {
     if (
       !pricingMatrixEnabled ||
       hasCustomTabs ||
-      Object.keys(matrixSelections).length < visibleOptions.length
+      visibleOptions.some((group) => !matrixSelections[group.key])
     ) {
       setMatrixPrice(null);
       return;
@@ -517,6 +533,28 @@ export function ProductDetail({ slug }: { slug: string }) {
     () => (optionsSummary ? `${name} (${optionsSummary})` : name || slug),
     [name, optionsSummary, slug],
   );
+  const featureBullets = useMemo(
+    () => extractFeatureBullets(description),
+    [description],
+  );
+  const sheetQuantity = useMemo(
+    () => computedSheetQuantity(options, selections),
+    [options, selections],
+  );
+  const selectedPrintedSides = useMemo(() => {
+    const group = options.find(
+      (item) =>
+        item.key === "attr1795" || /^printed\s*sides$/i.test(item.label),
+    );
+    if (!group) return "";
+    const selected = selections[group.key];
+    return (
+      group.values.find((value) => value.value === selected)?.label ?? ""
+    );
+  }, [options, selections]);
+  const isBlankOrder = /^blank$/i.test(selectedPrintedSides.trim());
+  const isBookShippingBoxes = slug === "book-shipping-boxes";
+  const useBoxCheckoutUi = isBookShippingBoxes;
 
   const syncSavedState = useCallback(async () => {
     if (!isAuthenticated) {
@@ -550,6 +588,10 @@ export function ProductDetail({ slug }: { slug: string }) {
 
   const onOptionChange = (key: string, value: string) => {
     setSelections((prev) => {
+      // Switching Label Type should re-apply that type's defaults (Sheet vs Roll).
+      if (key === "attr0" && value) {
+        return normalizeImportedSelections(options, { attr0: value }, key);
+      }
       const next = { ...prev };
       if (!value) delete next[key];
       else next[key] = value;
@@ -698,10 +740,52 @@ export function ProductDetail({ slug }: { slug: string }) {
   });
 
   const plainDescription = description
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<[^>]+>/g, " ")
+    .replace(/@charset[^;]+;/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
   const teaserText = (shortDescription || plainDescription).trim();
+
+  async function addBlankToCart() {
+    if (!cart || cartBusy) return;
+    setCartBusy(true);
+    try {
+      const sizeLabel =
+        options
+          .find((g) => g.key === "attr1801" || /^size$/i.test(g.label))
+          ?.values.find((v) => v.value === selections.attr1801)?.label ?? "";
+      const materialLabel =
+        options
+          .find((g) => g.key === "attr1792" || /^material$/i.test(g.label))
+          ?.values.find((v) => v.value === selections.attr1792)?.label ?? "";
+      await cart.addItem({
+        productId,
+        productSlug: slug,
+        name,
+        imageUrl: gallery[0] ?? imageUrl,
+        quantity: pricing.quantity || 1,
+        unitPrice: pricing.unit,
+        size: sizeLabel,
+        material: materialLabel,
+        finishing: selectedPrintedSides,
+      });
+      toast({
+        title: "Added to cart",
+        description: `${name} · blank boxes`,
+        tone: "success",
+      });
+    } catch (err) {
+      toast({
+        title: "Could not add to cart",
+        description: err instanceof Error ? err.message : "Try again",
+        tone: "danger",
+      });
+    } finally {
+      setCartBusy(false);
+    }
+  }
 
   function selectProductTab(tab: ProductTab) {
     setActiveTabId(tab.id);
@@ -807,6 +891,20 @@ export function ProductDetail({ slug }: { slug: string }) {
                   )}
                 </div>
               ) : null}
+
+              {featureBullets.length > 0 ? (
+                <ul className="mt-6 space-y-2.5">
+                  {featureBullets.map((text) => (
+                    <li
+                      key={text}
+                      className="flex items-start gap-2.5 text-sm text-text-secondary"
+                    >
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#1b5e20]" />
+                      {text}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
 
             <div className="min-w-0 lg:sticky lg:top-24 lg:self-start">
@@ -905,7 +1003,20 @@ export function ProductDetail({ slug }: { slug: string }) {
                 </p>
               ) : null}
 
-              <div className="mt-5 border border-border bg-[#fafafa] p-4 sm:p-5">
+              <div
+                className={cn(
+                  "mt-5 border border-border bg-[#fafafa]",
+                  !useBoxCheckoutUi && "p-4 sm:p-5",
+                )}
+              >
+                {useBoxCheckoutUi ? (
+                  <div className="border-b border-border bg-[#1b5e20] px-4 py-2.5">
+                    <p className="text-sm font-bold tracking-wide text-white">
+                      Customize &amp; Check Prices
+                    </p>
+                  </div>
+                ) : null}
+                <div className={useBoxCheckoutUi ? "p-4 sm:p-5" : undefined}>
                 {hasCustomTabs ? (
                   activeTab && (activeTab.fields?.length ?? 0) > 0 ? (
                     <div className="space-y-3">
@@ -969,37 +1080,83 @@ export function ProductDetail({ slug }: { slug: string }) {
                     options={visibleOptions}
                     selections={selections}
                     onChange={onOptionChange}
+                    computedQuantity={sheetQuantity}
                   />
                 )}
+                </div>
               </div>
 
-              <div className="mt-4 border border-border bg-white p-4">
-                <p className="text-sm font-medium text-text-secondary">
-                  Printing Cost:{" "}
-                  <span className="text-2xl font-extrabold text-success">
-                    {formatCurrency(pricing.total)}
-                  </span>
-                </p>
-                <p className="mt-1 text-sm text-text-secondary">
-                  {hasCustomTabs && activeTab ? (
-                    <>
-                      {activeTab.label}
-                      {typeof activeTab.price === "number"
-                        ? ` · tab ${formatCurrency(activeTab.price)}`
-                        : null}
-                      {tabExtraPrice > 0
-                        ? ` + options ${formatCurrency(tabExtraPrice)}`
-                        : null}
-                    </>
-                  ) : pricing.lines.length === 0 ? (
-                    <>Select options above — price updates as you choose.</>
-                  ) : (
-                    <>
-                      ({formatCurrency(pricing.unit)} for each · qty{" "}
-                      {pricing.quantity})
-                    </>
-                  )}
-                </p>
+              <div
+                className={cn(
+                  "mt-4 border border-border bg-white p-4",
+                  useBoxCheckoutUi && "text-right",
+                )}
+              >
+                {useBoxCheckoutUi ? (
+                  <>
+                    {pricingMatrixEnabled && !matrixPrice && pricing.total === 0 ? (
+                      <p className="text-2xl font-extrabold text-success">
+                        Calculating…
+                      </p>
+                    ) : (
+                      <>
+                        <p className="text-2xl font-extrabold text-success md:text-3xl">
+                          {formatCurrency(pricing.unit)}{" "}
+                          <span className="text-lg font-bold">each</span>
+                        </p>
+                        <p className="mt-1 text-base font-semibold text-secondary">
+                          Subtotal: {formatCurrency(pricing.total)}
+                        </p>
+                      </>
+                    )}
+                    {isBlankOrder ? (
+                      <p className="mt-3 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-left text-sm font-semibold text-red-700">
+                        Attention: You Are Ordering Non-Printed Boxes.
+                      </p>
+                    ) : null}
+                    <p className="mt-1 text-left text-sm text-text-secondary">
+                      {pricing.lines.length === 0 &&
+                      !(pricingMatrixEnabled && matrixPrice) ? (
+                        <>Select options above — price updates as you choose.</>
+                      ) : (
+                        <>qty {pricing.quantity}</>
+                      )}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-medium text-text-secondary">
+                      Printing Cost:{" "}
+                      <span className="text-2xl font-extrabold text-success">
+                        {pricingMatrixEnabled &&
+                        !matrixPrice &&
+                        pricing.total === 0
+                          ? "Calculating…"
+                          : formatCurrency(pricing.total)}
+                      </span>
+                    </p>
+                    <p className="mt-1 text-sm text-text-secondary">
+                      {hasCustomTabs && activeTab ? (
+                        <>
+                          {activeTab.label}
+                          {typeof activeTab.price === "number"
+                            ? ` · tab ${formatCurrency(activeTab.price)}`
+                            : null}
+                          {tabExtraPrice > 0
+                            ? ` + options ${formatCurrency(tabExtraPrice)}`
+                            : null}
+                        </>
+                      ) : pricing.lines.length === 0 ? (
+                        <>Select options above — price updates as you choose.</>
+                      ) : (
+                        <>
+                          ({formatCurrency(pricing.unit)} for each · qty{" "}
+                          {pricing.quantity})
+                        </>
+                      )}
+                    </p>
+                  </>
+                )}
                 {!hasCustomTabs && pricing.lines.length > 0 ? (
                   <details className="mt-3 group">
                     <summary className="cursor-pointer text-xs font-semibold text-primary hover:underline">
@@ -1046,47 +1203,72 @@ export function ProductDetail({ slug }: { slug: string }) {
               </div>
 
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <Link href={`/upload?${query.toString()}`} className="block">
-                  <Button size="lg" className="w-full gap-2">
-                    <Upload className="h-4 w-4" /> Upload Design
-                  </Button>
-                </Link>
-                <Link href={`/editor?product=${encodeURIComponent(slug)}`} className="block">
+                {useBoxCheckoutUi && isBlankOrder ? (
                   <Button
-                    variant="outline"
                     size="lg"
-                    className="w-full gap-2 border-primary text-primary hover:bg-primary/5"
+                    className="w-full gap-2 sm:col-span-3"
+                    disabled={cartBusy || !cart || pricing.total <= 0}
+                    onClick={() => void addBlankToCart()}
                   >
-                    <Pencil className="h-4 w-4" /> Design Online
+                    <ShoppingCart className="h-4 w-4" />
+                    {cartBusy ? "Adding…" : "Add to Cart"}
                   </Button>
-                </Link>
-                <Button
-                  variant={savedDesignId ? "primary" : "outline"}
-                  size="lg"
-                  className={cn(
-                    "w-full gap-2",
-                    savedDesignId
-                      ? "bg-primary text-white hover:bg-primary-hover"
-                      : undefined,
-                  )}
-                  disabled={savingDesign}
-                  onClick={() => void toggleSaveDesign()}
-                  aria-pressed={Boolean(savedDesignId)}
-                >
-                  {savedDesignId ? (
-                    <BookmarkCheck className="h-4 w-4" />
-                  ) : (
-                    <Bookmark className="h-4 w-4" />
-                  )}
-                  {savingDesign
-                    ? savedDesignId
-                      ? "Unsaving…"
-                      : "Saving…"
-                    : savedDesignId
-                      ? "Saved"
-                      : "Save Design"}
-                </Button>
+                ) : (
+                  <>
+                    <Link href={`/upload?${query.toString()}`} className="block">
+                      <Button size="lg" className="w-full gap-2">
+                        <Upload className="h-4 w-4" /> Upload Design
+                      </Button>
+                    </Link>
+                    <Link
+                      href={`/editor?product=${encodeURIComponent(slug)}`}
+                      className="block"
+                    >
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        className="w-full gap-2 border-primary text-primary hover:bg-primary/5"
+                      >
+                        <Pencil className="h-4 w-4" /> Design Online
+                      </Button>
+                    </Link>
+                    <Button
+                      variant={savedDesignId ? "primary" : "outline"}
+                      size="lg"
+                      className={cn(
+                        "w-full gap-2",
+                        savedDesignId
+                          ? "bg-primary text-white hover:bg-primary-hover"
+                          : undefined,
+                      )}
+                      disabled={savingDesign}
+                      onClick={() => void toggleSaveDesign()}
+                      aria-pressed={Boolean(savedDesignId)}
+                    >
+                      {savedDesignId ? (
+                        <BookmarkCheck className="h-4 w-4" />
+                      ) : (
+                        <Bookmark className="h-4 w-4" />
+                      )}
+                      {savingDesign
+                        ? savedDesignId
+                          ? "Unsaving…"
+                          : "Saving…"
+                        : savedDesignId
+                          ? "Saved"
+                          : "Save Design"}
+                    </Button>
+                  </>
+                )}
               </div>
+              {useBoxCheckoutUi && isBlankOrder ? (
+                <p className="mt-2 text-center text-xs text-text-secondary">
+                  Can&apos;t find what you&apos;re looking for?{" "}
+                  <Link href="/quote" className="font-semibold text-primary hover:underline">
+                    Get a Custom Quote
+                  </Link>
+                </p>
+              ) : (
               <p className="mt-2 text-center text-xs text-text-secondary">
                 {savedDesignId ? (
                   <>
@@ -1114,6 +1296,7 @@ export function ProductDetail({ slug }: { slug: string }) {
                   </>
                 )}
               </p>
+              )}
             </div>
           </div>
         </Container>
