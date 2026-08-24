@@ -555,6 +555,18 @@ export function ProductDetail({ slug }: { slug: string }) {
   const isBlankOrder = /^blank$/i.test(selectedPrintedSides.trim());
   const isBookShippingBoxes = slug === "book-shipping-boxes";
   const useBoxCheckoutUi = isBookShippingBoxes;
+  const boxMainOptions = useMemo(() => {
+    if (!useBoxCheckoutUi) return visibleOptions;
+    return visibleOptions.filter(
+      (group) => !/^production\s*time$/i.test(group.label),
+    );
+  }, [useBoxCheckoutUi, visibleOptions]);
+  const boxTurnaroundOptions = useMemo(() => {
+    if (!useBoxCheckoutUi) return [];
+    return visibleOptions.filter((group) =>
+      /^production\s*time$/i.test(group.label),
+    );
+  }, [useBoxCheckoutUi, visibleOptions]);
 
   const syncSavedState = useCallback(async () => {
     if (!isAuthenticated) {
@@ -1077,7 +1089,9 @@ export function ProductDetail({ slug }: { slug: string }) {
                   )
                 ) : (
                   <ProductConfigurator
-                    options={visibleOptions}
+                    options={
+                      useBoxCheckoutUi ? boxMainOptions : visibleOptions
+                    }
                     selections={selections}
                     onChange={onOptionChange}
                     computedQuantity={sheetQuantity}
@@ -1201,6 +1215,16 @@ export function ProductDetail({ slug }: { slug: string }) {
                   </details>
                 ) : null}
               </div>
+
+              {useBoxCheckoutUi && boxTurnaroundOptions.length > 0 ? (
+                <div className="mt-4 border border-border bg-[#fafafa] p-4 sm:p-5">
+                  <ProductConfigurator
+                    options={boxTurnaroundOptions}
+                    selections={selections}
+                    onChange={onOptionChange}
+                  />
+                </div>
+              ) : null}
 
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 {useBoxCheckoutUi && isBlankOrder ? (
