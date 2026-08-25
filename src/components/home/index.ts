@@ -3,8 +3,5 @@ export { ShopShowcase } from "./ShopShowcase";
 export { CategoryGrid } from "./CategoryGrid";
 export { FeaturedProducts } from "./FeaturedProducts";
 export { ProcessSection } from "./ProcessSection";
-export { WhyChooseUs } from "./WhyChooseUs";
 export { PriceCalculator } from "./PriceCalculator";
 export { TestimonialsSlider } from "./TestimonialsSlider";
-export { StatsCounters } from "./StatsCounters";
-export { BlogPreview } from "./BlogPreview";
