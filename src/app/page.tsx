@@ -5,12 +5,9 @@ import {
   ProcessSection,
   WhyChooseUs,
   PriceCalculator,
-  PortfolioGallery,
   TestimonialsSlider,
   StatsCounters,
-  ServicesSection,
   BlogPreview,
-  NewsletterSection,
 } from "@/components/home";
 
 export default function HomePage() {
@@ -22,12 +19,9 @@ export default function HomePage() {
       <ProcessSection />
       <WhyChooseUs />
       <PriceCalculator />
-      <PortfolioGallery />
       <TestimonialsSlider />
       <StatsCounters />
-      <ServicesSection />
       <BlogPreview />
-      <NewsletterSection />
     </>
   );
 }
