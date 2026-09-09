@@ -598,6 +598,11 @@ export function calcMatrixFallbackPrice(
         Boolean(entry.value),
     );
 
+  const parseQuantityLabel = (label: string) => {
+    const parsed = Number.parseInt(String(label).replace(/,/g, ""), 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : NaN;
+  };
+
   const productId = selections.attr0 ?? "default";
   const pricingFor = (byProduct: unknown, key: string) => {
     if (!byProduct || typeof byProduct !== "object" || !key) return null;
@@ -611,13 +616,15 @@ export function calcMatrixFallbackPrice(
         })
       : null;
   };
+  // Only use pricing stamped for the active linked product (attr0) or
+  // "default". Never fall through to another product's keys — that made
+  // Blank tissue show Full Color's $101.95 when live pricing was unavailable.
   const pricingEntries = selectedValues
     .map((entry) => {
       const byProduct = entry.value.meta?.pricingByProduct;
-      const current = pricingFor(byProduct, productId) ?? pricingFor(byProduct, "default");
-      if (current) return current;
-      if (!byProduct || typeof byProduct !== "object") return null;
-      return pricingFor(byProduct, Object.keys(byProduct as object)[0] ?? "");
+      return (
+        pricingFor(byProduct, productId) ?? pricingFor(byProduct, "default")
+      );
     })
     .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
   if (pricingEntries.length) {
@@ -626,7 +633,7 @@ export function calcMatrixFallbackPrice(
     );
     const quantity = (() => {
       const parsed = quantityEntry
-        ? Number.parseInt(quantityEntry.value.label, 10)
+        ? parseQuantityLabel(quantityEntry.value.label)
         : NaN;
       return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
     })();
@@ -689,7 +696,9 @@ export function calcMatrixFallbackPrice(
   }, 0);
 
   const quantity = (() => {
-    const parsed = quantityEntry ? Number.parseInt(quantityEntry.value.label, 10) : NaN;
+    const parsed = quantityEntry
+      ? parseQuantityLabel(quantityEntry.value.label)
+      : NaN;
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
   })();
 

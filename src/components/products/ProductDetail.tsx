@@ -429,15 +429,27 @@ export function ProductDetail({ slug }: { slug: string }) {
 
   const matrixSelections = useMemo(() => {
     const visibleKeys = new Set(visibleOptions.map((group) => group.key));
-    return Object.fromEntries(
-      options
-        .filter((group) => {
-          if (!selections[group.key]) return false;
-          if (visibleKeys.has(group.key)) return true;
-          return Boolean(group.meta?.keepWhenHidden);
-        })
-        .map((group) => [group.key, selections[group.key]]),
+    const visibleByKey = new Map(
+      visibleOptions.map((group) => [group.key, group]),
     );
+    const result: Record<string, string> = {};
+    for (const group of options) {
+      const visible = visibleKeys.has(group.key);
+      if (!visible && !group.meta?.keepWhenHidden) continue;
+      let value = selections[group.key];
+      // Single-option fields render as plain text and may not call onChange;
+      // still send their only value so live pricing (e.g. Blank tissue) runs.
+      if (!value) {
+        const visibleGroup = visibleByKey.get(group.key);
+        if (visibleGroup?.values.length === 1) {
+          value = visibleGroup.values[0]?.value;
+        }
+      }
+      if (value) result[group.key] = value;
+    }
+    // Linked Full Color / Blank (attr0) must always be sent for live price.
+    if (selections.attr0) result.attr0 = selections.attr0;
+    return result;
   }, [options, selections, visibleOptions]);
 
   const tabExtraPrice = useMemo(() => {
