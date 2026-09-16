@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useProductsOptional } from "@/lib/product-store";
 import { DEFAULT_PRODUCT_FAQS } from "@/lib/product-faqs";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, rebrandUprintingCopy } from "@/lib/utils";
 import type { Product, ProductOptionGroup, ProductTab } from "@/types";
 import { ProductMedia } from "@/components/shared/ProductMedia";
 import { ProductConfigurator } from "@/components/products/ProductConfigurator";
@@ -253,7 +253,9 @@ export function ProductDetail({ slug }: { slug: string }) {
     localProduct?.id,
   );
   const [name, setName] = useState(localProduct?.name ?? "");
-  const [description, setDescription] = useState(localProduct?.description ?? "");
+  const [description, setDescription] = useState(
+    rebrandUprintingCopy(localProduct?.description ?? ""),
+  );
   const [shortDescription, setShortDescription] = useState("");
   const [productFaqs, setProductFaqs] = useState<FaqItem[]>(DEFAULT_FAQS);
   const [productTabs, setProductTabs] = useState<ProductTab[]>([]);
@@ -305,8 +307,8 @@ export function ProductDetail({ slug }: { slug: string }) {
         const { product, options: apiOptions } = res.data;
         setProductId(product.id);
         setName(product.name);
-        setDescription(product.description);
-        setShortDescription(product.shortDescription ?? "");
+        setDescription(rebrandUprintingCopy(product.description));
+        setShortDescription(rebrandUprintingCopy(product.shortDescription ?? ""));
         setProductFaqs(
           (() => {
             const valid =
@@ -366,7 +368,7 @@ export function ProductDetail({ slug }: { slug: string }) {
           const opts = legacyToOptions(localProduct);
           setProductId(localProduct.id);
           setName(localProduct.name);
-          setDescription(localProduct.description);
+          setDescription(rebrandUprintingCopy(localProduct.description));
           setShortDescription("");
           setProductFaqs(DEFAULT_FAQS);
           setProductTabs([]);
@@ -1107,6 +1109,7 @@ export function ProductDetail({ slug }: { slug: string }) {
                     selections={selections}
                     onChange={onOptionChange}
                     computedQuantity={sheetQuantity}
+                    productSlug={slug}
                   />
                 )}
                 </div>
@@ -1234,6 +1237,7 @@ export function ProductDetail({ slug }: { slug: string }) {
                     options={boxTurnaroundOptions}
                     selections={selections}
                     onChange={onOptionChange}
+                    productSlug={slug}
                   />
                 </div>
               ) : null}

@@ -17,7 +17,7 @@ import { fetchProducts } from "@/lib/products-api";
 import { addCustomerWishlist } from "@/lib/customer-api";
 import { useCart } from "@/lib/cart-store";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { formatCurrency, stripHtml } from "@/lib/utils";
+import { formatCurrency, rebrandUprintingCopy, stripHtml } from "@/lib/utils";
 import type { CatalogProduct, Product } from "@/types";
 import { ProductVisual } from "@/components/shared/ProductVisual";
 import {
@@ -211,7 +211,7 @@ function ProductCard({ product }: { product: Product }) {
         </div>
 
         <p className="line-clamp-2 text-sm font-medium text-text-secondary">
-          {stripHtml(product.description)}
+          {stripHtml(rebrandUprintingCopy(product.description))}
         </p>
 
         <div className="mt-auto flex items-end justify-between gap-3 pt-2">

@@ -1,12 +1,30 @@
 "use client";
 
 import {
+  AppWindow,
+  BookOpen,
+  CircleDot,
+  Clock,
+  Copy,
+  Droplets,
   FileText,
   HelpCircle,
+  Layers,
   LayoutGrid,
+  ListOrdered,
+  Maximize2,
+  Package,
+  Palette,
+  PanelTop,
+  Printer,
   RefreshCw,
   Scissors,
+  Settings,
+  ShoppingBag,
+  Sparkles,
   Square,
+  Tag,
+  Type,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -20,6 +38,57 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Square,
   FileText,
 };
+
+const FIELD_LABEL_ICONS: { match: RegExp; icon: LucideIcon }[] = [
+  { match: /customization/i, icon: LayoutGrid },
+  { match: /gift bag|bag/i, icon: ShoppingBag },
+  { match: /pouch|box|mailer|envelope|sleeve/i, icon: Package },
+  { match: /style|shape/i, icon: Square },
+  { match: /size|dimension|width|height|length/i, icon: Maximize2 },
+  { match: /setup/i, icon: Settings },
+  { match: /gusset/i, icon: PanelTop },
+  { match: /window/i, icon: AppWindow },
+  { match: /material|stock|paper|cardstock/i, icon: Layers },
+  { match: /coating|finish|lamination|uv|varnish|foil/i, icon: Droplets },
+  { match: /printed|print|sides|ink/i, icon: Copy },
+  { match: /handle/i, icon: ShoppingBag },
+  { match: /color|colour|pantone/i, icon: Palette },
+  { match: /quantity|qty/i, icon: ListOrdered },
+  { match: /production|turnaround|rush/i, icon: Clock },
+  { match: /\btime\b/i, icon: Clock },
+  { match: /pages|sheet/i, icon: BookOpen },
+  { match: /cut|die|corner/i, icon: Scissors },
+  { match: /font|text|copy/i, icon: Type },
+  { match: /proof|file/i, icon: FileText },
+  { match: /label|sticker/i, icon: Tag },
+];
+
+function fieldIconFor(label: string): LucideIcon {
+  return FIELD_LABEL_ICONS.find((item) => item.match.test(label))?.icon ?? CircleDot;
+}
+
+const OPTION_CARD_ICONS: { match: RegExp; icon: LucideIcon }[] = [
+  { match: /die[- ]?cut|cut/i, icon: Scissors },
+  { match: /foil|metallic|gold|silver/i, icon: Sparkles },
+  { match: /plastic|vinyl|poly/i, icon: Layers },
+  { match: /silk|soft|matte|gloss|aq/i, icon: Droplets },
+  { match: /print/i, icon: Printer },
+  { match: /label/i, icon: Tag },
+  { match: /standard|square/i, icon: Square },
+  { match: /round|circle/i, icon: CircleDot },
+  { match: /grid|sheet/i, icon: LayoutGrid },
+  { match: /file|proof/i, icon: FileText },
+];
+
+function optionCardIcon(
+  value: ProductOptionGroup["values"][number],
+): LucideIcon {
+  const label = optionLabel(value);
+  const fromLabel = OPTION_CARD_ICONS.find((item) => item.match.test(label))?.icon;
+  if (fromLabel) return fromLabel;
+  const fromMeta = ICON_MAP[(value.meta as { icon?: string } | null)?.icon || ""];
+  return fromMeta || CircleDot;
+}
 
 function optionLabel(value: ProductOptionGroup["values"][number]) {
   const display = value.meta?.displayLabel;
@@ -38,12 +107,14 @@ export function ProductConfigurator({
   selections,
   onChange,
   computedQuantity,
+  productSlug,
 }: {
   options: ProductOptionGroup[];
   selections: Record<string, string>;
   onChange: (key: string, value: string) => void;
   /** Sheet labels: show Quantity as read-only text (UPrinting style). */
   computedQuantity?: number | null;
+  productSlug?: string;
 }) {
   if (!options.length) {
     return (
@@ -63,7 +134,11 @@ export function ProductConfigurator({
         if (isRadioGroup(group) && group.values.length > 1) {
           return (
             <div key={group.id} className="space-y-2.5">
-              <FieldLabel label={group.label} helpText={group.helpText} />
+              <FieldLabel
+                label={group.label}
+                helpText={group.helpText}
+                Icon={fieldIconFor(group.label)}
+              />
               <div className="space-y-2 rounded-xl border border-[#1b5e20]/40 bg-[#f4faf4] p-3">
                 {group.values.map((v) => {
                   const active = selected === v.value;
@@ -97,12 +172,14 @@ export function ProductConfigurator({
         if (group.uiType === "CARDS") {
           return (
             <div key={group.id} className="space-y-2.5">
-              <FieldLabel label={group.label} helpText={group.helpText} />
+              <FieldLabel
+                label={group.label}
+                helpText={group.helpText}
+                Icon={fieldIconFor(group.label)}
+              />
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {group.values.map((v) => {
-                  const Icon =
-                    ICON_MAP[(v.meta as { icon?: string } | null)?.icon || ""] ||
-                    Square;
+                  const Icon = optionCardIcon(v);
                   const active = selected === v.value;
                   return (
                     <button
@@ -131,7 +208,11 @@ export function ProductConfigurator({
         if (group.uiType === "NUMBER") {
           return (
             <div key={group.id} className="space-y-2.5">
-              <FieldLabel label={group.label} helpText={group.helpText} />
+              <FieldLabel
+                label={group.label}
+                helpText={group.helpText}
+                Icon={fieldIconFor(group.label)}
+              />
               <input
                 type="number"
                 min={1}
@@ -148,7 +229,11 @@ export function ProductConfigurator({
           const only = group.values[0];
           return (
             <div key={group.id} className="space-y-1.5">
-              <FieldLabel label={group.label} helpText={group.helpText} />
+              <FieldLabel
+                label={group.label}
+                helpText={group.helpText}
+                Icon={fieldIconFor(group.label)}
+              />
               <p className="text-sm font-medium text-secondary">
                 {optionLabel(only)}
               </p>
@@ -160,6 +245,7 @@ export function ProductConfigurator({
           <div>
             <Select
               label={group.label}
+              labelIcon={fieldIconFor(group.label)}
               value={selected}
               placeholder="Select…"
               onChange={(val) => onChange(group.key, val)}
@@ -189,7 +275,10 @@ export function ProductConfigurator({
             <div key={group.id} className="space-y-4">
               {field}
               <div className="space-y-1.5">
-                <FieldLabel label="Quantity" />
+                <FieldLabel
+                  label="Quantity"
+                  Icon={fieldIconFor("Quantity")}
+                />
                 <p className="text-sm font-medium text-secondary">
                   {computedQuantity.toLocaleString()}
                 </p>
@@ -207,12 +296,15 @@ export function ProductConfigurator({
 function FieldLabel({
   label,
   helpText,
+  Icon,
 }: {
   label: string;
   helpText?: string | null;
+  Icon?: LucideIcon | null;
 }) {
   return (
     <div className="flex items-center gap-1.5">
+      {Icon ? <Icon className="h-4 w-4 text-text-secondary" /> : null}
       <span className="text-sm font-semibold text-text-primary">{label}</span>
       {helpText ? (
         <Tooltip content={helpText}>

@@ -80,6 +80,7 @@ export function Tooltip({
 
 export function Select({
   label,
+  labelIcon: LabelIcon,
   options,
   value,
   onChange,
@@ -87,6 +88,7 @@ export function Select({
   placeholder = "Select…",
 }: {
   label?: string;
+  labelIcon?: React.ComponentType<{ className?: string }>;
   options: { label: string; value: string; group?: string }[];
   value: string;
   onChange: (value: string) => void;
@@ -109,7 +111,12 @@ export function Select({
   return (
     <label className={cn("block space-y-1.5", className)}>
       {label ? (
-        <span className="text-sm font-semibold text-text-primary">{label}</span>
+        <span className="flex items-center gap-1.5 text-sm font-semibold text-text-primary">
+          {LabelIcon ? (
+            <LabelIcon className="h-4 w-4 shrink-0 text-text-secondary" />
+          ) : null}
+          {label}
+        </span>
       ) : null}
       <select
         value={value}

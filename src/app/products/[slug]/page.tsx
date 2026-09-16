@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { products } from "@/lib/data";
 import { getApiBaseUrl } from "@/lib/auth";
 import { ProductDetail } from "@/components/products/ProductDetail";
+import { rebrandUprintingCopy, stripHtml } from "@/lib/utils";
 
 export const dynamicParams = true;
 
@@ -52,15 +53,14 @@ export async function generateMetadata({
     product?.seoTitle?.trim() ||
     product?.name?.trim() ||
     slug.replace(/-/g, " ");
-  const description =
+  const rawDescription =
     product?.seoDescription?.trim() ||
     product?.shortDescription?.trim() ||
-    product?.description
-      ?.replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 150) ||
+    (product?.description
+      ? stripHtml(product.description).slice(0, 160)
+      : "") ||
     "Custom printing on Printoe.";
+  const description = rebrandUprintingCopy(rawDescription);
 
   return {
     title,
