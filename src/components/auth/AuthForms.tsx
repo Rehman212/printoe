@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { cn } from "@/lib/utils";
 import { useSearchParams } from "next/navigation";
+import { sendLoggedInUserToEditor } from "@/lib/editor-url";
 
 function SocialButton({
   label,
@@ -69,8 +70,11 @@ export function LoginForm() {
         tone: "success",
       });
       const next = searchParams.get("next");
+      if (next && sendLoggedInUserToEditor(next)) return;
       router.push(
-        next && !next.startsWith("/admin") ? next : "/dashboard",
+        next && next.startsWith("/") && !next.startsWith("/admin")
+          ? next
+          : "/dashboard",
       );
     } catch (err) {
       toast({

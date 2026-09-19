@@ -111,8 +111,37 @@ function sessionAuth() {
 function getApiBaseUrlSafe() {
   return (
     process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
-    "http://localhost:4000/api"
+    (process.env.NODE_ENV === "production"
+      ? "https://api.printoe.com/api"
+      : "http://localhost:4000/api")
   );
+}
+
+export function isAllowedEditorReturnUrl(raw: string) {
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return false;
+    const host = url.hostname.toLowerCase();
+    return (
+      host === "editor.printoe.com" ||
+      host === "localhost" ||
+      host === "127.0.0.1"
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function sendLoggedInUserToEditor(rawNext: string) {
+  if (typeof window === "undefined") return false;
+  if (!isAllowedEditorReturnUrl(rawNext)) return false;
+  const token = window.localStorage.getItem("printoe_access_token");
+  if (!token) return false;
+  const url = new URL(rawNext);
+  url.searchParams.set("pt", token);
+  url.searchParams.set("api", getApiBaseUrlSafe());
+  window.location.assign(url.toString());
+  return true;
 }
 
 export function parseQtyFromLabel(label: string, fallback = 1) {
