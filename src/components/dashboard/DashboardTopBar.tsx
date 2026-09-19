@@ -13,6 +13,7 @@ import {
   Settings,
   ShoppingBag,
   User,
+  Palette,
   X,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -191,6 +192,14 @@ export function DashboardTopBar() {
                   >
                     <ShoppingBag className="h-4 w-4" />
                     My orders
+                  </Link>
+                  <Link
+                    href="/dashboard/saved-designs"
+                    className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-text-secondary hover:bg-secondary/5 hover:text-text-primary"
+                    onClick={() => setProfileOpen(false)}
+                  >
+                    <Palette className="h-4 w-4" />
+                    Saved Designs
                   </Link>
                   <Link
                     href="/dashboard/account-security"

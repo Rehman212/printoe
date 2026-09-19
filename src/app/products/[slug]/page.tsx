@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { products } from "@/lib/data";
 import { getApiBaseUrl } from "@/lib/auth";
 import { ProductDetail } from "@/components/products/ProductDetail";
@@ -78,5 +79,9 @@ export default async function ProductPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  return <ProductDetail slug={slug} />;
+  return (
+    <Suspense fallback={null}>
+      <ProductDetail slug={slug} />
+    </Suspense>
+  );
 }

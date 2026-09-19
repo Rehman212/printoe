@@ -16,6 +16,7 @@ import {
   estimateBannerPrice,
   type BannerProduct,
 } from "@/lib/banners-catalog";
+import { editorUrlFromFields, openDesignStudio } from "@/lib/editor-url";
 import { cn, formatCurrency } from "@/lib/utils";
 import {
   Breadcrumbs,
@@ -64,6 +65,20 @@ export function BannerProductPage({ product }: { product: BannerProduct }) {
     ...(styleId ? { style: styleId } : {}),
     ...selections,
   }).toString();
+
+  const qty = Number(selections.quantity) || 1;
+  const editorUrl = editorUrlFromFields({
+    slug: product.slug,
+    name: product.name,
+    quantity: qty,
+    unitPrice: qty > 0 ? price / qty : price,
+    totalPrice: price,
+    selections,
+    details: product.fields.map((f) => ({
+      label: f.label,
+      value: f.options.find((o) => o.value === selections[f.key])?.label ?? selections[f.key] ?? "",
+    })).filter((d) => d.label.toLowerCase() !== "quantity" && d.value),
+  });
 
   const prevImage = () =>
     setActiveImage((i) => (i - 1 + product.images.length) % product.images.length);
@@ -274,13 +289,21 @@ export function BannerProductPage({ product }: { product: BannerProduct }) {
                 Upload Design
               </Link>
               {product.styleOptions ? (
-                <Link
-                  href={`/editor?${query}`}
+                <button
+                  type="button"
+                  onClick={() =>
+                    openDesignStudio(
+                      editorUrl,
+                      typeof window !== "undefined"
+                        ? `${window.location.pathname}?designOnline=1`
+                        : "/",
+                    )
+                  }
                   className="inline-flex h-12 items-center justify-center gap-2 border-2 border-[#1b5e20] bg-white text-sm font-bold uppercase tracking-wider text-[#1b5e20] transition hover:bg-[#1b5e20] hover:text-white focus-ring"
                 >
                   <Pencil className="h-4 w-4" />
                   Design Online
-                </Link>
+                </button>
               ) : null}
             </div>
           </div>

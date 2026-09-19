@@ -55,6 +55,7 @@ import { useToast } from "@/components/ui/Toast";
 import { ProfileSettings } from "@/components/dashboard/ProfileSettings";
 import { AccountSecurity } from "@/components/dashboard/AccountSecurity";
 import { OrdersPage } from "@/components/dashboard/OrdersPage";
+import { openSavedDesignEditor } from "@/lib/editor-url";
 
 const SECTION_META: Record<
   string,
@@ -486,15 +487,9 @@ export function DashboardSection({ section }: { section: string }) {
                       {new Date(d.updatedAt).toLocaleDateString()}
                     </p>
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <Link
-                        href={
-                          d.productSlug
-                            ? `/products/${d.productSlug}`
-                            : "/editor"
-                        }
-                      >
-                        <Button size="sm">Edit</Button>
-                      </Link>
+                      <Button size="sm" onClick={() => openSavedDesignEditor(d)}>
+                        Edit
+                      </Button>
                       <Button
                         size="sm"
                         variant="outline"

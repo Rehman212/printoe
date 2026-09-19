@@ -11,6 +11,7 @@ import {
   defaultBuilderSelections,
   estimateBuilderPrice,
 } from "@/lib/custom-printing-options";
+import { editorUrlFromFields, openDesignStudio } from "@/lib/editor-url";
 import { cn, formatCurrency } from "@/lib/utils";
 import { Breadcrumbs, Container, Section, StarRating } from "@/components/ui";
 import { Tooltip } from "@/components/ui/Misc";
@@ -52,6 +53,25 @@ export function CustomProductBuilder() {
     mode,
     ...selections,
   }).toString();
+
+  const qty = Number(selections.quantity) || 250;
+  const editorUrl = editorUrlFromFields({
+    slug: "custom-printing",
+    name: "Custom Printing",
+    quantity: qty,
+    unitPrice,
+    totalPrice: price,
+    selections: { ...selections, mode },
+    details: fields
+      .map((f) => ({
+        label: f.label,
+        value:
+          f.options.find((o) => o.value === selections[f.key])?.label ??
+          selections[f.key] ??
+          "",
+      }))
+      .filter((d) => d.label.toLowerCase() !== "quantity" && d.value),
+  });
 
   const activeImage = GALLERY[activeThumb] ?? GALLERY[0]!;
 
@@ -218,13 +238,21 @@ export function CustomProductBuilder() {
                   <Upload className="h-4 w-4" />
                   Add to Cart
                 </Link>
-                <Link
-                  href={`/editor?${query}`}
+                <button
+                  type="button"
+                  onClick={() =>
+                    openDesignStudio(
+                      editorUrl,
+                      typeof window !== "undefined"
+                        ? `${window.location.pathname}?designOnline=1`
+                        : "/",
+                    )
+                  }
                   className="inline-flex h-12 items-center justify-center gap-2 border-2 border-secondary text-sm font-bold uppercase tracking-wider text-secondary transition hover:bg-secondary hover:text-white focus-ring"
                 >
                   <Pencil className="h-4 w-4" />
                   Create Your Design Online
-                </Link>
+                </button>
               </div>
             </div>
           </div>

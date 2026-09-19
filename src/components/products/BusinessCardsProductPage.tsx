@@ -21,6 +21,7 @@ import {
   estimateBusinessCardPrice,
   type BcProduct,
 } from "@/lib/business-cards-catalog";
+import { editorUrlFromFields, openDesignStudio } from "@/lib/editor-url";
 import { cn, formatCurrency } from "@/lib/utils";
 import {
   Breadcrumbs,
@@ -80,6 +81,24 @@ export function BusinessCardsProductPage({ product }: { product: BcProduct }) {
     product: product.slug,
     ...selections,
   }).toString();
+
+  const editorUrl = editorUrlFromFields({
+    slug: product.slug,
+    name: product.name,
+    quantity: qty,
+    unitPrice: each,
+    totalPrice: price,
+    selections,
+    details: product.fields
+      .map((f) => ({
+        label: f.label,
+        value:
+          f.options.find((o) => o.value === selections[f.key])?.label ??
+          selections[f.key] ??
+          "",
+      }))
+      .filter((d) => d.label.toLowerCase() !== "quantity" && d.value),
+  });
 
   const prevImage = () =>
     setActiveImage((i) => (i - 1 + product.images.length) % product.images.length);
@@ -299,13 +318,21 @@ export function BusinessCardsProductPage({ product }: { product: BcProduct }) {
                 Upload Design
               </Link>
               {product.slug === "square" || product.showTypeTabs ? (
-                <Link
-                  href={`/editor?${query}`}
+                <button
+                  type="button"
+                  onClick={() =>
+                    openDesignStudio(
+                      editorUrl,
+                      typeof window !== "undefined"
+                        ? `${window.location.pathname}?designOnline=1`
+                        : "/",
+                    )
+                  }
                   className="inline-flex h-12 items-center justify-center gap-2 border-2 border-[#1b5e20] bg-white text-sm font-bold uppercase tracking-wider text-[#1b5e20] transition hover:bg-[#1b5e20] hover:text-white focus-ring"
                 >
                   <Pencil className="h-4 w-4" />
                   Design Online
-                </Link>
+                </button>
               ) : null}
             </div>
           </div>

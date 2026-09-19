@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   Check,
   ChevronLeft,
@@ -58,6 +59,8 @@ import {
   fetchCustomerWishlist,
   removeCustomerWishlist,
 } from "@/lib/customer-api";
+import { getApiBaseUrl } from "@/lib/auth";
+import { editorDesignUrl, openDesignStudio, parseQtyFromLabel } from "@/lib/editor-url";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useCartOptional } from "@/lib/cart-store";
 import { ProductReviews } from "@/components/products/ProductReviews";
@@ -239,9 +242,11 @@ function legacyToOptions(product: Product): ProductOptionGroup[] {
 export function ProductDetail({ slug }: { slug: string }) {
   const store = useProductsOptional();
   const { isAuthenticated } = useAuth();
+  const searchParams = useSearchParams();
   const cart = useCartOptional();
   const [cartBusy, setCartBusy] = useState(false);
   const { toast } = useToast();
+  const openedEditor = useRef(false);
   const localProduct = store.getBySlug(slug);
 
   const [loading, setLoading] = useState(true);
@@ -581,6 +586,78 @@ export function ProductDetail({ slug }: { slug: string }) {
       /^production\s*time$/i.test(group.label),
     );
   }, [useBoxCheckoutUi, visibleOptions]);
+
+  const editorUrl = useMemo(() => {
+    const qtyGroup = visibleOptions.find(
+      (g) =>
+        g.key === "quantity" ||
+        /quantity|^qty$/i.test(g.label) ||
+        /quantity|qty/i.test(g.key),
+    );
+    const details = visibleOptions
+      .filter((g) => g.key !== qtyGroup?.key)
+      .map((g) => {
+        const v = g.values.find((x) => x.value === selections[g.key]);
+        const display =
+          (typeof v?.meta?.displayLabel === "string" && v.meta.displayLabel.trim()) ||
+          v?.label ||
+          selections[g.key] ||
+          "";
+        return { label: g.label, value: display };
+      })
+      .filter((row) => row.value);
+    const quantities = (qtyGroup?.values ?? []).map((v) => {
+      const qty = parseQtyFromLabel(v.label, Number(v.value) || 1);
+      const unitPrice =
+        typeof v.meta?.matrixUnitPrice === "number" ? v.meta.matrixUnitPrice : undefined;
+      return {
+        value: v.value,
+        label: v.label,
+        qty,
+        unitPrice,
+        total: unitPrice != null ? unitPrice * qty : undefined,
+      };
+    });
+    return editorDesignUrl({
+      slug,
+      name,
+      apiBase: getApiBaseUrl(),
+      quantityKey: qtyGroup?.key ?? "quantity",
+      selections,
+      details,
+      quantities:
+        quantities.length > 0
+          ? quantities
+          : [
+              {
+                value: String(pricing.quantity),
+                label: String(pricing.quantity),
+                qty: pricing.quantity || 1,
+                unitPrice: pricing.unit,
+                total: pricing.total,
+              },
+            ],
+      quantity: pricing.quantity || 1,
+      unitPrice: pricing.unit,
+      totalPrice: pricing.total,
+    });
+  }, [
+    visibleOptions,
+    selections,
+    slug,
+    name,
+    pricing.quantity,
+    pricing.unit,
+    pricing.total,
+  ]);
+
+  useEffect(() => {
+    if (openedEditor.current) return;
+    if (searchParams.get("designOnline") !== "1") return;
+    if (!isAuthenticated || loading || notFound) return;
+    openedEditor.current = true;
+    openDesignStudio(editorUrl, `/products/${slug}?designOnline=1`);
+  }, [searchParams, isAuthenticated, loading, notFound, editorUrl, slug]);
 
   const syncSavedState = useCallback(async () => {
     if (!isAuthenticated) {
@@ -1260,9 +1337,15 @@ export function ProductDetail({ slug }: { slug: string }) {
                         <Upload className="h-4 w-4" /> Upload Design
                       </Button>
                     </Link>
-                    <Link
-                      href={`/editor?product=${encodeURIComponent(slug)}`}
-                      className="block"
+                    <button
+                      type="button"
+                      className="block w-full"
+                      onClick={() =>
+                        openDesignStudio(
+                          editorUrl,
+                          `/products/${slug}?designOnline=1`,
+                        )
+                      }
                     >
                       <Button
                         variant="outline"
@@ -1271,7 +1354,7 @@ export function ProductDetail({ slug }: { slug: string }) {
                       >
                         <Pencil className="h-4 w-4" /> Design Online
                       </Button>
-                    </Link>
+                    </button>
                     <Button
                       variant={savedDesignId ? "primary" : "outline"}
                       size="lg"
