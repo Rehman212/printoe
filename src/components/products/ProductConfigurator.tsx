@@ -30,6 +30,10 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ProductOptionGroup } from "@/types";
 import { Select, Tooltip } from "@/components/ui/Misc";
+import {
+  CUSTOM_SIZE_VALUE,
+  customSizeUnit,
+} from "@/lib/custom-size";
 
 const ICON_MAP: Record<string, LucideIcon> = {
   Scissors,
@@ -108,6 +112,7 @@ export function ProductConfigurator({
   onChange,
   computedQuantity,
   productSlug,
+  customSize,
 }: {
   options: ProductOptionGroup[];
   selections: Record<string, string>;
@@ -115,6 +120,17 @@ export function ProductConfigurator({
   /** Sheet labels: show Quantity as read-only text (UPrinting style). */
   computedQuantity?: number | null;
   productSlug?: string;
+  customSize?: {
+    groupKey: string;
+    enabled: boolean;
+    width: string;
+    height: string;
+    onWidth: (value: string) => void;
+    onHeight: (value: string) => void;
+    onStandaloneCustom?: () => void;
+    onStandaloneStandard?: () => void;
+    standardLabel?: string;
+  };
 }) {
   if (!options.length) {
     return (
@@ -129,7 +145,9 @@ export function ProductConfigurator({
       {options.map((group) => {
         if (group.values.length === 0) return null;
         const selected = selections[group.key] ?? "";
-        const readOnly = group.values.length === 1;
+        const isCustomSizeGroup =
+          Boolean(customSize) && group.key === customSize?.groupKey;
+        const readOnly = group.values.length === 1 && !isCustomSizeGroup;
 
         if (isRadioGroup(group) && group.values.length > 1) {
           return (
@@ -241,15 +259,9 @@ export function ProductConfigurator({
           );
         }
 
-        const field = (
-          <div>
-            <Select
-              label={group.label}
-              labelIcon={fieldIconFor(group.label)}
-              value={selected}
-              placeholder="Select…"
-              onChange={(val) => onChange(group.key, val)}
-              options={group.values.map((v) => {
+        const selectOptions = isCustomSizeGroup
+          ? [
+              ...group.values.map((v) => {
                 const optionGroup = v.meta?.optionGroup;
                 return {
                   label: optionLabel(v),
@@ -258,8 +270,66 @@ export function ProductConfigurator({
                     ? { group: optionGroup.trim() }
                     : {}),
                 };
-              })}
+              }),
+              { label: "Custom Size", value: CUSTOM_SIZE_VALUE },
+            ]
+          : group.values.map((v) => {
+              const optionGroup = v.meta?.optionGroup;
+              return {
+                label: optionLabel(v),
+                value: v.value,
+                ...(typeof optionGroup === "string" && optionGroup.trim()
+                  ? { group: optionGroup.trim() }
+                  : {}),
+              };
+            });
+        const selectValue =
+          isCustomSizeGroup && customSize?.enabled
+            ? CUSTOM_SIZE_VALUE
+            : selected;
+        const unit = customSizeUnit(productSlug ?? "");
+        const unitLabel = unit === "ft" ? "ft" : "in";
+
+        const field = (
+          <div>
+            <Select
+              label={group.label}
+              labelIcon={fieldIconFor(group.label)}
+              value={selectValue}
+              placeholder="Select…"
+              onChange={(val) => onChange(group.key, val)}
+              options={selectOptions}
             />
+            {isCustomSizeGroup && customSize?.enabled ? (
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <label className="space-y-1">
+                  <span className="text-xs font-semibold text-secondary">
+                    Width ({unitLabel})
+                  </span>
+                  <input
+                    type="number"
+                    min={0.25}
+                    step="0.25"
+                    value={customSize.width}
+                    onChange={(e) => customSize.onWidth(e.target.value)}
+                    className="h-11 w-full rounded-xl border border-border bg-white px-3 text-sm font-medium focus-ring"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-xs font-semibold text-secondary">
+                    Height ({unitLabel})
+                  </span>
+                  <input
+                    type="number"
+                    min={0.25}
+                    step="0.25"
+                    value={customSize.height}
+                    onChange={(e) => customSize.onHeight(e.target.value)}
+                    className="h-11 w-full rounded-xl border border-border bg-white px-3 text-sm font-medium focus-ring"
+                  />
+                </label>
+              </div>
+            ) : null}
             {group.helpText ? (
               <p className="mt-1.5 text-xs text-text-secondary">{group.helpText}</p>
             ) : null}
@@ -289,6 +359,54 @@ export function ProductConfigurator({
 
         return <div key={group.id}>{field}</div>;
       })}
+      {customSize && !options.some((g) => g.key === customSize.groupKey) ? (
+        <div>
+          <Select
+            label="Size"
+            labelIcon={fieldIconFor("Size")}
+            value={customSize.enabled ? CUSTOM_SIZE_VALUE : "standard"}
+            placeholder="Select…"
+            onChange={(val) => {
+              if (val === CUSTOM_SIZE_VALUE) customSize.onStandaloneCustom?.();
+              else customSize.onStandaloneStandard?.();
+            }}
+            options={[
+              { label: customSize.standardLabel || "Standard", value: "standard" },
+              { label: "Custom Size", value: CUSTOM_SIZE_VALUE },
+            ]}
+          />
+          {customSize.enabled ? (
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <label className="space-y-1">
+                <span className="text-xs font-semibold text-secondary">
+                  Width ({customSizeUnit(productSlug ?? "") === "ft" ? "ft" : "in"})
+                </span>
+                <input
+                  type="number"
+                  min={0.25}
+                  step="0.25"
+                  value={customSize.width}
+                  onChange={(e) => customSize.onWidth(e.target.value)}
+                  className="h-11 w-full rounded-xl border border-border bg-white px-3 text-sm font-medium focus-ring"
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-xs font-semibold text-secondary">
+                  Height ({customSizeUnit(productSlug ?? "") === "ft" ? "ft" : "in"})
+                </span>
+                <input
+                  type="number"
+                  min={0.25}
+                  step="0.25"
+                  value={customSize.height}
+                  onChange={(e) => customSize.onHeight(e.target.value)}
+                  className="h-11 w-full rounded-xl border border-border bg-white px-3 text-sm font-medium focus-ring"
+                />
+              </label>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

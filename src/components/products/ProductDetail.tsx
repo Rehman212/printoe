@@ -23,6 +23,16 @@ import type { Product, ProductOptionGroup, ProductTab } from "@/types";
 import { ProductMedia } from "@/components/shared/ProductMedia";
 import { ProductConfigurator } from "@/components/products/ProductConfigurator";
 import {
+  CUSTOM_SIZE_FALLBACK_INCHES,
+  CUSTOM_SIZE_VALUE,
+  customSizeUnit,
+  displayUnitValue,
+  findSizeOptionGroup,
+  isCustomSizePilot,
+  parseSizeLabelInches,
+  resolveBaseSizeInches,
+} from "@/lib/custom-size";
+import {
   Accordion,
   Badge,
   Button,
@@ -300,6 +310,9 @@ export function ProductDetail({ slug }: { slug: string }) {
     turnaroundDays?: number | null;
     inStock: boolean;
   }>(null);
+  const [customSizeOn, setCustomSizeOn] = useState(false);
+  const [customWidth, setCustomWidth] = useState("");
+  const [customHeight, setCustomHeight] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -366,6 +379,9 @@ export function ProductDetail({ slug }: { slug: string }) {
         setFallbackImage(product.category.slug);
         setOptions(apiOptions);
         setSelections(defaultSelections(apiOptions));
+        setCustomSizeOn(false);
+        setCustomWidth("");
+        setCustomHeight("");
         setNotFound(false);
       } catch {
         if (cancelled) return;
@@ -404,6 +420,9 @@ export function ProductDetail({ slug }: { slug: string }) {
           setFallbackImage(localProduct.image);
           setOptions(opts);
           setSelections(defaultSelections(opts));
+          setCustomSizeOn(false);
+          setCustomWidth("");
+          setCustomHeight("");
           setNotFound(false);
         } else {
           setNotFound(true);
@@ -519,7 +538,13 @@ export function ProductDetail({ slug }: { slug: string }) {
       setMatrixPrice(null);
       return;
     }
-    void fetchConfiguredMatrixPrice(slug, matrixSelections)
+    void fetchConfiguredMatrixPrice(
+      slug,
+      matrixSelections,
+      customSizeOn && Number(customWidth) > 0 && Number(customHeight) > 0
+        ? { width: Number(customWidth), height: Number(customHeight) }
+        : undefined,
+    )
       .then((result) => {
         if (cancelled) return;
         setMatrixPrice(result.data && typeof result.data.price === "number" && typeof result.data.unitPrice === "number" && typeof result.data.quantity === "number"
@@ -528,7 +553,7 @@ export function ProductDetail({ slug }: { slug: string }) {
       })
       .catch(() => { if (!cancelled) setMatrixPrice(null); });
     return () => { cancelled = true; };
-  }, [pricingMatrixEnabled, hasCustomTabs, matrixSelections, visibleOptions.length, slug]);
+  }, [pricingMatrixEnabled, hasCustomTabs, matrixSelections, visibleOptions.length, slug, customSizeOn, customWidth, customHeight]);
 
   const pricing = useMemo(() => {
     if (!pricingMatrixEnabled || !matrixPrice) return fallbackPricing;
@@ -598,6 +623,13 @@ export function ProductDetail({ slug }: { slug: string }) {
       .filter((g) => g.key !== qtyGroup?.key)
       .map((g) => {
         const v = g.values.find((x) => x.value === selections[g.key]);
+        const sizeG = findSizeOptionGroup(visibleOptions);
+        if (customSizeOn && sizeG && g.key === sizeG.key && customWidth && customHeight) {
+          return {
+            label: g.label,
+            value: `${customWidth} × ${customHeight} ${customSizeUnit(slug)} (custom)`,
+          };
+        }
         const display =
           (typeof v?.meta?.displayLabel === "string" && v.meta.displayLabel.trim()) ||
           v?.label ||
@@ -606,6 +638,17 @@ export function ProductDetail({ slug }: { slug: string }) {
         return { label: g.label, value: display };
       })
       .filter((row) => row.value);
+    if (
+      customSizeOn &&
+      !findSizeOptionGroup(visibleOptions) &&
+      customWidth &&
+      customHeight
+    ) {
+      details.unshift({
+        label: "Size",
+        value: `${customWidth} × ${customHeight} ${customSizeUnit(slug)} (custom)`,
+      });
+    }
     const quantities = (qtyGroup?.values ?? []).map((v) => {
       const qty = parseQtyFromLabel(v.label, Number(v.value) || 1);
       const unitPrice =
@@ -649,6 +692,9 @@ export function ProductDetail({ slug }: { slug: string }) {
     pricing.quantity,
     pricing.unit,
     pricing.total,
+    customSizeOn,
+    customWidth,
+    customHeight,
   ]);
 
   useEffect(() => {
@@ -689,7 +735,25 @@ export function ProductDetail({ slug }: { slug: string }) {
     void syncSavedState();
   }, [syncSavedState]);
 
+  const sizeGroup = useMemo(() => findSizeOptionGroup(options), [options]);
+  const customSizePilot =
+    isCustomSizePilot(slug) && searchParams.get("legacy") !== "1";
+
   const onOptionChange = (key: string, value: string) => {
+    if (customSizePilot && sizeGroup && key === sizeGroup.key) {
+      if (value === CUSTOM_SIZE_VALUE) {
+        const current = sizeGroup.values.find((v) => v.value === selections[sizeGroup.key]);
+        const parsed = parseSizeLabelInches(current?.label ?? "");
+        const unit = customSizeUnit(slug);
+        if (parsed) {
+          setCustomWidth(displayUnitValue(parsed.width, unit));
+          setCustomHeight(displayUnitValue(parsed.height, unit));
+        }
+        setCustomSizeOn(true);
+        return;
+      }
+      setCustomSizeOn(false);
+    }
     setSelections((prev) => {
       // Switching Label Type should re-apply that type's defaults (Sheet vs Roll).
       if (key === "attr0" && value) {
@@ -1187,6 +1251,42 @@ export function ProductDetail({ slug }: { slug: string }) {
                     onChange={onOptionChange}
                     computedQuantity={sheetQuantity}
                     productSlug={slug}
+                    customSize={
+                      customSizePilot
+                        ? {
+                            groupKey: sizeGroup?.key ?? "",
+                            enabled: customSizeOn,
+                            width: customWidth,
+                            height: customHeight,
+                            onWidth: setCustomWidth,
+                            onHeight: setCustomHeight,
+                            onStandaloneCustom: () => {
+                              const unit = customSizeUnit(slug);
+                              const base = resolveBaseSizeInches(
+                                slug,
+                                options.map((g) => ({
+                                  key: g.key,
+                                  label: g.label,
+                                  values: g.values.map((v) => ({
+                                    value: v.value,
+                                    label: v.label,
+                                  })),
+                                })),
+                                selections,
+                              );
+                              if (base) {
+                                setCustomWidth(displayUnitValue(base.width, unit));
+                                setCustomHeight(displayUnitValue(base.height, unit));
+                              }
+                              setCustomSizeOn(true);
+                            },
+                            onStandaloneStandard: () => setCustomSizeOn(false),
+                            standardLabel: CUSTOM_SIZE_FALLBACK_INCHES[slug]
+                              ? `${CUSTOM_SIZE_FALLBACK_INCHES[slug].width}" × ${CUSTOM_SIZE_FALLBACK_INCHES[slug].height}"`
+                              : "Standard",
+                          }
+                        : undefined
+                    }
                   />
                 )}
                 </div>

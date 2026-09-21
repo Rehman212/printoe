@@ -93,6 +93,7 @@ export type ImportedVariationPrice = {
 export async function fetchConfiguredMatrixPrice(
   slug: string,
   selections: Record<string, string>,
+  customSize?: { width?: number; height?: number },
 ) {
   return apiSend<{
     success: boolean;
@@ -103,8 +104,14 @@ export async function fetchConfiguredMatrixPrice(
       turnaroundDays?: number | null;
       inStock?: boolean;
       availableOptions: Record<string, string[]>;
+      customSizeApplied?: boolean;
     };
-  }>(`/products/${encodeURIComponent(slug)}/price`, "POST", { selections });
+  }>(`/products/${encodeURIComponent(slug)}/price`, "POST", {
+    selections,
+    ...(customSize?.width && customSize?.height
+      ? { customWidth: customSize.width, customHeight: customSize.height }
+      : {}),
+  });
 }
 
 export async function fetchAdminProducts() {
