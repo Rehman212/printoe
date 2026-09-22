@@ -198,6 +198,8 @@ export function ProductConfigurator({
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {group.values.map((v) => {
                   const Icon = optionCardIcon(v);
+                  const imageUrl =
+                    typeof v.meta?.image === "string" ? v.meta.image.trim() : "";
                   const active = selected === v.value;
                   return (
                     <button
@@ -211,7 +213,16 @@ export function ProductConfigurator({
                           : "border-border bg-card text-text-secondary hover:border-primary/40",
                       )}
                     >
-                      <Icon className="h-5 w-5" />
+                      {imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={imageUrl}
+                          alt=""
+                          className="h-9 w-9 object-contain"
+                        />
+                      ) : (
+                        <Icon className="h-5 w-5" />
+                      )}
                       <span className="text-xs font-semibold leading-tight">
                         {optionLabel(v)}
                       </span>
