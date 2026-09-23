@@ -597,8 +597,14 @@ export function ProductDetail({ slug }: { slug: string }) {
     );
   }, [options, selections]);
   const isBlankOrder = /^blank$/i.test(selectedPrintedSides.trim());
+  const boxFamilySlugs = new Set([
+    "mailer-boxes",
+    "product-boxes",
+    "shipping-boxes",
+  ]);
+  const showBoxFamilyTabs = boxFamilySlugs.has(slug);
   const isBookShippingBoxes = slug === "book-shipping-boxes";
-  const useBoxCheckoutUi = isBookShippingBoxes;
+  const useBoxCheckoutUi = isBookShippingBoxes || showBoxFamilyTabs;
   const boxMainOptions = useMemo(() => {
     if (!useBoxCheckoutUi) return visibleOptions;
     return visibleOptions.filter(
@@ -1118,6 +1124,65 @@ export function ProductDetail({ slug }: { slug: string }) {
                   </button>
                 </div>
               </div>
+
+              {showBoxFamilyTabs ? (
+                <div className="mt-5 grid grid-cols-3 gap-2">
+                  {(
+                    [
+                      {
+                        slug: "mailer-boxes",
+                        label: "Mailer Boxes",
+                        href: "/products/mailer-boxes",
+                        image:
+                          "https://staticecp.uprinting.com/5872/Mailer.svg",
+                      },
+                      {
+                        slug: "product-boxes",
+                        label: "Product Boxes",
+                        href: "/products/product-boxes",
+                        image:
+                          "https://staticecp.uprinting.com/9228/Product.svg",
+                      },
+                      {
+                        slug: "shipping-boxes",
+                        label: "Shipping Boxes",
+                        href: "/products/shipping-boxes",
+                        image:
+                          "https://staticecp.uprinting.com/5874/Shipping.svg",
+                      },
+                    ] as const
+                  ).map((tab) => {
+                    const active = tab.slug === slug;
+                    return (
+                      <Link
+                        key={tab.slug}
+                        href={tab.href}
+                        className={cn(
+                          "flex flex-col items-center gap-2 border-2 bg-white px-2 py-3 text-center transition",
+                          active
+                            ? "border-[#1b5e20] text-secondary"
+                            : "border-border text-text-secondary hover:border-border",
+                        )}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={tab.image}
+                          alt=""
+                          className="h-8 w-8 object-contain"
+                        />
+                        <span
+                          className={cn(
+                            "text-xs font-semibold leading-tight",
+                            active && "font-bold",
+                          )}
+                        >
+                          {tab.label}
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : null}
 
               {productTabs.length > 0 ? (
                 <div className="mt-4 border-t border-border pt-3">
