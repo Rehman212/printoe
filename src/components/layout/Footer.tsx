@@ -206,7 +206,15 @@ export function Footer() {
 
         <div className="mt-10 flex flex-col gap-6 border-t border-white/10 pt-8 md:flex-row md:items-center md:justify-between">
           <p className="text-xs font-medium text-slate-400">
-            © {new Date().getFullYear()} {site.name}. All rights reserved.
+            © {new Date().getFullYear()} {site.name}. All rights reserved. Powered by{" "}
+            <a
+              href="https://aurexone.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-slate-300 underline-offset-2 hover:text-white hover:underline"
+            >
+              Aurexone.com
+            </a>
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <span className="rounded-lg border border-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-300">
