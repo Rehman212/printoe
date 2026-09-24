@@ -89,6 +89,7 @@ export function PriceCalculator() {
     unitPrice: number;
     quantity: number;
     turnaroundDays?: number | null;
+    pricingMode?: string;
   }>(null);
 
   useEffect(() => {
@@ -281,6 +282,11 @@ export function PriceCalculator() {
               unitPrice: data.unitPrice,
               quantity: data.quantity,
               turnaroundDays: data.turnaroundDays,
+              pricingMode:
+                typeof (data as { pricingMode?: string }).pricingMode ===
+                "string"
+                  ? (data as { pricingMode?: string }).pricingMode
+                  : "matrix",
             });
           } else {
             setLivePrice(null);
@@ -306,6 +312,19 @@ export function PriceCalculator() {
     pricingMatrixEnabled,
   ]);
 
+  const turnaroundLabel = turnaroundGroup
+    ? turnaroundGroup.values.find(
+        (value) => value.value === selections[turnaroundGroup.key],
+      )?.label
+    : undefined;
+  const turnaroundFromLabel = (() => {
+    const match = String(turnaroundLabel || "").match(/(\d+)/);
+    if (!match) return null;
+    const days = Number(match[1]);
+    return Number.isFinite(days) && days > 0 ? days : null;
+  })();
+
+  const hasExactPrice = Boolean(livePrice);
   const total =
     livePrice?.price ??
     (fallback.total > 0
@@ -325,6 +344,7 @@ export function PriceCalculator() {
     1;
   const delivery =
     livePrice?.turnaroundDays ??
+    turnaroundFromLabel ??
     deliveryDays;
 
   const onCategoryChange = (slug: string) => {
@@ -517,9 +537,13 @@ export function PriceCalculator() {
                 </Button>
               )}
               <p className="text-center text-xs font-medium text-text-secondary">
-                {livePrice
-                  ? "Live storefront pricing for your selection."
-                  : "Prices update as you change options."}
+                {hasExactPrice
+                  ? livePrice?.pricingMode === "live"
+                    ? "Live UPrinting price for this selection."
+                    : "Exact scraped matrix price for this selection."
+                  : pricingBusy
+                    ? "Updating price…"
+                    : "Approximate estimate — open the product page to confirm."}
               </p>
             </div>
           </Card>
