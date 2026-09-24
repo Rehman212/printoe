@@ -1,19 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useMemo, useState } from "react";
 import { Calculator, Zap } from "lucide-react";
-import {
-  fetchConfiguredMatrixPrice,
-  fetchProductBySlug,
-  fetchProducts,
-  fetchStoreCategories,
-} from "@/lib/products-api";
-import {
-  importedDefaultSelections,
-  normalizeImportedSelections,
-  visibleImportedOptions,
-} from "@/lib/imported-product-rules";
+import { categories, products } from "@/lib/data";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -23,525 +12,114 @@ import {
   Section,
   SectionHeader,
 } from "@/components/ui/Section";
-import type { CatalogProduct, ProductOptionGroup } from "@/types";
 
-type Cat = { name: string; slug: string };
+const quantityOptions = [
+  { label: "100", value: "100" },
+  { label: "250", value: "250" },
+  { label: "500", value: "500" },
+  { label: "1,000", value: "1000" },
+  { label: "2,500", value: "2500" },
+  { label: "5,000", value: "5000" },
+];
 
-function findGroup(
-  options: ProductOptionGroup[],
-  patterns: RegExp[],
-  exclude: RegExp[] = [],
-  exactLabel?: RegExp,
-) {
-  if (exactLabel) {
-    const exact = options.find(
-      (group) =>
-        exactLabel.test(group.label) &&
-        !exclude.some((re) => re.test(`${group.key} ${group.label}`)),
-    );
-    if (exact) return exact;
-  }
-  return options.find((group) => {
-    const text = `${group.key} ${group.label}`;
-    if (exclude.some((re) => re.test(text))) return false;
-    return patterns.some((re) => re.test(group.key) || re.test(group.label));
-  });
-}
+const turnaroundOptions = [
+  { label: "Standard (5–7 days)", value: "standard", multiplier: 1 },
+  { label: "Express (3 days)", value: "express", multiplier: 1.25 },
+  { label: "Rush (Next day)", value: "rush", multiplier: 1.55 },
+];
 
-function optionChoices(
-  group?: ProductOptionGroup,
-  allowed?: string[],
-) {
-  const values = group?.values ?? [];
-  const filtered =
-    allowed && allowed.length > 0
-      ? values.filter((value) => allowed.includes(value.value))
-      : values;
-  // Duplicate labels (e.g. two "500" qty ids) — prefer allowed/matrix ids first.
-  const seen = new Set<string>();
-  const out: { label: string; value: string }[] = [];
-  for (const value of filtered) {
-    if (seen.has(value.label)) continue;
-    seen.add(value.label);
-    out.push({ label: value.label, value: value.value });
-  }
-  return out;
-}
+const finishingOptions = [
+  { label: "None", value: "none", addon: 0 },
+  { label: "Matte laminate", value: "matte", addon: 12 },
+  { label: "Soft touch", value: "soft-touch", addon: 18 },
+  { label: "Spot UV", value: "spot-uv", addon: 28 },
+  { label: "Foil stamp", value: "foil", addon: 45 },
+];
 
-function buildMatrixSelections(
-  options: ProductOptionGroup[],
-  selections: Record<string, string>,
-) {
-  const visible = visibleImportedOptions(options, selections);
-  const visibleKeys = new Set(visible.map((group) => group.key));
-  const visibleByKey = new Map(visible.map((group) => [group.key, group]));
-  const result: Record<string, string> = {};
-  for (const group of options) {
-    const isVisible = visibleKeys.has(group.key);
-    if (!isVisible && !group.meta?.keepWhenHidden) continue;
-    let value = selections[group.key];
-    if (!value) {
-      const visibleGroup = visibleByKey.get(group.key);
-      if (visibleGroup?.values.length === 1) {
-        value = visibleGroup.values[0]?.value;
-      }
-    }
-    if (value) result[group.key] = value;
-  }
-  if (selections.attr0) result.attr0 = selections.attr0;
-  return result;
-}
-
-function snapToAvailable(
-  options: ProductOptionGroup[],
-  selections: Record<string, string>,
-  available: Record<string, string[]>,
-) {
-  let next = { ...selections };
-  let changed = false;
-  for (const [key, allowed] of Object.entries(available)) {
-    if (!allowed.length) continue;
-    if (!next[key] || !allowed.includes(next[key])) {
-      // Prefer current label's alternate id when duplicates exist.
-      const group = options.find((item) => item.key === key);
-      const currentLabel = group?.values.find(
-        (value) => value.value === selections[key],
-      )?.label;
-      const sameLabel = group?.values.find(
-        (value) =>
-          value.label === currentLabel && allowed.includes(value.value),
-      );
-      next[key] = sameLabel?.value ?? allowed[0];
-      changed = true;
-    }
-  }
-  if (!changed) return selections;
-  return normalizeImportedSelections(options, next);
-}
-
-/** When matrix ids differ for the same label (e.g. two "500" qty rows). */
-function labelAliasTrials(
-  options: ProductOptionGroup[],
-  selections: Record<string, string>,
-) {
-  const trials: Record<string, string>[] = [];
-  for (const group of options) {
-    const current = selections[group.key];
-    if (!current) continue;
-    const label = group.values.find((value) => value.value === current)?.label;
-    if (!label) continue;
-    const alts = group.values.filter(
-      (value) => value.label === label && value.value !== current,
-    );
-    for (const alt of alts) {
-      trials.push({ ...selections, [group.key]: alt.value });
-    }
-  }
-  return trials;
+function getProductsForCategory(categorySlug: string) {
+  return products.filter((p) => p.category === categorySlug);
 }
 
 export function PriceCalculator() {
-  const [loadingCatalog, setLoadingCatalog] = useState(true);
-  const [loadingProduct, setLoadingProduct] = useState(false);
-  const [pricingBusy, setPricingBusy] = useState(false);
-  const [categories, setCategories] = useState<Cat[]>([]);
-  const [allProducts, setAllProducts] = useState<CatalogProduct[]>([]);
-  const [categorySlug, setCategorySlug] = useState("");
-  const [productSlug, setProductSlug] = useState("");
-  const [options, setOptions] = useState<ProductOptionGroup[]>([]);
-  const [deliveryDays, setDeliveryDays] = useState(5);
-  const [productName, setProductName] = useState("");
-  const [selections, setSelections] = useState<Record<string, string>>({});
-  const [availableOptions, setAvailableOptions] = useState<
-    Record<string, string[]>
-  >({});
-  const [livePrice, setLivePrice] = useState<null | {
-    price: number;
-    unitPrice: number;
-    quantity: number;
-    turnaroundDays?: number | null;
-    pricingMode?: string;
-  }>(null);
+  const [categorySlug, setCategorySlug] = useState(categories[0].slug);
+  const [productSlug, setProductSlug] = useState(
+    () => getProductsForCategory(categories[0].slug)[0]?.slug ?? products[0].slug,
+  );
+  const [quantity, setQuantity] = useState("500");
+  const [size, setSize] = useState("");
+  const [material, setMaterial] = useState("");
+  const [finishing, setFinishing] = useState("none");
+  const [turnaround, setTurnaround] = useState("standard");
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoadingCatalog(true);
-      try {
-        const [catRes, prodRes] = await Promise.all([
-          fetchStoreCategories(),
-          fetchProducts(),
-        ]);
-        if (cancelled) return;
-        const cats = (catRes.data ?? [])
-          .filter((c) => c.productCount > 0)
-          .map((c) => ({ name: c.name, slug: c.slug }));
-        const prods = prodRes.data ?? [];
-        setCategories(cats);
-        setAllProducts(prods);
+  const categoryProducts = useMemo(
+    () => getProductsForCategory(categorySlug),
+    [categorySlug],
+  );
 
-        const preferred =
-          prods.find((p) => p.slug === "silk-business-cards") ??
-          prods.find((p) => p.slug === "plastic-business-cards") ??
-          prods.find((p) => p.category?.slug === "business-cards") ??
-          prods[0];
-        const cat =
-          preferred?.category?.slug ||
-          cats.find((c) => prods.some((p) => p.category?.slug === c.slug))
-            ?.slug ||
-          cats[0]?.slug ||
-          "";
-        setCategorySlug(cat);
-        if (preferred) {
-          setProductSlug(preferred.slug);
-          setProductName(preferred.name);
-          setDeliveryDays(preferred.deliveryDays ?? 5);
-        }
-      } catch {
-        if (!cancelled) {
-          setCategories([]);
-          setAllProducts([]);
-        }
-      } finally {
-        if (!cancelled) setLoadingCatalog(false);
-      }
-    }
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const selectedProduct = useMemo(() => {
+    const match = categoryProducts.find((p) => p.slug === productSlug);
+    return match ?? categoryProducts[0] ?? products[0];
+  }, [categoryProducts, productSlug]);
 
-  const categoryProducts = useMemo(() => {
-    if (!categorySlug) return allProducts;
-    return allProducts.filter((p) => p.category?.slug === categorySlug);
-  }, [allProducts, categorySlug]);
-
-  const selectedProduct = useMemo(
+  const sizeOptions = useMemo(
     () =>
-      categoryProducts.find((p) => p.slug === productSlug) ??
-      categoryProducts[0] ??
-      allProducts.find((p) => p.slug === productSlug) ??
-      null,
-    [allProducts, categoryProducts, productSlug],
+      selectedProduct.sizes.map((s) => ({
+        label: s,
+        value: s,
+      })),
+    [selectedProduct],
   );
 
-  useEffect(() => {
-    const slug = selectedProduct?.slug;
-    if (!slug) {
-      setOptions([]);
-      setSelections({});
-      setAvailableOptions({});
-      setLivePrice(null);
-      return;
-    }
-    let cancelled = false;
-    setLoadingProduct(true);
-    setLivePrice(null);
-    setAvailableOptions({});
-    void fetchProductBySlug(slug)
-      .then(async (res) => {
-        if (cancelled) return;
-        const groups = res.data.options ?? [];
-        const product = res.data.product;
-        setOptions(groups);
-        setProductName(product.name);
-        setDeliveryDays(product.deliveryDays ?? 5);
-
-        const imported = importedDefaultSelections(groups);
-        // Sparse matrices often don't include the catalog default combo.
-        // Seed from availableOptions of a bootstrap price call (attr0 only).
-        const linked = groups.find((group) => group.key === "attr0");
-        const bootstrapSelection: Record<string, string> = {};
-        if (imported.attr0) bootstrapSelection.attr0 = imported.attr0;
-        else if (linked?.values[0]?.value) {
-          bootstrapSelection.attr0 = linked.values[0].value;
-        }
-
-        let seeded = imported;
-        try {
-          const boot = await fetchConfiguredMatrixPrice(
-            slug,
-            Object.keys(bootstrapSelection).length
-              ? bootstrapSelection
-              : imported,
-          );
-          if (cancelled) return;
-          const available = boot.data?.availableOptions ?? {};
-          if (Object.keys(available).length > 0) {
-            setAvailableOptions(available);
-            const next: Record<string, string> = { ...imported };
-            for (const group of groups) {
-              const allowed = available[group.key];
-              if (!allowed?.length) continue;
-              const current = next[group.key];
-              if (current && allowed.includes(current)) continue;
-              const sameLabel = group.values.find(
-                (value) =>
-                  value.label ===
-                    group.values.find((item) => item.value === current)
-                      ?.label && allowed.includes(value.value),
-              );
-              next[group.key] = sameLabel?.value ?? allowed[0];
-            }
-            seeded = normalizeImportedSelections(groups, next);
-            if (
-              boot.data &&
-              typeof boot.data.price === "number" &&
-              typeof boot.data.unitPrice === "number" &&
-              typeof boot.data.quantity === "number" &&
-              Object.keys(bootstrapSelection).length > 0 &&
-              Object.keys(imported).length <= 2
-            ) {
-              // Rare: product only has attr0 — use bootstrap price immediately.
-              setLivePrice({
-                price: boot.data.price,
-                unitPrice: boot.data.unitPrice,
-                quantity: boot.data.quantity,
-                turnaroundDays: boot.data.turnaroundDays,
-                pricingMode:
-                  typeof (boot.data as { pricingMode?: string }).pricingMode ===
-                  "string"
-                    ? (boot.data as { pricingMode?: string }).pricingMode
-                    : "matrix",
-              });
-            }
-          }
-        } catch {
-          /* keep imported defaults */
-        }
-        if (!cancelled) setSelections(seeded);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setOptions([]);
-          setSelections({});
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingProduct(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedProduct?.slug]);
-
-  const visibleOptions = useMemo(
-    () => visibleImportedOptions(options, selections),
-    [options, selections],
-  );
-
-  const sizeGroup = useMemo(
+  const materialOptions = useMemo(
     () =>
-      findGroup(
-        visibleOptions,
-        [/size/i, /dimension/i],
-        [/table size|pack size|can size|frame size|pouch size/i],
-        /^size$/i,
-      ),
-    [visibleOptions],
-  );
-  const materialGroup = useMemo(
-    () =>
-      findGroup(visibleOptions, [
-        /material/i,
-        /stock/i,
-        /paper/i,
-        /substrate/i,
-      ]),
-    [visibleOptions],
-  );
-  const quantityGroup = useMemo(
-    () => findGroup(visibleOptions, [/^quantity$/i], [], /^quantity$/i),
-    [visibleOptions],
-  );
-  const finishingGroup = useMemo(
-    () =>
-      findGroup(visibleOptions, [
-        /^lamination$/i,
-        /finish/i,
-        /coating/i,
-        /laminat/i,
-        /spot\s*uv/i,
-        /foil/i,
-      ]),
-    [visibleOptions],
-  );
-  const turnaroundGroup = useMemo(
-    () =>
-      findGroup(
-        visibleOptions,
-        [/print(ing)?\s*time/i, /turnaround/i, /production\s*time/i],
-        [],
-        /^(printing time|production time|turnaround)$/i,
-      ),
-    [visibleOptions],
+      selectedProduct.materials.map((m) => ({
+        label: m,
+        value: m,
+      })),
+    [selectedProduct],
   );
 
-  const matrixSelections = useMemo(
-    () => buildMatrixSelections(options, selections),
-    [options, selections],
-  );
+  const activeSize = size || sizeOptions[0]?.value || "";
+  const activeMaterial = material || materialOptions[0]?.value || "";
 
-  useEffect(() => {
-    const slug = selectedProduct?.slug;
-    if (!slug || !options.length) {
-      setLivePrice(null);
-      return;
-    }
+  const price = useMemo(() => {
+    const qty = Number(quantity);
+    const baseUnit = selectedProduct.price / 100;
+    const volumeDiscount =
+      qty >= 5000 ? 0.72 : qty >= 2500 ? 0.8 : qty >= 1000 ? 0.88 : qty >= 500 ? 0.94 : 1;
+    const sizeIndex = selectedProduct.sizes.indexOf(activeSize);
+    const sizeMultiplier = sizeIndex <= 0 ? 1 : 1 + sizeIndex * 0.08;
+    const materialIndex = selectedProduct.materials.indexOf(activeMaterial);
+    const materialMultiplier = materialIndex <= 0 ? 1 : 1 + materialIndex * 0.12;
+    const finishingAddon =
+      finishingOptions.find((f) => f.value === finishing)?.addon ?? 0;
+    const turnaroundMultiplier =
+      turnaroundOptions.find((t) => t.value === turnaround)?.multiplier ?? 1;
 
-    let cancelled = false;
-    setPricingBusy(true);
-    const timer = window.setTimeout(() => {
-      void (async () => {
-        try {
-          const applyResult = (
-            data: {
-              price?: number;
-              unitPrice?: number;
-              quantity?: number;
-              turnaroundDays?: number | null;
-              availableOptions?: Record<string, string[]>;
-              pricingMode?: string;
-            } | null,
-            activeSelections: Record<string, string>,
-          ) => {
-            if (cancelled || !data) return false;
-            const available = data.availableOptions ?? {};
-            setAvailableOptions(available);
-            if (Object.keys(available).length > 0) {
-              const snapped = snapToAvailable(
-                options,
-                activeSelections,
-                available,
-              );
-              const unchanged =
-                Object.keys(snapped).length ===
-                  Object.keys(activeSelections).length &&
-                Object.entries(snapped).every(
-                  ([key, value]) => activeSelections[key] === value,
-                );
-              if (!unchanged) {
-                setSelections(snapped);
-                return true;
-              }
-            }
-            if (
-              typeof data.price === "number" &&
-              typeof data.unitPrice === "number" &&
-              typeof data.quantity === "number"
-            ) {
-              setLivePrice({
-                price: data.price,
-                unitPrice: data.unitPrice,
-                quantity: data.quantity,
-                turnaroundDays: data.turnaroundDays,
-                pricingMode:
-                  typeof data.pricingMode === "string"
-                    ? data.pricingMode
-                    : "matrix",
-              });
-              return true;
-            }
-            setLivePrice(null);
-            return false;
-          };
+    const subtotal =
+      baseUnit * qty * volumeDiscount * sizeMultiplier * materialMultiplier;
+    const total = (subtotal + finishingAddon) * turnaroundMultiplier;
 
-          const primary = await fetchConfiguredMatrixPrice(
-            slug,
-            matrixSelections,
-          );
-          if (cancelled) return;
-          if (applyResult(primary.data, selections)) return;
+    return Math.max(total, selectedProduct.price);
+  }, [
+    quantity,
+    selectedProduct,
+    activeSize,
+    activeMaterial,
+    finishing,
+    turnaround,
+  ]);
 
-          for (const trial of labelAliasTrials(options, selections)) {
-            const alias = await fetchConfiguredMatrixPrice(slug, trial);
-            if (cancelled) return;
-            if (
-              alias.data &&
-              typeof alias.data.price === "number" &&
-              typeof alias.data.unitPrice === "number" &&
-              typeof alias.data.quantity === "number"
-            ) {
-              setSelections(trial);
-              applyResult(alias.data, trial);
-              return;
-            }
-          }
-        } catch {
-          if (!cancelled) setLivePrice(null);
-        } finally {
-          if (!cancelled) setPricingBusy(false);
-        }
-      })();
-    }, 200);
+  const unitPrice = price / Number(quantity);
 
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [selectedProduct?.slug, options, matrixSelections, selections]);
-
-  const turnaroundLabel = turnaroundGroup
-    ? turnaroundGroup.values.find(
-        (value) => value.value === selections[turnaroundGroup.key],
-      )?.label
-    : undefined;
-  const turnaroundFromLabel = (() => {
-    const match = String(turnaroundLabel || "").match(/(\d+)/);
-    if (!match) return null;
-    const days = Number(match[1]);
-    return Number.isFinite(days) && days > 0 ? days : null;
-  })();
-
-  const hasExactPrice = Boolean(livePrice);
-  const total = livePrice?.price ?? 0;
-  const unit = livePrice?.unitPrice ?? 0;
-  const quantity = livePrice?.quantity ?? 0;
-  const delivery =
-    livePrice?.turnaroundDays ?? turnaroundFromLabel ?? deliveryDays;
-
-  const onCategoryChange = (slug: string) => {
+  const handleCategoryChange = (slug: string) => {
     setCategorySlug(slug);
-    const list = slug
-      ? allProducts.filter((p) => p.category?.slug === slug)
-      : allProducts;
-    const next = list[0];
-    setProductSlug(next?.slug ?? "");
-    setProductName(next?.name ?? "");
-    setLivePrice(null);
-    setAvailableOptions({});
+    const nextProducts = getProductsForCategory(slug);
+    const next = nextProducts[0]?.slug ?? products[0].slug;
+    setProductSlug(next);
+    setSize("");
+    setMaterial("");
   };
-
-  const onProductChange = (slug: string) => {
-    setProductSlug(slug);
-    const match = allProducts.find((p) => p.slug === slug);
-    if (match) {
-      setProductName(match.name);
-      if (match.category?.slug) setCategorySlug(match.category.slug);
-    }
-    setLivePrice(null);
-    setAvailableOptions({});
-  };
-
-  const onOptionChange = (key: string, value: string) => {
-    setSelections((prev) =>
-      normalizeImportedSelections(
-        options,
-        value
-          ? { ...prev, [key]: value }
-          : (() => {
-              const next = { ...prev };
-              delete next[key];
-              return next;
-            })(),
-        key,
-      ),
-    );
-  };
-
-  const busy = loadingCatalog || loadingProduct;
-  const showCalculating = pricingBusy && !livePrice;
 
   return (
     <Section>
@@ -554,100 +132,85 @@ export function PriceCalculator() {
 
         <div className="grid gap-8 lg:grid-cols-5">
           <Card className="lg:col-span-3 p-6 md:p-8">
-            {busy && !selectedProduct ? (
-              <p className="text-sm font-medium text-text-secondary">
-                Loading catalog…
-              </p>
-            ) : (
-              <div className="grid gap-5 sm:grid-cols-2">
-                <Select
-                  label="Product type"
-                  value={categorySlug}
-                  onChange={onCategoryChange}
-                  options={categories.map((c) => ({
-                    label: c.name,
-                    value: c.slug,
-                  }))}
-                />
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Select
+                label="Product type"
+                value={categorySlug}
+                onChange={handleCategoryChange}
+                options={categories.map((c) => ({
+                  label: c.name,
+                  value: c.slug,
+                }))}
+              />
 
+              {categoryProducts.length > 0 ? (
                 <Select
                   label="Product"
-                  value={selectedProduct?.slug ?? productSlug}
-                  onChange={onProductChange}
+                  value={selectedProduct.slug}
+                  onChange={(v) => {
+                    setProductSlug(v);
+                    setSize("");
+                    setMaterial("");
+                  }}
                   options={categoryProducts.map((p) => ({
                     label: p.name,
                     value: p.slug,
                   }))}
                 />
+              ) : (
+                <Select
+                  label="Product"
+                  value={selectedProduct.slug}
+                  onChange={setProductSlug}
+                  options={products.map((p) => ({
+                    label: p.name,
+                    value: p.slug,
+                  }))}
+                />
+              )}
 
-                {quantityGroup ? (
-                  <Select
-                    label={quantityGroup.label}
-                    value={selections[quantityGroup.key] ?? ""}
-                    onChange={(v) => onOptionChange(quantityGroup.key, v)}
-                    options={optionChoices(
-                      quantityGroup,
-                      availableOptions[quantityGroup.key],
-                    )}
-                  />
-                ) : null}
+              <Select
+                label="Quantity"
+                value={quantity}
+                onChange={setQuantity}
+                options={quantityOptions}
+              />
 
-                {sizeGroup ? (
-                  <Select
-                    label={sizeGroup.label}
-                    value={selections[sizeGroup.key] ?? ""}
-                    onChange={(v) => onOptionChange(sizeGroup.key, v)}
-                    options={optionChoices(
-                      sizeGroup,
-                      availableOptions[sizeGroup.key],
-                    )}
-                  />
-                ) : null}
+              <Select
+                label="Size"
+                value={activeSize}
+                onChange={setSize}
+                options={sizeOptions}
+              />
 
-                {materialGroup ? (
-                  <Select
-                    label={materialGroup.label}
-                    value={selections[materialGroup.key] ?? ""}
-                    onChange={(v) => onOptionChange(materialGroup.key, v)}
-                    options={optionChoices(
-                      materialGroup,
-                      availableOptions[materialGroup.key],
-                    )}
-                  />
-                ) : null}
+              <Select
+                label="Material"
+                value={activeMaterial}
+                onChange={setMaterial}
+                options={materialOptions}
+              />
 
-                {finishingGroup ? (
-                  <Select
-                    label={finishingGroup.label}
-                    value={selections[finishingGroup.key] ?? ""}
-                    onChange={(v) => onOptionChange(finishingGroup.key, v)}
-                    options={optionChoices(
-                      finishingGroup,
-                      availableOptions[finishingGroup.key],
-                    )}
-                  />
-                ) : null}
+              <Select
+                label="Finishing"
+                value={finishing}
+                onChange={setFinishing}
+                options={finishingOptions.map((f) => ({
+                  label: f.label,
+                  value: f.value,
+                }))}
+              />
 
-                {turnaroundGroup ? (
-                  <Select
-                    label={turnaroundGroup.label}
-                    value={selections[turnaroundGroup.key] ?? ""}
-                    onChange={(v) => onOptionChange(turnaroundGroup.key, v)}
-                    className="sm:col-span-2"
-                    options={optionChoices(
-                      turnaroundGroup,
-                      availableOptions[turnaroundGroup.key],
-                    )}
-                  />
-                ) : null}
-
-                {loadingProduct ? (
-                  <p className="sm:col-span-2 text-sm text-text-secondary">
-                    Loading product options…
-                  </p>
-                ) : null}
-              </div>
-            )}
+              <Select
+                label="Turnaround"
+                value={turnaround}
+                onChange={setTurnaround}
+                className="sm:col-span-2"
+                options={turnaroundOptions.map((t) => ({
+                  label: t.label,
+                  value: t.value,
+                }))}
+              />
+            </div>
           </Card>
 
           <Card className="gradient-mesh flex flex-col justify-between p-6 md:p-8 lg:col-span-2">
@@ -661,11 +224,7 @@ export function PriceCalculator() {
                     Estimated total
                   </p>
                   <p className="text-3xl font-bold tracking-tight text-text-primary">
-                    {showCalculating
-                      ? "Calculating…"
-                      : hasExactPrice
-                        ? formatCurrency(total)
-                        : "—"}
+                    {formatCurrency(price)}
                   </p>
                 </div>
               </div>
@@ -674,57 +233,37 @@ export function PriceCalculator() {
                 <div className="flex justify-between border-b border-border pb-2">
                   <dt className="font-medium text-text-secondary">Unit price</dt>
                   <dd className="font-semibold text-text-primary">
-                    {hasExactPrice ? formatCurrency(unit) : "—"}
+                    {formatCurrency(unitPrice)}
                   </dd>
                 </div>
                 <div className="flex justify-between border-b border-border pb-2">
                   <dt className="font-medium text-text-secondary">Quantity</dt>
                   <dd className="font-semibold text-text-primary">
-                    {hasExactPrice
-                      ? Number(quantity).toLocaleString()
-                      : "—"}
+                    {Number(quantity).toLocaleString()}
                   </dd>
                 </div>
                 <div className="flex justify-between border-b border-border pb-2">
                   <dt className="font-medium text-text-secondary">Delivery</dt>
                   <dd className="font-semibold text-text-primary">
-                    {delivery} business days
+                    {selectedProduct.deliveryDays} business days
                   </dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="font-medium text-text-secondary">Product</dt>
                   <dd className="max-w-[160px] truncate text-right font-semibold text-text-primary">
-                    {productName || selectedProduct?.name || "—"}
+                    {selectedProduct.name}
                   </dd>
                 </div>
               </dl>
             </div>
 
             <div className="mt-8 space-y-3">
-              {selectedProduct?.slug ? (
-                <Link
-                  href={`/products/${selectedProduct.slug}`}
-                  className="block"
-                >
-                  <Button className="w-full gap-2" size="lg">
-                    <Zap className="h-4 w-4" />
-                    Get this quote
-                  </Button>
-                </Link>
-              ) : (
-                <Button className="w-full gap-2" size="lg" disabled>
-                  <Zap className="h-4 w-4" />
-                  Get this quote
-                </Button>
-              )}
+              <Button className="w-full gap-2" size="lg">
+                <Zap className="h-4 w-4" />
+                Get this quote
+              </Button>
               <p className="text-center text-xs font-medium text-text-secondary">
-                {hasExactPrice
-                  ? livePrice?.pricingMode === "live"
-                    ? "Live UPrinting price for this selection."
-                    : "Exact scraped matrix price for this selection."
-                  : pricingBusy
-                    ? "Updating price…"
-                    : "No exact price for this combo — open the product page."}
+                Prices update instantly. Volume discounts applied automatically.
               </p>
             </div>
           </Card>
