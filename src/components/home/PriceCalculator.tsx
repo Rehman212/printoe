@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Calculator, Zap } from "lucide-react";
 import {
-  calcMatrixFallbackPrice,
   fetchConfiguredMatrixPrice,
   fetchProductBySlug,
   fetchProducts,
@@ -32,7 +31,16 @@ function findGroup(
   options: ProductOptionGroup[],
   patterns: RegExp[],
   exclude: RegExp[] = [],
+  exactLabel?: RegExp,
 ) {
+  if (exactLabel) {
+    const exact = options.find(
+      (group) =>
+        exactLabel.test(group.label) &&
+        !exclude.some((re) => re.test(`${group.key} ${group.label}`)),
+    );
+    if (exact) return exact;
+  }
   return options.find((group) => {
     const text = `${group.key} ${group.label}`;
     if (exclude.some((re) => re.test(text))) return false;
@@ -40,11 +48,24 @@ function findGroup(
   });
 }
 
-function optionChoices(group?: ProductOptionGroup) {
-  return (group?.values ?? []).map((value) => ({
-    label: value.label,
-    value: value.value,
-  }));
+function optionChoices(
+  group?: ProductOptionGroup,
+  allowed?: string[],
+) {
+  const values = group?.values ?? [];
+  const filtered =
+    allowed && allowed.length > 0
+      ? values.filter((value) => allowed.includes(value.value))
+      : values;
+  // Duplicate labels (e.g. two "500" qty ids) — prefer allowed/matrix ids first.
+  const seen = new Set<string>();
+  const out: { label: string; value: string }[] = [];
+  for (const value of filtered) {
+    if (seen.has(value.label)) continue;
+    seen.add(value.label);
+    out.push({ label: value.label, value: value.value });
+  }
+  return out;
 }
 
 function buildMatrixSelections(
@@ -71,6 +92,33 @@ function buildMatrixSelections(
   return result;
 }
 
+function snapToAvailable(
+  options: ProductOptionGroup[],
+  selections: Record<string, string>,
+  available: Record<string, string[]>,
+) {
+  let next = { ...selections };
+  let changed = false;
+  for (const [key, allowed] of Object.entries(available)) {
+    if (!allowed.length) continue;
+    if (!next[key] || !allowed.includes(next[key])) {
+      // Prefer current label's alternate id when duplicates exist.
+      const group = options.find((item) => item.key === key);
+      const currentLabel = group?.values.find(
+        (value) => value.value === selections[key],
+      )?.label;
+      const sameLabel = group?.values.find(
+        (value) =>
+          value.label === currentLabel && allowed.includes(value.value),
+      );
+      next[key] = sameLabel?.value ?? allowed[0];
+      changed = true;
+    }
+  }
+  if (!changed) return selections;
+  return normalizeImportedSelections(options, next);
+}
+
 export function PriceCalculator() {
   const [loadingCatalog, setLoadingCatalog] = useState(true);
   const [loadingProduct, setLoadingProduct] = useState(false);
@@ -80,10 +128,12 @@ export function PriceCalculator() {
   const [categorySlug, setCategorySlug] = useState("");
   const [productSlug, setProductSlug] = useState("");
   const [options, setOptions] = useState<ProductOptionGroup[]>([]);
-  const [pricingMatrixEnabled, setPricingMatrixEnabled] = useState(false);
   const [deliveryDays, setDeliveryDays] = useState(5);
   const [productName, setProductName] = useState("");
   const [selections, setSelections] = useState<Record<string, string>>({});
+  const [availableOptions, setAvailableOptions] = useState<
+    Record<string, string[]>
+  >({});
   const [livePrice, setLivePrice] = useState<null | {
     price: number;
     unitPrice: number;
@@ -160,19 +210,20 @@ export function PriceCalculator() {
     if (!slug) {
       setOptions([]);
       setSelections({});
+      setAvailableOptions({});
       setLivePrice(null);
       return;
     }
     let cancelled = false;
     setLoadingProduct(true);
     setLivePrice(null);
+    setAvailableOptions({});
     void fetchProductBySlug(slug)
       .then((res) => {
         if (cancelled) return;
         const groups = res.data.options ?? [];
         const product = res.data.product;
         setOptions(groups);
-        setPricingMatrixEnabled(Boolean(product.pricingMatrixEnabled));
         setProductName(product.name);
         setDeliveryDays(product.deliveryDays ?? 5);
         setSelections(importedDefaultSelections(groups));
@@ -201,7 +252,8 @@ export function PriceCalculator() {
       findGroup(
         visibleOptions,
         [/size/i, /dimension/i],
-        [/table size|pack size|can size|frame size/i],
+        [/table size|pack size|can size|frame size|pouch size/i],
+        /^size$/i,
       ),
     [visibleOptions],
   );
@@ -216,12 +268,13 @@ export function PriceCalculator() {
     [visibleOptions],
   );
   const quantityGroup = useMemo(
-    () => findGroup(visibleOptions, [/^quantity$/i, /quantity/i]),
+    () => findGroup(visibleOptions, [/^quantity$/i], [], /^quantity$/i),
     [visibleOptions],
   );
   const finishingGroup = useMemo(
     () =>
       findGroup(visibleOptions, [
+        /^lamination$/i,
         /finish/i,
         /coating/i,
         /laminat/i,
@@ -232,11 +285,12 @@ export function PriceCalculator() {
   );
   const turnaroundGroup = useMemo(
     () =>
-      findGroup(visibleOptions, [
-        /print(ing)?\s*time/i,
-        /turnaround/i,
-        /production\s*time/i,
-      ]),
+      findGroup(
+        visibleOptions,
+        [/print(ing)?\s*time/i, /turnaround/i, /production\s*time/i],
+        [],
+        /^(printing time|production time|turnaround)$/i,
+      ),
     [visibleOptions],
   );
 
@@ -245,21 +299,9 @@ export function PriceCalculator() {
     [options, selections],
   );
 
-  const fallback = useMemo(
-    () => calcMatrixFallbackPrice(visibleOptions, matrixSelections),
-    [visibleOptions, matrixSelections],
-  );
-
   useEffect(() => {
     const slug = selectedProduct?.slug;
     if (!slug || !options.length) {
-      setLivePrice(null);
-      return;
-    }
-    const incomplete = visibleOptions.some(
-      (group) => !matrixSelections[group.key],
-    );
-    if (incomplete) {
       setLivePrice(null);
       return;
     }
@@ -271,6 +313,22 @@ export function PriceCalculator() {
         .then((result) => {
           if (cancelled) return;
           const data = result.data;
+          const available = data?.availableOptions ?? {};
+          setAvailableOptions(available);
+
+          if (Object.keys(available).length > 0) {
+            const snapped = snapToAvailable(options, selections, available);
+            const unchanged =
+              Object.keys(snapped).length === Object.keys(selections).length &&
+              Object.entries(snapped).every(
+                ([key, value]) => selections[key] === value,
+              );
+            if (!unchanged) {
+              setSelections(snapped);
+              return;
+            }
+          }
+
           if (
             data &&
             typeof data.price === "number" &&
@@ -304,13 +362,7 @@ export function PriceCalculator() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [
-    selectedProduct?.slug,
-    options.length,
-    matrixSelections,
-    visibleOptions,
-    pricingMatrixEnabled,
-  ]);
+  }, [selectedProduct?.slug, options, matrixSelections, selections]);
 
   const turnaroundLabel = turnaroundGroup
     ? turnaroundGroup.values.find(
@@ -325,27 +377,11 @@ export function PriceCalculator() {
   })();
 
   const hasExactPrice = Boolean(livePrice);
-  const total =
-    livePrice?.price ??
-    (fallback.total > 0
-      ? fallback.total
-      : selectedProduct?.basePrice ?? 0);
-  const unit =
-    livePrice?.unitPrice ??
-    (fallback.unit > 0
-      ? fallback.unit
-      : selectedProduct
-        ? selectedProduct.basePrice /
-          Math.max(1, fallback.quantity || 1)
-        : 0);
-  const quantity =
-    livePrice?.quantity ??
-    fallback.quantity ??
-    1;
+  const total = livePrice?.price ?? 0;
+  const unit = livePrice?.unitPrice ?? 0;
+  const quantity = livePrice?.quantity ?? 0;
   const delivery =
-    livePrice?.turnaroundDays ??
-    turnaroundFromLabel ??
-    deliveryDays;
+    livePrice?.turnaroundDays ?? turnaroundFromLabel ?? deliveryDays;
 
   const onCategoryChange = (slug: string) => {
     setCategorySlug(slug);
@@ -356,6 +392,7 @@ export function PriceCalculator() {
     setProductSlug(next?.slug ?? "");
     setProductName(next?.name ?? "");
     setLivePrice(null);
+    setAvailableOptions({});
   };
 
   const onProductChange = (slug: string) => {
@@ -366,25 +403,27 @@ export function PriceCalculator() {
       if (match.category?.slug) setCategorySlug(match.category.slug);
     }
     setLivePrice(null);
+    setAvailableOptions({});
   };
 
   const onOptionChange = (key: string, value: string) => {
     setSelections((prev) =>
       normalizeImportedSelections(
         options,
-        value ? { ...prev, [key]: value } : (() => {
-          const next = { ...prev };
-          delete next[key];
-          return next;
-        })(),
+        value
+          ? { ...prev, [key]: value }
+          : (() => {
+              const next = { ...prev };
+              delete next[key];
+              return next;
+            })(),
         key,
       ),
     );
   };
 
   const busy = loadingCatalog || loadingProduct;
-  const showCalculating =
-    pricingBusy && pricingMatrixEnabled && !livePrice && fallback.total <= 0;
+  const showCalculating = pricingBusy && !livePrice;
 
   return (
     <Section>
@@ -428,7 +467,10 @@ export function PriceCalculator() {
                     label={quantityGroup.label}
                     value={selections[quantityGroup.key] ?? ""}
                     onChange={(v) => onOptionChange(quantityGroup.key, v)}
-                    options={optionChoices(quantityGroup)}
+                    options={optionChoices(
+                      quantityGroup,
+                      availableOptions[quantityGroup.key],
+                    )}
                   />
                 ) : null}
 
@@ -437,7 +479,10 @@ export function PriceCalculator() {
                     label={sizeGroup.label}
                     value={selections[sizeGroup.key] ?? ""}
                     onChange={(v) => onOptionChange(sizeGroup.key, v)}
-                    options={optionChoices(sizeGroup)}
+                    options={optionChoices(
+                      sizeGroup,
+                      availableOptions[sizeGroup.key],
+                    )}
                   />
                 ) : null}
 
@@ -446,7 +491,10 @@ export function PriceCalculator() {
                     label={materialGroup.label}
                     value={selections[materialGroup.key] ?? ""}
                     onChange={(v) => onOptionChange(materialGroup.key, v)}
-                    options={optionChoices(materialGroup)}
+                    options={optionChoices(
+                      materialGroup,
+                      availableOptions[materialGroup.key],
+                    )}
                   />
                 ) : null}
 
@@ -455,7 +503,10 @@ export function PriceCalculator() {
                     label={finishingGroup.label}
                     value={selections[finishingGroup.key] ?? ""}
                     onChange={(v) => onOptionChange(finishingGroup.key, v)}
-                    options={optionChoices(finishingGroup)}
+                    options={optionChoices(
+                      finishingGroup,
+                      availableOptions[finishingGroup.key],
+                    )}
                   />
                 ) : null}
 
@@ -465,7 +516,10 @@ export function PriceCalculator() {
                     value={selections[turnaroundGroup.key] ?? ""}
                     onChange={(v) => onOptionChange(turnaroundGroup.key, v)}
                     className="sm:col-span-2"
-                    options={optionChoices(turnaroundGroup)}
+                    options={optionChoices(
+                      turnaroundGroup,
+                      availableOptions[turnaroundGroup.key],
+                    )}
                   />
                 ) : null}
 
@@ -489,7 +543,11 @@ export function PriceCalculator() {
                     Estimated total
                   </p>
                   <p className="text-3xl font-bold tracking-tight text-text-primary">
-                    {showCalculating ? "Calculating…" : formatCurrency(total)}
+                    {showCalculating
+                      ? "Calculating…"
+                      : hasExactPrice
+                        ? formatCurrency(total)
+                        : "—"}
                   </p>
                 </div>
               </div>
@@ -498,13 +556,15 @@ export function PriceCalculator() {
                 <div className="flex justify-between border-b border-border pb-2">
                   <dt className="font-medium text-text-secondary">Unit price</dt>
                   <dd className="font-semibold text-text-primary">
-                    {showCalculating ? "—" : formatCurrency(unit)}
+                    {hasExactPrice ? formatCurrency(unit) : "—"}
                   </dd>
                 </div>
                 <div className="flex justify-between border-b border-border pb-2">
                   <dt className="font-medium text-text-secondary">Quantity</dt>
                   <dd className="font-semibold text-text-primary">
-                    {Number(quantity).toLocaleString()}
+                    {hasExactPrice
+                      ? Number(quantity).toLocaleString()
+                      : "—"}
                   </dd>
                 </div>
                 <div className="flex justify-between border-b border-border pb-2">
@@ -524,7 +584,10 @@ export function PriceCalculator() {
 
             <div className="mt-8 space-y-3">
               {selectedProduct?.slug ? (
-                <Link href={`/products/${selectedProduct.slug}`} className="block">
+                <Link
+                  href={`/products/${selectedProduct.slug}`}
+                  className="block"
+                >
                   <Button className="w-full gap-2" size="lg">
                     <Zap className="h-4 w-4" />
                     Get this quote
@@ -543,7 +606,7 @@ export function PriceCalculator() {
                     : "Exact scraped matrix price for this selection."
                   : pricingBusy
                     ? "Updating price…"
-                    : "Approximate estimate — open the product page to confirm."}
+                    : "No exact price for this combo — open the product page."}
               </p>
             </div>
           </Card>
