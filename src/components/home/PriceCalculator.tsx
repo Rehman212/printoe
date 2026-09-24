@@ -119,6 +119,27 @@ function snapToAvailable(
   return normalizeImportedSelections(options, next);
 }
 
+/** When matrix ids differ for the same label (e.g. two "500" qty rows). */
+function labelAliasTrials(
+  options: ProductOptionGroup[],
+  selections: Record<string, string>,
+) {
+  const trials: Record<string, string>[] = [];
+  for (const group of options) {
+    const current = selections[group.key];
+    if (!current) continue;
+    const label = group.values.find((value) => value.value === current)?.label;
+    if (!label) continue;
+    const alts = group.values.filter(
+      (value) => value.label === label && value.value !== current,
+    );
+    for (const alt of alts) {
+      trials.push({ ...selections, [group.key]: alt.value });
+    }
+  }
+  return trials;
+}
+
 export function PriceCalculator() {
   const [loadingCatalog, setLoadingCatalog] = useState(true);
   const [loadingProduct, setLoadingProduct] = useState(false);
@@ -219,14 +240,77 @@ export function PriceCalculator() {
     setLivePrice(null);
     setAvailableOptions({});
     void fetchProductBySlug(slug)
-      .then((res) => {
+      .then(async (res) => {
         if (cancelled) return;
         const groups = res.data.options ?? [];
         const product = res.data.product;
         setOptions(groups);
         setProductName(product.name);
         setDeliveryDays(product.deliveryDays ?? 5);
-        setSelections(importedDefaultSelections(groups));
+
+        const imported = importedDefaultSelections(groups);
+        // Sparse matrices often don't include the catalog default combo.
+        // Seed from availableOptions of a bootstrap price call (attr0 only).
+        const linked = groups.find((group) => group.key === "attr0");
+        const bootstrapSelection: Record<string, string> = {};
+        if (imported.attr0) bootstrapSelection.attr0 = imported.attr0;
+        else if (linked?.values[0]?.value) {
+          bootstrapSelection.attr0 = linked.values[0].value;
+        }
+
+        let seeded = imported;
+        try {
+          const boot = await fetchConfiguredMatrixPrice(
+            slug,
+            Object.keys(bootstrapSelection).length
+              ? bootstrapSelection
+              : imported,
+          );
+          if (cancelled) return;
+          const available = boot.data?.availableOptions ?? {};
+          if (Object.keys(available).length > 0) {
+            setAvailableOptions(available);
+            const next: Record<string, string> = { ...imported };
+            for (const group of groups) {
+              const allowed = available[group.key];
+              if (!allowed?.length) continue;
+              const current = next[group.key];
+              if (current && allowed.includes(current)) continue;
+              const sameLabel = group.values.find(
+                (value) =>
+                  value.label ===
+                    group.values.find((item) => item.value === current)
+                      ?.label && allowed.includes(value.value),
+              );
+              next[group.key] = sameLabel?.value ?? allowed[0];
+            }
+            seeded = normalizeImportedSelections(groups, next);
+            if (
+              boot.data &&
+              typeof boot.data.price === "number" &&
+              typeof boot.data.unitPrice === "number" &&
+              typeof boot.data.quantity === "number" &&
+              Object.keys(bootstrapSelection).length > 0 &&
+              Object.keys(imported).length <= 2
+            ) {
+              // Rare: product only has attr0 — use bootstrap price immediately.
+              setLivePrice({
+                price: boot.data.price,
+                unitPrice: boot.data.unitPrice,
+                quantity: boot.data.quantity,
+                turnaroundDays: boot.data.turnaroundDays,
+                pricingMode:
+                  typeof (boot.data as { pricingMode?: string }).pricingMode ===
+                  "string"
+                    ? (boot.data as { pricingMode?: string }).pricingMode
+                    : "matrix",
+              });
+            }
+          }
+        } catch {
+          /* keep imported defaults */
+        }
+        if (!cancelled) setSelections(seeded);
       })
       .catch(() => {
         if (!cancelled) {
@@ -309,53 +393,87 @@ export function PriceCalculator() {
     let cancelled = false;
     setPricingBusy(true);
     const timer = window.setTimeout(() => {
-      void fetchConfiguredMatrixPrice(slug, matrixSelections)
-        .then((result) => {
-          if (cancelled) return;
-          const data = result.data;
-          const available = data?.availableOptions ?? {};
-          setAvailableOptions(available);
-
-          if (Object.keys(available).length > 0) {
-            const snapped = snapToAvailable(options, selections, available);
-            const unchanged =
-              Object.keys(snapped).length === Object.keys(selections).length &&
-              Object.entries(snapped).every(
-                ([key, value]) => selections[key] === value,
+      void (async () => {
+        try {
+          const applyResult = (
+            data: {
+              price?: number;
+              unitPrice?: number;
+              quantity?: number;
+              turnaroundDays?: number | null;
+              availableOptions?: Record<string, string[]>;
+              pricingMode?: string;
+            } | null,
+            activeSelections: Record<string, string>,
+          ) => {
+            if (cancelled || !data) return false;
+            const available = data.availableOptions ?? {};
+            setAvailableOptions(available);
+            if (Object.keys(available).length > 0) {
+              const snapped = snapToAvailable(
+                options,
+                activeSelections,
+                available,
               );
-            if (!unchanged) {
-              setSelections(snapped);
+              const unchanged =
+                Object.keys(snapped).length ===
+                  Object.keys(activeSelections).length &&
+                Object.entries(snapped).every(
+                  ([key, value]) => activeSelections[key] === value,
+                );
+              if (!unchanged) {
+                setSelections(snapped);
+                return true;
+              }
+            }
+            if (
+              typeof data.price === "number" &&
+              typeof data.unitPrice === "number" &&
+              typeof data.quantity === "number"
+            ) {
+              setLivePrice({
+                price: data.price,
+                unitPrice: data.unitPrice,
+                quantity: data.quantity,
+                turnaroundDays: data.turnaroundDays,
+                pricingMode:
+                  typeof data.pricingMode === "string"
+                    ? data.pricingMode
+                    : "matrix",
+              });
+              return true;
+            }
+            setLivePrice(null);
+            return false;
+          };
+
+          const primary = await fetchConfiguredMatrixPrice(
+            slug,
+            matrixSelections,
+          );
+          if (cancelled) return;
+          if (applyResult(primary.data, selections)) return;
+
+          for (const trial of labelAliasTrials(options, selections)) {
+            const alias = await fetchConfiguredMatrixPrice(slug, trial);
+            if (cancelled) return;
+            if (
+              alias.data &&
+              typeof alias.data.price === "number" &&
+              typeof alias.data.unitPrice === "number" &&
+              typeof alias.data.quantity === "number"
+            ) {
+              setSelections(trial);
+              applyResult(alias.data, trial);
               return;
             }
           }
-
-          if (
-            data &&
-            typeof data.price === "number" &&
-            typeof data.unitPrice === "number" &&
-            typeof data.quantity === "number"
-          ) {
-            setLivePrice({
-              price: data.price,
-              unitPrice: data.unitPrice,
-              quantity: data.quantity,
-              turnaroundDays: data.turnaroundDays,
-              pricingMode:
-                typeof (data as { pricingMode?: string }).pricingMode ===
-                "string"
-                  ? (data as { pricingMode?: string }).pricingMode
-                  : "matrix",
-            });
-          } else {
-            setLivePrice(null);
-          }
-        })
-        .catch(() => {
+        } catch {
           if (!cancelled) setLivePrice(null);
-        })
-        .finally(() => {
+        } finally {
           if (!cancelled) setPricingBusy(false);
-        });
+        }
+      })();
     }, 200);
 
     return () => {
