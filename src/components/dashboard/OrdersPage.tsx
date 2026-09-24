@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ChevronDown,
+  Download,
+  Eye,
   MapPin,
   Package,
   RotateCcw,
@@ -18,6 +20,11 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/Misc";
 import { useToast } from "@/components/ui/Toast";
 import { useCartOptional } from "@/lib/cart-store";
+import {
+  downloadInvoice,
+  invoiceFromOrderDetail,
+  viewInvoice,
+} from "@/lib/invoice-print";
 import {
   fetchMyOrder,
   fetchMyOrders,
@@ -129,15 +136,21 @@ function OrderCard({
   expanded,
   detail,
   detailLoading,
+  invoiceBusy,
   onToggle,
   onReorder,
+  onViewInvoice,
+  onDownloadInvoice,
 }: {
   order: ApiOrderRow;
   expanded: boolean;
   detail: ApiOrderDetail | null;
   detailLoading: boolean;
+  invoiceBusy: boolean;
   onToggle: () => void;
   onReorder: () => void;
+  onViewInvoice: () => void;
+  onDownloadInvoice: () => void;
 }) {
   return (
     <Card
@@ -210,6 +223,28 @@ function OrderCard({
                     expanded && "rotate-180",
                   )}
                 />
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                disabled={invoiceBusy}
+                onClick={onViewInvoice}
+              >
+                <Eye className="h-3.5 w-3.5" />
+                View invoice
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                disabled={invoiceBusy}
+                onClick={onDownloadInvoice}
+              >
+                <Download className="h-3.5 w-3.5" />
+                Download invoice
               </Button>
               <Button
                 type="button"
@@ -373,6 +408,7 @@ export function OrdersPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [details, setDetails] = useState<Record<string, ApiOrderDetail>>({});
   const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
+  const [invoiceBusyId, setInvoiceBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -496,6 +532,62 @@ export function OrdersPage() {
       }
     },
     [cart, details, router, toast],
+  );
+
+  const resolveInvoice = useCallback(
+    async (order: ApiOrderRow) => {
+      let detail = details[order.dbId];
+      if (!detail) {
+        const res = await fetchMyOrder(order.dbId);
+        detail = res.data;
+        setDetails((prev) => ({ ...prev, [order.dbId]: detail! }));
+      }
+      return invoiceFromOrderDetail(detail);
+    },
+    [details],
+  );
+
+  const onViewInvoice = useCallback(
+    async (order: ApiOrderRow) => {
+      setInvoiceBusyId(order.dbId);
+      try {
+        const inv = await resolveInvoice(order);
+        viewInvoice(inv);
+      } catch (e: unknown) {
+        toast({
+          title: "Could not open invoice",
+          description: e instanceof Error ? e.message : "Try again",
+          tone: "danger",
+        });
+      } finally {
+        setInvoiceBusyId(null);
+      }
+    },
+    [resolveInvoice, toast],
+  );
+
+  const onDownloadInvoice = useCallback(
+    async (order: ApiOrderRow) => {
+      setInvoiceBusyId(order.dbId);
+      try {
+        const inv = await resolveInvoice(order);
+        await downloadInvoice(inv);
+        toast({
+          title: "Invoice downloaded",
+          description: `${inv.id}.pdf saved.`,
+          tone: "success",
+        });
+      } catch (e: unknown) {
+        toast({
+          title: "Could not download invoice",
+          description: e instanceof Error ? e.message : "Try again",
+          tone: "danger",
+        });
+      } finally {
+        setInvoiceBusyId(null);
+      }
+    },
+    [resolveInvoice, toast],
   );
 
   if (loading) {
@@ -626,8 +718,11 @@ export function OrdersPage() {
               expanded={expandedId === order.dbId}
               detail={details[order.dbId] ?? null}
               detailLoading={detailLoadingId === order.dbId}
+              invoiceBusy={invoiceBusyId === order.dbId}
               onToggle={() => onToggle(order)}
               onReorder={() => void onReorder(order)}
+              onViewInvoice={() => void onViewInvoice(order)}
+              onDownloadInvoice={() => void onDownloadInvoice(order)}
             />
           ))}
         </div>

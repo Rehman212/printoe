@@ -2,13 +2,9 @@
 
 import Link from "next/link";
 import {
-  AtSign,
-  Globe,
-  Link as LinkIcon,
   Mail,
   MapPin,
   Phone,
-  Share2,
 } from "lucide-react";
 import { categories } from "@/lib/data";
 import { Container } from "@/components/ui/Section";
@@ -17,6 +13,30 @@ import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { Logo } from "@/components/shared/Logo";
 import { useSiteSettings } from "@/components/settings/SiteSettingsProvider";
+
+function FacebookIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <path d="M14 13.5h2.5l.5-3H14V8.5c0-.9.2-1.5 1.6-1.5H17V4.1C16.7 4 15.7 4 14.6 4 12.1 4 10.5 5.5 10.5 8.2V10.5H8v3h2.5V20h3.5v-6.5z" />
+    </svg>
+  );
+}
+
+function InstagramIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm0 2a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3H7zm11 1.5a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5zM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" />
+    </svg>
+  );
+}
+
+function LinkedInIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <path d="M6.94 8.5H4V20h2.94V8.5zM5.47 4A1.74 1.74 0 1 0 5.48 7.48 1.74 1.74 0 0 0 5.47 4zM20 20h-2.93v-5.6c0-1.33-.02-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94V20H10.15V8.5h2.81v1.57h.04c.39-.74 1.35-1.52 2.78-1.52 2.97 0 3.52 1.96 3.52 4.5V20z" />
+    </svg>
+  );
+}
 
 const columns = [
   {
@@ -72,12 +92,22 @@ export function Footer() {
   const { toast } = useToast();
   const site = useSiteSettings();
   const socialLinks = [
-    { href: site.social.instagram, Icon: Share2, label: "Instagram" },
-    { href: site.social.facebook, Icon: Globe, label: "Facebook" },
-    { href: site.social.linkedin, Icon: LinkIcon, label: "LinkedIn" },
-    { href: site.social.twitter, Icon: AtSign, label: "X / Twitter" },
-    { href: site.social.youtube, Icon: AtSign, label: "YouTube" },
-  ].filter((l) => Boolean(l.href));
+    {
+      href: site.social.facebook || "https://www.facebook.com/share/1DufBwMubg/",
+      Icon: FacebookIcon,
+      label: "Facebook",
+    },
+    {
+      href: site.social.instagram || "https://www.instagram.com/_printoe",
+      Icon: InstagramIcon,
+      label: "Instagram",
+    },
+    {
+      href: site.social.linkedin || "https://www.linkedin.com/company/printoe/",
+      Icon: LinkedInIcon,
+      label: "LinkedIn",
+    },
+  ];
 
   return (
     <footer className="relative mt-auto overflow-hidden border-t border-border bg-secondary text-white">
@@ -105,11 +135,21 @@ export function Footer() {
             <div className="space-y-3 text-sm font-medium text-slate-300">
               <p className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-accent" />
-                {site.email}
+                <a
+                  href={`mailto:${site.email}`}
+                  className="transition hover:text-white"
+                >
+                  {site.email}
+                </a>
               </p>
               <p className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-accent" />
-                {site.phone}
+                <a
+                  href={`tel:${site.phone.replace(/[^\d+]/g, "")}`}
+                  className="transition hover:text-white"
+                >
+                  {site.phone}
+                </a>
               </p>
               <p className="flex items-start gap-2">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
@@ -125,20 +165,12 @@ export function Footer() {
               ) : null}
             </div>
             <div className="flex gap-2">
-              {(socialLinks.length
-                ? socialLinks
-                : [
-                    { href: "#", Icon: Share2, label: "Social" },
-                    { href: "#", Icon: Globe, label: "Web" },
-                    { href: "#", Icon: LinkIcon, label: "Link" },
-                    { href: "#", Icon: AtSign, label: "Contact" },
-                  ]
-              ).map(({ href, Icon, label }, i) => (
+              {socialLinks.map(({ href, Icon, label }) => (
                 <a
-                  key={`${label}-${i}`}
-                  href={href || "#"}
-                  target={href && href !== "#" ? "_blank" : undefined}
-                  rel={href && href !== "#" ? "noopener noreferrer" : undefined}
+                  key={label}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 transition hover:bg-white/10 hover:text-white focus-ring"
                   aria-label={label}
                 >
@@ -216,26 +248,12 @@ export function Footer() {
               Aurexone.com
             </a>
           </p>
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="rounded-lg border border-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-300">
-              Visa
-            </span>
-            <span className="rounded-lg border border-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-300">
-              Mastercard
-            </span>
-            <span className="rounded-lg border border-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-300">
-              Amex
-            </span>
-            <span className="rounded-lg border border-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-300">
-              PayPal
-            </span>
-            <span className="rounded-lg border border-accent/30 bg-accent/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-accent">
-              FSC Certified
-            </span>
-            <span className="rounded-lg border border-success/30 bg-success/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-success">
-              SOC 2
-            </span>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/assests/images/newpayment.png"
+            alt="Accepted payment methods"
+            className="h-8 w-auto max-w-full object-contain md:h-10"
+          />
         </div>
       </Container>
     </footer>

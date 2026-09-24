@@ -79,9 +79,9 @@ const fallbackConfig: PublicSiteConfig = {
   headerHtml: null,
   bodyHtml: null,
   social: {
-    instagram: null,
-    facebook: null,
-    linkedin: null,
+    instagram: "https://www.instagram.com/_printoe",
+    facebook: "https://www.facebook.com/share/1DufBwMubg/",
+    linkedin: "https://www.linkedin.com/company/printoe/",
     twitter: null,
     youtube: null,
   },
@@ -120,11 +120,12 @@ function mapSettings(s: Partial<SiteSettings>): PublicSiteConfig {
     headerHtml: s.headerHtml ?? null,
     bodyHtml: s.bodyHtml ?? null,
     social: {
-      instagram: s.socialInstagram ?? null,
-      facebook: s.socialFacebook ?? null,
-      linkedin: s.socialLinkedin ?? null,
-      twitter: s.socialTwitter ?? null,
-      youtube: s.socialYoutube ?? null,
+      instagram:
+        s.socialInstagram || fallbackConfig.social.instagram,
+      facebook: s.socialFacebook || fallbackConfig.social.facebook,
+      linkedin: s.socialLinkedin || fallbackConfig.social.linkedin,
+      twitter: s.socialTwitter || fallbackConfig.social.twitter,
+      youtube: s.socialYoutube || fallbackConfig.social.youtube,
     },
     maintenanceMode: Boolean(s.maintenanceMode),
     maintenanceMessage:

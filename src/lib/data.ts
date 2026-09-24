@@ -14,8 +14,8 @@ export const SITE = {
   description:
     "Premium online printing for brands that demand precision, speed, and craftsmanship.",
   url: "https://printoe.com",
-  email: "hello@printoe.com",
-  phone: "+1 (888) 555-0199",
+  email: "printoeteam@gmail.com",
+  phone: "+1 (251) 280-5283",
   address: "450 Market Street, Suite 1200, San Francisco, CA 94105",
 };
 

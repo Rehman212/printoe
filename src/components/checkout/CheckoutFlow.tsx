@@ -8,6 +8,8 @@ import {
   Building2,
   CheckCircle2,
   CreditCard,
+  Download,
+  Eye,
   FileUp,
   Lock,
   MapPin,
@@ -20,6 +22,12 @@ import {
 import { useCart } from "@/lib/cart-store";
 import { fetchProductBySlug } from "@/lib/products-api";
 import { placeCheckout } from "@/lib/orders-api";
+import type { CustomerInvoice } from "@/lib/customer-api";
+import {
+  downloadInvoice,
+  invoiceIdFromOrderNumber,
+  viewInvoice,
+} from "@/lib/invoice-print";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useSiteSettings } from "@/components/settings/SiteSettingsProvider";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -83,6 +91,8 @@ export function CheckoutFlow() {
   const [step, setStep] = useState(0);
   const [confirmed, setConfirmed] = useState(false);
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
+  const [confirmedInvoice, setConfirmedInvoice] =
+    useState<CustomerInvoice | null>(null);
   const [placing, setPlacing] = useState(false);
   const [shippingMethod, setShippingMethod] = useState("standard");
   const [paymentMethod, setPaymentMethod] = useState("card");
@@ -291,6 +301,31 @@ export function CheckoutFlow() {
         clearCart: cartItems.length > 0,
       });
       setOrderNumber(res.data.orderId);
+      setConfirmedInvoice({
+        id: invoiceIdFromOrderNumber(res.data.orderId, res.data.id),
+        orderId: res.data.orderId,
+        date: new Date().toISOString().slice(0, 10),
+        amount: total,
+        subtotal,
+        shipping: shippingCost,
+        tax,
+        discount,
+        status: "pending",
+        paymentMethod,
+        shippingName: `${form.firstName} ${form.lastName}`.trim() || user?.name,
+        shippingEmail: form.email || user?.email,
+        shippingAddress: form.address,
+        shippingCity: form.city,
+        shippingState: form.state,
+        shippingZip: form.zip,
+        shippingMethod,
+        items: lineItems.map((it) => ({
+          name: it.name,
+          quantity: it.quantity,
+          unitPrice: it.unitPrice,
+          size: it.size,
+        })),
+      });
       setConfirmed(true);
       await clearCart().catch(() => undefined);
       await refresh().catch(() => undefined);
@@ -331,12 +366,51 @@ export function CheckoutFlow() {
             <p className="mt-2 text-sm font-bold text-text-primary">
               Order #{orderNumber}
             </p>
+            {confirmedInvoice ? (
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => viewInvoice(confirmedInvoice)}
+                >
+                  <Eye className="h-4 w-4" />
+                  View invoice
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => {
+                    void downloadInvoice(confirmedInvoice).then(() => {
+                      toast({
+                        title: "Invoice downloaded",
+                        description: `${confirmedInvoice.id}.pdf saved.`,
+                        tone: "success",
+                      });
+                    }).catch((err: unknown) => {
+                      toast({
+                        title: "Download failed",
+                        description:
+                          err instanceof Error
+                            ? err.message
+                            : "Could not create PDF.",
+                        tone: "danger",
+                      });
+                    });
+                  }}
+                >
+                  <Download className="h-4 w-4" />
+                  Download invoice
+                </Button>
+              </div>
+            ) : null}
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <Link href="/products">
                 <Button variant="outline">Continue shopping</Button>
               </Link>
-              <Link href="/admin/orders">
-                <Button variant="outline">View in admin</Button>
+              <Link href="/dashboard/orders">
+                <Button variant="outline">View orders</Button>
               </Link>
               <Link href="/">
                 <Button>Back to home</Button>

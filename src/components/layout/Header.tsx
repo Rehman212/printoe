@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Bookmark,
@@ -179,6 +179,7 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
   const [accountOpen, setAccountOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [menuProducts, setMenuProducts] = useState<CatalogProduct[]>([]);
+  const desktopNavRef = useRef<HTMLDivElement>(null);
 
   const navGroups = useMemo(
     () => resolveProductMenu(HEADER_NAV_GROUPS, menuProducts),
@@ -218,6 +219,24 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
       cancelled = true;
     };
   }, [announcementOnly]);
+
+  useEffect(() => {
+    if (!navOpen) return;
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (target && desktopNavRef.current?.contains(target)) return;
+      setNavOpen(null);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setNavOpen(null);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [navOpen]);
 
   const onSearch = (e: FormEvent) => {
     e.preventDefault();
@@ -513,10 +532,10 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
         </Container>
       </div>
 
-      {/* Category navigation */}
+      {/* Category navigation — open on click (not hover) */}
       <div
+        ref={desktopNavRef}
         className="relative z-[110] hidden border-b border-border bg-card lg:block"
-        onMouseLeave={() => setNavOpen(null)}
       >
         <Container size="wide">
           <nav
@@ -525,23 +544,39 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
           >
             {navGroups.map((group) => {
               const isOpen = navOpen === group.label;
+              const hasMenu = Boolean(group.mega?.length || group.children?.length);
               return (
                 <div
                   key={group.label}
                   className={cn("relative", isOpen && "z-[120]")}
-                  onMouseEnter={() => setNavOpen(group.label)}
                 >
-                  <Link
-                    href={group.href}
-                    className={cn(
-                      "inline-flex items-center whitespace-nowrap px-2 py-3.5 text-sm font-semibold transition",
-                      isOpen
-                        ? "text-primary"
-                        : "text-[#1b4f9c] hover:text-primary",
-                    )}
-                  >
-                    {group.label}
-                  </Link>
+                  {hasMenu ? (
+                    <button
+                      type="button"
+                      aria-expanded={isOpen}
+                      aria-haspopup="true"
+                      onClick={() =>
+                        setNavOpen((prev) =>
+                          prev === group.label ? null : group.label,
+                        )
+                      }
+                      className={cn(
+                        "inline-flex items-center whitespace-nowrap px-2 py-3.5 text-sm font-semibold transition",
+                        isOpen
+                          ? "text-primary"
+                          : "text-[#1b4f9c] hover:text-primary",
+                      )}
+                    >
+                      {group.label}
+                    </button>
+                  ) : (
+                    <Link
+                      href={group.href}
+                      className="inline-flex items-center whitespace-nowrap px-2 py-3.5 text-sm font-semibold text-[#1b4f9c] transition hover:text-primary"
+                    >
+                      {group.label}
+                    </Link>
+                  )}
                   <AnimatePresence>
                     {isOpen && !group.mega ? (
                       <motion.div
@@ -569,8 +604,7 @@ export function Header({ announcementOnly = false }: { announcementOnly?: boolea
           </nav>
         </Container>
 
-        {/* Full-width mega panel — a DOM child of the nav bar so hovering it
-            does not fire the bar's mouseleave. */}
+        {/* Full-width mega panel */}
         <AnimatePresence>
           {activeMega ? (
             <motion.div

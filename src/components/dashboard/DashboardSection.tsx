@@ -661,12 +661,24 @@ export function DashboardSection({ section }: { section: string }) {
                             <button
                               type="button"
                               onClick={() => {
-                                downloadInvoice(inv);
-                                toast({
-                                  title: "Invoice downloaded",
-                                  description: `${inv.id}.html saved — open it and Print to PDF if needed.`,
-                                  tone: "success",
-                                });
+                                void downloadInvoice(inv)
+                                  .then(() => {
+                                    toast({
+                                      title: "Invoice downloaded",
+                                      description: `${inv.id}.pdf saved.`,
+                                      tone: "success",
+                                    });
+                                  })
+                                  .catch((err: unknown) => {
+                                    toast({
+                                      title: "Download failed",
+                                      description:
+                                        err instanceof Error
+                                          ? err.message
+                                          : "Could not create PDF.",
+                                      tone: "danger",
+                                    });
+                                  });
                               }}
                               className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-primary px-3.5 text-sm font-semibold text-white transition hover:bg-primary-hover"
                             >
@@ -713,12 +725,24 @@ export function DashboardSection({ section }: { section: string }) {
                   <Button
                     onClick={() => {
                       if (!viewingInvoice) return;
-                      downloadInvoice(viewingInvoice);
-                      toast({
-                        title: "Invoice downloaded",
-                        description: `${viewingInvoice.id}.html saved.`,
-                        tone: "success",
-                      });
+                      void downloadInvoice(viewingInvoice)
+                        .then(() => {
+                          toast({
+                            title: "Invoice downloaded",
+                            description: `${viewingInvoice.id}.pdf saved.`,
+                            tone: "success",
+                          });
+                        })
+                        .catch((err: unknown) => {
+                          toast({
+                            title: "Download failed",
+                            description:
+                              err instanceof Error
+                                ? err.message
+                                : "Could not create PDF.",
+                            tone: "danger",
+                          });
+                        });
                     }}
                   >
                     <Download className="mr-1.5 h-4 w-4" />
