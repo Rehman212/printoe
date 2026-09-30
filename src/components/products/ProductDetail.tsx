@@ -744,6 +744,23 @@ export function ProductDetail({ slug }: { slug: string }) {
   const sizeGroup = useMemo(() => findSizeOptionGroup(options), [options]);
   const customSizePilot =
     isCustomSizePilot(slug) && searchParams.get("legacy") !== "1";
+  const posterNativeCustom = useMemo(() => {
+    if (slug !== "poster-signs" || !sizeGroup) return false;
+    return sizeGroup.values.some((value) => /^custom\b/i.test(value.label));
+  }, [slug, sizeGroup]);
+
+  useEffect(() => {
+    if (!customSizePilot || !posterNativeCustom || !sizeGroup) return;
+    const selected = sizeGroup.values.find(
+      (value) => value.value === selections[sizeGroup.key],
+    );
+    const on = Boolean(selected && /^custom\b/i.test(selected.label));
+    setCustomSizeOn(on);
+    if (on) {
+      setCustomWidth((current) => current || "3");
+      setCustomHeight((current) => current || "3");
+    }
+  }, [customSizePilot, posterNativeCustom, sizeGroup, selections]);
 
   const onOptionChange = (key: string, value: string) => {
     if (customSizePilot && sizeGroup && key === sizeGroup.key) {
@@ -758,7 +775,14 @@ export function ProductDetail({ slug }: { slug: string }) {
         setCustomSizeOn(true);
         return;
       }
-      setCustomSizeOn(false);
+      const picked = sizeGroup.values.find((v) => v.value === value);
+      if (slug === "poster-signs" && picked && /^custom\b/i.test(picked.label)) {
+        setCustomWidth((current) => current || "3");
+        setCustomHeight((current) => current || "3");
+        setCustomSizeOn(true);
+      } else {
+        setCustomSizeOn(false);
+      }
     }
     setSelections((prev) => {
       // Switching Label Type should re-apply that type's defaults (Sheet vs Roll).

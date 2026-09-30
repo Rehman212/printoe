@@ -270,6 +270,9 @@ export function ProductConfigurator({
           );
         }
 
+        const hasNativeCustom =
+          productSlug === "poster-signs" &&
+          group.values.some((v) => /^custom\b/i.test(v.label));
         const selectOptions = isCustomSizeGroup
           ? [
               ...group.values.map((v) => {
@@ -282,7 +285,9 @@ export function ProductConfigurator({
                     : {}),
                 };
               }),
-              { label: "Custom Size", value: CUSTOM_SIZE_VALUE },
+              ...(hasNativeCustom
+                ? []
+                : [{ label: "Custom Size", value: CUSTOM_SIZE_VALUE }]),
             ]
           : group.values.map((v) => {
               const optionGroup = v.meta?.optionGroup;
@@ -295,7 +300,7 @@ export function ProductConfigurator({
               };
             });
         const selectValue =
-          isCustomSizeGroup && customSize?.enabled
+          isCustomSizeGroup && customSize?.enabled && !hasNativeCustom
             ? CUSTOM_SIZE_VALUE
             : selected;
         const unit = customSizeUnit(productSlug ?? "");
