@@ -143,7 +143,6 @@ export const CUSTOM_SIZE_PILOT_SLUGS = [
   "feather-flags",
   "sealing-stickers",
   "stand-up-pouches",
-  "printed-tablecloths",
   "poly-draw-bags",
   "custom-gift-bags",
   "custom-gift-bags-2",
