@@ -188,14 +188,23 @@ export function ProductConfigurator({
         }
 
         if (group.uiType === "CARDS") {
+          const showLabel = Boolean(group.label?.trim());
+          const twoUp = group.values.length <= 2;
           return (
             <div key={group.id} className="space-y-2.5">
-              <FieldLabel
-                label={group.label}
-                helpText={group.helpText}
-                Icon={fieldIconFor(group.label)}
-              />
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {showLabel ? (
+                <FieldLabel
+                  label={group.label}
+                  helpText={group.helpText}
+                  Icon={fieldIconFor(group.label)}
+                />
+              ) : null}
+              <div
+                className={cn(
+                  "grid gap-2",
+                  twoUp ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-4",
+                )}
+              >
                 {group.values.map((v) => {
                   const Icon = optionCardIcon(v);
                   const imageUrl =
@@ -207,7 +216,7 @@ export function ProductConfigurator({
                       type="button"
                       onClick={() => onChange(group.key, v.value)}
                       className={cn(
-                        "flex flex-col items-center gap-2 rounded-xl border px-2 py-3 text-center transition focus-ring",
+                        "flex flex-col items-center justify-center gap-2 rounded-xl border px-3 py-3 text-center transition focus-ring",
                         active
                           ? "border-primary bg-primary/5 text-primary shadow-soft"
                           : "border-border bg-card text-text-secondary hover:border-primary/40",
@@ -220,7 +229,7 @@ export function ProductConfigurator({
                           alt=""
                           className="h-9 w-9 object-contain"
                         />
-                      ) : (
+                      ) : twoUp ? null : (
                         <Icon className="h-5 w-5" />
                       )}
                       <span className="text-xs font-semibold leading-tight">
