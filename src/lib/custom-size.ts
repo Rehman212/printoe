@@ -14,7 +14,6 @@ export const CUSTOM_SIZE_PILOT_SLUGS = [
   "poly-mailers",
   "rubber-stamps",
   "pocket-folders",
-  "retractable-banners",
   "x-banner-stands",
   "backdrops",
   "rigid-mailers",
@@ -53,7 +52,6 @@ export const CUSTOM_SIZE_PILOT_SLUGS = [
   "beer-labels",
   "custom-wall-decals",
   "table-runners",
-  "reflective-adhesive-vinyl-signs",
   "window-decals",
   "yard-signs",
   "counter-cards",
@@ -73,7 +71,6 @@ export const CUSTOM_SIZE_PILOT_SLUGS = [
   "holographic-stickers",
   "kiss-cut-stickers",
   "die-cut-stickers",
-  "qr-code-stickers",
   "address-labels-return-address-labels",
   "water-bottle-labels",
   "metallic-bookmarks",
@@ -135,7 +132,6 @@ export const CUSTOM_SIZE_PILOT_SLUGS = [
   "half-circle-business-cards",
   "leaf-business-cards",
   "raised-spot-uv-business-cards",
-  "raised-foil-business-cards",
   "rounded-corner-business-cards",
   "metal-business-cards",
   "folded-business-cards",
@@ -244,7 +240,7 @@ export function findSizeOptionGroup<T extends { key: string; label: string }>(
   return groups.find(
     (g) =>
       (/size/i.test(g.label) || /size/i.test(g.key)) &&
-      !/table size|pack size|can size|frame size/i.test(g.label),
+      !/table size|finished size|pack size|can size|frame size/i.test(g.label),
   );
 }
 

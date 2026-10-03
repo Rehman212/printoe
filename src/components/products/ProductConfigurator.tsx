@@ -279,9 +279,9 @@ export function ProductConfigurator({
           );
         }
 
-        const hasNativeCustom =
-          productSlug === "poster-signs" &&
-          group.values.some((v) => /^custom\b/i.test(v.label));
+        const hasNativeCustom = group.values.some((v) =>
+          /^custom\b/i.test(v.label),
+        );
         const selectOptions = isCustomSizeGroup
           ? [
               ...group.values.map((v) => {

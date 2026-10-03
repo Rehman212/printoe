@@ -445,13 +445,23 @@ export function ProductDetail({ slug }: { slug: string }) {
 
   const visibleOptions = useMemo(() => {
     const base = visibleImportedOptions(options, selections);
+    if (selections.attr0 === "26215" || selections.attr0 === "26253") {
+      return base.map((group) => {
+        if (group.key === "attr3") return { ...group, label: "Sheet Size" };
+        // Sheet/Kiss-Cut Shape is a one-value dropdown on UPrinting, not a readout.
+        if (group.key === "attr10" && group.values.length === 1) {
+          return { ...group, meta: { ...group.meta, forceSelect: true } };
+        }
+        return group;
+      });
+    }
     if (selections.attr0 !== "1508") return base;
     return base.map((group) => {
       if (group.key === "attr3") return { ...group, label: "Label Size" };
       if (group.key === "attr6") return { ...group, label: "Turnaround" };
       return group;
     });
-  }, [options, selections]);
+  }, [options, selections, slug]);
 
   const matrixSelections = useMemo(() => {
     const visibleKeys = new Set(visibleOptions.map((group) => group.key));
@@ -541,7 +551,10 @@ export function ProductDetail({ slug }: { slug: string }) {
     void fetchConfiguredMatrixPrice(
       slug,
       matrixSelections,
-      customSizeOn && Number(customWidth) > 0 && Number(customHeight) > 0
+      customSizeOn &&
+      slug !== "printed-tablecloths" &&
+      Number(customWidth) > 0 &&
+      Number(customHeight) > 0
         ? { width: Number(customWidth), height: Number(customHeight) }
         : undefined,
     )
@@ -743,9 +756,13 @@ export function ProductDetail({ slug }: { slug: string }) {
 
   const sizeGroup = useMemo(() => findSizeOptionGroup(options), [options]);
   const customSizePilot =
-    isCustomSizePilot(slug) && searchParams.get("legacy") !== "1";
+    slug !== "printed-tablecloths" &&
+    slug !== "qr-code-stickers" &&
+    isCustomSizePilot(slug) &&
+    searchParams.get("legacy") !== "1";
   const posterNativeCustom = useMemo(() => {
-    if (slug !== "poster-signs" || !sizeGroup) return false;
+    if (!sizeGroup) return false;
+    if (slug !== "poster-signs") return false;
     return sizeGroup.values.some((value) => /^custom\b/i.test(value.label));
   }, [slug, sizeGroup]);
 
