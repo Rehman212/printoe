@@ -202,7 +202,7 @@ export function ProductConfigurator({
               <div
                 className={cn(
                   "grid gap-2",
-                  twoUp ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-4",
+                  twoUp ? "grid-cols-2" : group.values.length === 5 ? "grid-cols-5" : "grid-cols-2 sm:grid-cols-4",
                 )}
               >
                 {group.values.map((v) => {
