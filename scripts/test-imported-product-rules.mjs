@@ -78,4 +78,46 @@ assert.deepEqual(foil, {
   attr643: "yes",
 });
 
+const rack = [
+  {
+    id: "size",
+    key: "attr3",
+    label: "Size",
+    uiType: "SELECT",
+    required: true,
+    sortOrder: 0,
+    meta: { defaultsByProduct: { "24": "933" } },
+    values: [
+      { id: "std", label: '3.5" x 8.5"', value: "933", priceMod: 1, sortOrder: 0, meta: { default: true } },
+      { id: "custom", label: "Custom Size", value: "1771562", priceMod: 1, sortOrder: 1, meta: {} },
+    ],
+  },
+  {
+    id: "width",
+    key: "attr247",
+    label: "Width (Inches)",
+    uiType: "NUMBER",
+    required: true,
+    sortOrder: 1,
+    meta: {
+      defaultsByProduct: { "24": "2" },
+      hideRulesByProduct: { "24": [{ attr3: "933" }] },
+    },
+    values: [],
+  },
+];
+const rackDefault = importedDefaultSelections(rack);
+assert.deepEqual(rackDefault, { attr3: "933" });
+assert.equal(
+  visibleImportedOptions(rack, rackDefault).some((group) => group.key === "attr247"),
+  false,
+);
+const rackCustom = normalizeImportedSelections(rack, { attr3: "1771562" });
+assert.equal(rackCustom.attr3, "1771562");
+assert.equal(rackCustom.attr247, "2");
+assert.equal(
+  visibleImportedOptions(rack, rackCustom).some((group) => group.key === "attr247"),
+  true,
+);
+
 console.log("Imported product rule tests passed.");

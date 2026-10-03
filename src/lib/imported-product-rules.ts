@@ -148,7 +148,7 @@ export function visibleImportedOptions(
                 valueAvailable(value, productId, selections),
             ),
     }))
-    .filter((group) => group.values.length > 0);
+    .filter((group) => group.values.length > 0 || group.uiType === "NUMBER");
 }
 
 function pickDefaultValue(
@@ -184,6 +184,16 @@ export function normalizeImportedSelections(
     }
     const productId = activeProductId(options, selections);
     for (const group of visible) {
+      if (group.uiType === "NUMBER") {
+        if (group.key === protectedKey) continue;
+        if (String(selections[group.key] ?? "").trim()) continue;
+        const configuredDefault = group.meta?.defaultsByProduct?.[productId];
+        if (configuredDefault) {
+          selections[group.key] = String(configuredDefault);
+          changed = true;
+        }
+        continue;
+      }
       if (
         group.values.some((value) => value.value === selections[group.key])
       ) {

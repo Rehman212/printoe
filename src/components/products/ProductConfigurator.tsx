@@ -244,6 +244,8 @@ export function ProductConfigurator({
         }
 
         if (group.uiType === "NUMBER") {
+          const minValue = Number(group.meta?.minValue);
+          const maxValue = Number(group.meta?.maxValue);
           return (
             <div key={group.id} className="space-y-2.5">
               <FieldLabel
@@ -253,7 +255,9 @@ export function ProductConfigurator({
               />
               <input
                 type="number"
-                min={1}
+                min={Number.isFinite(minValue) ? minValue : undefined}
+                max={Number.isFinite(maxValue) ? maxValue : undefined}
+                step="0.25"
                 value={selected}
                 placeholder="Enter…"
                 onChange={(e) => onChange(group.key, e.target.value)}

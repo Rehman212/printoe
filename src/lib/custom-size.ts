@@ -34,7 +34,6 @@ export const CUSTOM_SIZE_PILOT_SLUGS = [
   "velvet-postcards",
   "dvd-inserts",
   "dvd-covers",
-  "rack-cards",
   "custom-labels-roll",
   "custom-labels",
   "tension-fabric-banners",
